@@ -7,10 +7,10 @@
 use crate::error::Result;
 use crate::pattern::PatternEngine;
 use crossterm::{
-    cursor::MoveTo,
+    cursor::{Hide, MoveTo, Show},
     execute, queue,
     style::{Color, ResetColor, SetForegroundColor},
-    terminal::{self, Clear, ClearType},
+    terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use log::{debug, trace};
 use std::io::{stdout, Write};
@@ -59,28 +59,25 @@ pub struct Renderer {
     color_buffer: Vec<Vec<Color>>,
     /// Whether colors are enabled
     colors_enabled: bool,
+    /// Whether we're in alternate screen mode
+    alternate_screen: bool,
 }
 
 impl Renderer {
     /// Creates a new renderer instance
-    ///
-    /// # Arguments
-    /// * `engine` - Pattern generation engine
-    /// * `config` - Animation configuration
-    ///
-    /// # Returns
-    /// * `Result<Self>` - New renderer instance or error
     pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self> {
         let term_size = terminal::size()?;
         let colors_enabled = atty::is(atty::Stream::Stdout);
+        let color_buffer = vec![vec![Color::White; term_size.0 as usize]; term_size.1 as usize];
 
         Ok(Self {
             engine,
             config,
             term_size,
             line_buffer: Vec::new(),
-            color_buffer: vec![vec![Color::White; term_size.0 as usize]; term_size.1 as usize],
+            color_buffer,
             colors_enabled,
+            alternate_screen: false,
         })
     }
 
@@ -101,35 +98,59 @@ impl Renderer {
 
     /// Renders static text with pattern
     ///
-    /// # Arguments
-    /// * `text` - Text to render
-    ///
-    /// # Returns
-    /// * `Result<()>` - Success or error
+    /// For static rendering, we write directly to the main screen
+    /// and preserve scrollback buffer
     pub fn render_static(&mut self, text: &str) -> Result<()> {
+        let mut stdout = stdout();
+
+        // Process the text
         self.prepare_text_buffer(text)?;
         self.update_color_buffer()?;
-        self.render_frame_content()?;
 
-        let mut stdout = stdout();
+        // Render each line with colors and explicit newlines
+        for (y, line) in self.line_buffer.iter().enumerate() {
+            // Handle plain text mode
+            if !self.colors_enabled {
+                writeln!(stdout, "{}", line)?;
+                continue;
+            }
+
+            // Render colored text
+            let mut x_pos = 0;
+            for grapheme in line.graphemes(true) {
+                // Ensure we don't access beyond color buffer bounds
+                if x_pos >= self.color_buffer[y].len() {
+                    write!(stdout, "{}", grapheme)?;
+                    continue;
+                }
+
+                queue!(stdout, SetForegroundColor(self.color_buffer[y][x_pos]))?;
+                write!(stdout, "{}", grapheme)?;
+
+                x_pos += 1;
+            }
+
+            // Always write a newline after each line
+            write!(stdout, "\n")?;
+        }
+
+        // Reset colors and flush
         queue!(stdout, ResetColor)?;
         stdout.flush()?;
-
         Ok(())
     }
 
     /// Renders a single animation frame
-    ///
-    /// # Arguments
-    /// * `text` - Text to render
-    /// * `elapsed` - Time elapsed since animation start
-    ///
-    /// # Returns
-    /// * `Result<()>` - Success or error
     pub fn render_frame(&mut self, text: &str, elapsed: Duration) -> Result<()> {
-        self.prepare_text_buffer(text)?;
+        let mut stdout = stdout();
 
-        // Calculate animation progress
+        // Enter alternate screen mode if animation
+        if !self.alternate_screen {
+            execute!(stdout, EnterAlternateScreen, Hide)?;
+            self.alternate_screen = true;
+        }
+
+        // Calculate progress and update pattern
         let cycle_progress = if self.config.infinite {
             (elapsed.as_secs_f64() % self.cycle_duration().as_secs_f64())
                 / self.cycle_duration().as_secs_f64()
@@ -137,138 +158,156 @@ impl Renderer {
             elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()
         };
 
-        // Update pattern and render
         self.engine.update(cycle_progress);
+
+        // Render frame
+        self.prepare_text_buffer(text)?;
         self.update_color_buffer()?;
         self.render_frame_content()?;
 
-        // Show progress bar if enabled
         if self.config.show_progress {
             self.render_progress_bar(cycle_progress)?;
         }
 
-        stdout().flush()?;
+        stdout.flush()?;
         Ok(())
     }
 
-    /// Prepares the text buffer for rendering by splitting into lines and handling wrapping
-    ///
-    /// # Arguments
-    /// * `text` - Input text to prepare
-    ///
-    /// # Returns
-    /// * `Result<()>` - Success or error
+    /// Prepares the text buffer by handling line wrapping and newlines
     fn prepare_text_buffer(&mut self, text: &str) -> Result<()> {
-        debug!("Preparing text buffer");
         self.line_buffer.clear();
 
-        let mut current_line = String::new();
-        let mut current_width = 0;
-
-        // Process text grapheme by grapheme
-        for grapheme in text.graphemes(true) {
-            let width = grapheme.width();
-
-            // Handle line wrapping
-            if current_width + width > self.term_size.0 as usize {
-                self.line_buffer.push(current_line);
-                current_line = String::new();
-                current_width = 0;
+        // Split text by explicit newlines first
+        for input_line in text.split('\n') {
+            if input_line.is_empty() {
+                // Preserve empty lines
+                self.line_buffer.push(String::new());
+                continue;
             }
 
-            current_line.push_str(grapheme);
-            current_width += width;
+            let mut current_line = String::new();
+            let mut current_width = 0;
+
+            // Process each grapheme in the line
+            for grapheme in input_line.graphemes(true) {
+                let width = grapheme.width();
+
+                // Handle line wrapping at terminal width
+                if current_width + width > self.term_size.0 as usize {
+                    if !current_line.is_empty() {
+                        self.line_buffer.push(current_line);
+                        current_line = String::new();
+                        current_width = 0;
+                    }
+                }
+
+                current_line.push_str(grapheme);
+                current_width += width;
+            }
+
+            // Push final line segment if not empty
+            if !current_line.is_empty() || input_line.is_empty() {
+                self.line_buffer.push(current_line);
+            }
         }
 
-        // Add final line if not empty
-        if !current_line.is_empty() {
-            self.line_buffer.push(current_line);
-        }
-
-        trace!("Prepared {} lines", self.line_buffer.len());
         Ok(())
     }
 
-    /// Updates the color buffer based on current pattern values
-    ///
-    /// # Returns
-    /// * `Result<()>` - Success or error
+    /// Updates the color buffer based on pattern values
     fn update_color_buffer(&mut self) -> Result<()> {
         if !self.colors_enabled {
             return Ok(());
         }
 
-        debug!("Updating color buffer");
-        for (y, line) in self.line_buffer.iter().enumerate() {
-            if y >= self.term_size.1 as usize {
-                break;
-            }
+        // Ensure color buffer is large enough for current content
+        let max_line_length = self
+            .line_buffer
+            .iter()
+            .map(|line| line.graphemes(true).count())
+            .max()
+            .unwrap_or(0);
+        let buffer_height = self.line_buffer.len();
 
+        // Resize buffer if needed
+        if self.color_buffer.len() < buffer_height
+            || self.color_buffer.first().map_or(0, |row| row.len()) < max_line_length
+        {
+            self.color_buffer =
+                vec![
+                    vec![Color::White; max_line_length.max(self.term_size.0 as usize)];
+                    buffer_height.max(self.term_size.1 as usize)
+                ];
+        }
+
+        // Update colors for each character
+        for (y, line) in self.line_buffer.iter().enumerate() {
             let mut x_pos = 0;
             for grapheme in line.graphemes(true) {
-                if x_pos >= self.term_size.0 as usize {
+                if x_pos >= self.color_buffer[y].len() {
                     break;
                 }
 
                 let pattern_value = self.engine.get_value_at(x_pos, y)?;
                 self.color_buffer[y][x_pos] = self.value_to_color(pattern_value);
 
-                x_pos += grapheme.width();
+                x_pos += 1;
             }
         }
 
         Ok(())
     }
 
-    /// Renders the current frame content to the terminal
-    ///
-    /// # Returns
-    /// * `Result<()>` - Success or error
+    /// Renders the current frame content (used for animation)
     fn render_frame_content(&self) -> Result<()> {
         let mut stdout = stdout();
-        queue!(stdout, Clear(ClearType::All))?;
 
+        // Clear screen and move to top
+        queue!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+
+        // Render each line
         for (y, line) in self.line_buffer.iter().enumerate() {
             if y >= self.term_size.1 as usize {
                 break;
             }
 
+            // Position cursor at start of line
             queue!(stdout, MoveTo(0, y as u16))?;
 
+            // Handle plain text mode
             if !self.colors_enabled {
-                queue!(stdout, SetForegroundColor(Color::White))?;
-                write!(stdout, "{}", line)?;
+                writeln!(stdout, "{}", line)?;
                 continue;
             }
 
+            // Render colored text
             let mut x_pos = 0;
             for grapheme in line.graphemes(true) {
-                if x_pos >= self.term_size.0 as usize {
-                    break;
+                // Ensure we don't access beyond color buffer bounds
+                if x_pos >= self.color_buffer[y].len() {
+                    write!(stdout, "{}", grapheme)?;
+                    continue;
                 }
 
                 queue!(stdout, SetForegroundColor(self.color_buffer[y][x_pos]))?;
                 write!(stdout, "{}", grapheme)?;
 
-                x_pos += grapheme.width();
+                x_pos += 1;
             }
+
+            write!(stdout, "\n")?;
         }
 
+        stdout.flush()?;
         Ok(())
     }
 
     /// Renders the animation progress bar
-    ///
-    /// # Arguments
-    /// * `progress` - Current animation progress (0.0 to 1.0)
-    ///
-    /// # Returns
-    /// * `Result<()>` - Success or error
     fn render_progress_bar(&self, progress: f64) -> Result<()> {
+        let mut stdout = stdout();
         let bar_width = self.term_size.0.saturating_sub(20) as usize;
         let filled = (progress * bar_width as f64).min(bar_width as f64) as usize;
 
-        let mut stdout = stdout();
         queue!(
             stdout,
             MoveTo(0, self.term_size.1.saturating_sub(1)),
@@ -283,16 +322,11 @@ impl Renderer {
             progress * 100.0
         )?;
 
+        stdout.flush()?;
         Ok(())
     }
 
     /// Converts a pattern value to a terminal color
-    ///
-    /// # Arguments
-    /// * `value` - Pattern value (0.0 to 1.0)
-    ///
-    /// # Returns
-    /// * `Color` - Terminal color
     fn value_to_color(&self, value: f64) -> Color {
         let clamped_value = value.clamp(0.0, 1.0);
         let gradient_color = self.engine.gradient().at(clamped_value as f32);
@@ -307,22 +341,18 @@ impl Renderer {
 
 impl Drop for Renderer {
     fn drop(&mut self) {
-        // Ensure we reset terminal colors on drop
-        if let Err(e) = execute!(stdout(), ResetColor) {
-            eprintln!("Error resetting colors: {}", e);
+        let mut stdout = stdout();
+
+        // Clean up terminal state
+        if self.alternate_screen {
+            let _ = execute!(stdout, Show, LeaveAlternateScreen);
         }
+        let _ = execute!(stdout, ResetColor);
+        let _ = stdout.flush();
     }
 }
 
 /// Utility function to convert HSV color values to RGB
-///
-/// # Arguments
-/// * `h` - Hue (0.0 to 1.0)
-/// * `s` - Saturation (0.0 to 1.0)
-/// * `v` - Value (0.0 to 1.0)
-///
-/// # Returns
-/// * `(f64, f64, f64)` - RGB color components (0.0 to 1.0)
 fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (f64, f64, f64) {
     let h = if h < 0.0 {
         h + 1.0
