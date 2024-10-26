@@ -1,6 +1,5 @@
 use chromacat::cli::Cli;
 use chromacat::ChromaCat;
-use std::path::PathBuf;
 
 #[test]
 fn test_chromacat_basic() {
@@ -11,6 +10,7 @@ fn test_chromacat_basic() {
         no_color: true,
         diagonal: false,
         angle: 45,
+        list_themes: false,
     };
 
     let cat = ChromaCat::new(cli);
@@ -26,6 +26,7 @@ fn test_chromacat_invalid_angle() {
         no_color: true,
         diagonal: true,
         angle: 400, // Invalid angle
+        list_themes: false,
     };
 
     let cat = ChromaCat::new(cli);
@@ -41,6 +42,7 @@ fn test_chromacat_invalid_theme() {
         no_color: true,
         diagonal: false,
         angle: 45,
+        list_themes: false,
     };
 
     let cat = ChromaCat::new(cli);

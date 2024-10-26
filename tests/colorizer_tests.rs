@@ -1,6 +1,6 @@
 use chromacat::colorizer::Colorizer;
 use chromacat::gradient::{GradientConfig, Theme};
-use std::io::{self, Cursor};
+use std::io::Cursor;
 
 #[test]
 fn test_colorizer_basic() {
@@ -152,16 +152,16 @@ fn test_colorizer_all_themes() {
 #[test]
 fn test_colorizer_various_angles() {
     let theme = Theme::Rainbow;
-    let gradient = theme.create_gradient().unwrap();
     let angles = vec![0, 45, 90, 180, 270, 360];
 
     for angle in angles {
+        let gradient = theme.create_gradient().unwrap();
         let config = GradientConfig {
             diagonal: true,
             angle,
             cycle: false,
         };
-        let mut colorizer = Colorizer::new(gradient.clone(), config, false);
+        let mut colorizer = Colorizer::new(gradient, config, false);
         let input = Cursor::new("Line 1\nLine 2\nLine 3");
         assert!(colorizer.colorize(input).is_ok());
     }
