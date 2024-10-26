@@ -33,7 +33,7 @@ fn test_diagonal_gradient() {
         cycle: false,
     };
     let mut engine = GradientEngine::new(gradient, config);
-    
+
     engine.set_total_lines(10);
     engine.set_current_line(5);
 

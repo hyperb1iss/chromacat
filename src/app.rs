@@ -1,45 +1,224 @@
-use crate::cli::Cli;
-use crate::colorizer::Colorizer;
-use crate::error::Result;
-use crate::gradient::GradientConfig;
-use crate::input::InputHandler;
-use crate::themes::Theme;
-use std::str::FromStr;
+//! ChromaCat application core
+//!
+//! This module provides the main application logic and coordinates all components
+//! of ChromaCat. It handles initialization, input processing, and orchestrates
+//! the pattern generation and rendering pipeline.
 
-/// Main application struct that coordinates all ChromaCat functionality
+use crate::cli::Cli;
+use crate::error::{ChromaCatError, Result};
+use crate::input::InputReader;
+use crate::pattern::PatternEngine;
+use crate::renderer::Renderer;
+
+use crossterm::cursor::{Hide, Show};
+use crossterm::event::{self, Event, KeyCode};
+use crossterm::execute;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
+use log::{debug, info, warn};
+use std::io::{stdout, Write};
+use std::time::Instant;
+
+/// Main application struct that coordinates ChromaCat functionality
 pub struct ChromaCat {
+    /// Command line interface configuration
     cli: Cli,
+    /// Terminal dimensions
+    term_size: (u16, u16),
+    /// Whether the application is in raw mode
+    raw_mode: bool,
+    /// Whether we're using the alternate screen
+    alternate_screen: bool,
 }
 
 impl ChromaCat {
     /// Creates a new ChromaCat instance
     pub fn new(cli: Cli) -> Self {
-        Self { cli }
+        Self {
+            cli,
+            term_size: (0, 0),
+            raw_mode: false,
+            alternate_screen: false,
+        }
     }
 
     /// Runs the ChromaCat application
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
+        debug!("Starting ChromaCat with configuration: {:?}", self.cli);
+
+        // Handle --list flag
+        if self.cli.list_available {
+            Cli::print_available_options();
+            return Ok(());
+        }
+
         // Validate CLI arguments
         self.cli.validate()?;
 
-        // Set up the gradient
-        let theme = Theme::from_str(&self.cli.theme).unwrap_or(Theme::Rainbow);
-        let gradient = theme.create_gradient()?;
+        // Initialize terminal
+        self.setup_terminal()?;
 
-        // Configure the gradient engine
-        let config = GradientConfig {
-            diagonal: self.cli.diagonal,
-            angle: self.cli.angle,
-            cycle: self.cli.cycle,
-        };
+        // Create pattern configuration and engine
+        info!("Creating pattern configuration");
+        let pattern_config = self.cli.create_pattern_config()?;
 
-        // Set up the colorizer with gradient configuration
-        let mut colorizer = Colorizer::new(gradient, config, self.cli.no_color);
+        info!("Initializing pattern engine");
+        let engine = PatternEngine::new(
+            pattern_config,
+            self.term_size.0 as usize,
+            self.term_size.1 as usize,
+        );
 
-        // Process input
-        let mut input = InputHandler::new(self.cli.input.as_ref())?;
-        colorizer.colorize(input.reader())?;
+        // Set up the renderer
+        let animation_config = self.cli.create_animation_config();
+        info!("Creating renderer with config: {:?}", animation_config);
+        let mut renderer = Renderer::new(engine, animation_config)?;
+
+        // Process input and render
+        let result = self.process_input(&mut renderer);
+
+        // Cleanup terminal
+        self.cleanup_terminal()?;
+
+        result
+    }
+
+    /// Sets up the terminal for rendering
+    fn setup_terminal(&mut self) -> Result<()> {
+        // Get terminal size
+        self.term_size = crossterm::terminal::size()
+            .map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+
+        if self.cli.animate {
+            // Enter raw mode for animation
+            enable_raw_mode().map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+            self.raw_mode = true;
+
+            // Enter alternate screen
+            execute!(stdout(), EnterAlternateScreen)?;
+            self.alternate_screen = true;
+
+            // Hide cursor
+            execute!(stdout(), Hide)?;
+        }
 
         Ok(())
+    }
+
+    /// Restores terminal state
+    fn cleanup_terminal(&mut self) -> Result<()> {
+        let mut stdout = stdout();
+
+        if self.raw_mode {
+            disable_raw_mode().map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+            self.raw_mode = false;
+        }
+
+        if self.alternate_screen {
+            execute!(stdout, LeaveAlternateScreen)?;
+            self.alternate_screen = false;
+        }
+
+        execute!(stdout, Show)?;
+        stdout.flush()?;
+
+        Ok(())
+    }
+
+    /// Processes input from files or stdin
+    fn process_input(&self, renderer: &mut Renderer) -> Result<()> {
+        // If no files specified, read from stdin
+        if self.cli.files.is_empty() {
+            info!("No input files specified, reading from stdin");
+            self.process_stdin(renderer)?;
+            return Ok(());
+        }
+
+        // Process each input file
+        for file in &self.cli.files {
+            info!("Processing file: {}", file.display());
+            let mut reader = InputReader::from_file(file)?;
+            let mut buffer = String::new();
+            reader.read_to_string(&mut buffer)?;
+
+            if self.cli.animate {
+                self.run_animation(renderer, &buffer)?;
+            } else {
+                renderer.render_static(&buffer)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Processes input from stdin
+    fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
+        let mut reader = InputReader::from_stdin()?;
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer)?;
+
+        if self.cli.animate {
+            self.run_animation(renderer, &buffer)?;
+        } else {
+            renderer.render_static(&buffer)?;
+        }
+
+        Ok(())
+    }
+
+    /// Runs the animation loop
+    fn run_animation(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
+        let start_time = Instant::now();
+        let frame_duration = renderer.frame_duration();
+        let mut last_frame = Instant::now();
+        let mut paused = false;
+
+        loop {
+            // Handle input
+            if event::poll(std::time::Duration::from_millis(1))? {
+                match event::read()? {
+                    Event::Key(key) => match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => break,
+                        KeyCode::Char(' ') => paused = !paused,
+                        KeyCode::Char('r') => last_frame = Instant::now(),
+                        _ => {}
+                    },
+                    Event::Resize(width, height) => {
+                        warn!("Terminal resized to {}x{}", width, height);
+                        // Could implement resize handling here
+                    }
+                    _ => {}
+                }
+            }
+
+            let now = Instant::now();
+
+            // Update and render frame
+            if !paused && now.duration_since(last_frame) >= frame_duration {
+                let elapsed = now.duration_since(start_time);
+
+                // Check animation duration
+                if !renderer.is_infinite() && elapsed >= renderer.cycle_duration() {
+                    break;
+                }
+
+                renderer.render_frame(content, elapsed)?;
+                last_frame = now;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for ChromaCat {
+    fn drop(&mut self) {
+        // Attempt to cleanup terminal state if something went wrong
+        if self.raw_mode || self.alternate_screen {
+            if let Err(e) = self.cleanup_terminal() {
+                eprintln!("Error cleaning up terminal: {}", e);
+            }
+        }
     }
 }

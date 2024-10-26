@@ -1,41 +1,41 @@
 use crate::error::Result;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
 
 /// Handles reading input from either stdin or a file
-pub struct InputHandler {
+pub struct InputReader {
     source: Box<dyn BufRead>,
 }
 
-impl InputHandler {
-    /// Creates a new InputHandler from a file path or stdin
-    /// 
-    /// If no path is provided, reads from stdin.
-    /// If stdin is not connected to a terminal (i.e., being piped),
-    /// reads from stdin. Otherwise, uses an empty reader.
-    pub fn new<P: AsRef<Path>>(path: Option<P>) -> Result<Self> {
-        let source: Box<dyn BufRead> = match path {
-            Some(path) => {
-                let file = File::open(path)?;
-                Box::new(BufReader::new(file))
-            }
-            None => {
-                if atty::is(atty::Stream::Stdin) {
-                    // No input file and stdin is a terminal
-                    Box::new(BufReader::new(io::empty()))
-                } else {
-                    // Stdin has content (being piped)
-                    Box::new(BufReader::new(io::stdin()))
-                }
-            }
-        };
+impl InputReader {
+    /// Creates a new InputReader from a file path
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = File::open(path)?;
+        Ok(Self {
+            source: Box::new(BufReader::new(file)),
+        })
+    }
 
-        Ok(Self { source })
+    /// Creates a new InputReader from stdin
+    pub fn from_stdin() -> Result<Self> {
+        Ok(Self {
+            source: Box::new(BufReader::new(io::stdin())),
+        })
     }
 
     /// Returns a mutable reference to the underlying reader
     pub fn reader(&mut self) -> &mut dyn BufRead {
         &mut *self.source
+    }
+
+    /// Reads all content into a String
+    pub fn read_to_string(&mut self, buf: &mut String) -> Result<usize> {
+        self.source.read_to_string(buf).map_err(Into::into)
+    }
+
+    /// Returns an iterator over the lines of this reader
+    pub fn lines(self) -> impl Iterator<Item = Result<String>> {
+        self.source.lines().map(|line| line.map_err(Into::into))
     }
 }

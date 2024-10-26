@@ -1,3 +1,4 @@
+use std::io;
 use thiserror::Error;
 
 /// Represents all possible errors that can occur in ChromaCat
@@ -9,7 +10,7 @@ pub enum ChromaCatError {
 
     /// Input/output errors (file access, stdin/stdout)
     #[error("Input/output error: {0}")]
-    InputError(#[from] std::io::Error),
+    InputError(String),
 
     /// Invalid theme selection
     #[error("Invalid theme: {0}. Using default theme 'rainbow'")]
@@ -26,6 +27,19 @@ pub enum ChromaCatError {
     /// Terminal color support error
     #[error("Terminal color support error: {0}")]
     TerminalError(String),
+
+    /// Invalid parameter value
+    #[error("Invalid parameter '{name}': {value} (must be between {min} and {max})")]
+    InvalidParameter {
+        name: String,
+        value: f64,
+        min: f64,
+        max: f64,
+    },
+
+    /// IO Error wrapper
+    #[error("IO Error: {0}")]
+    IoError(#[from] io::Error),
 }
 
 /// A Result type alias using ChromaCatError

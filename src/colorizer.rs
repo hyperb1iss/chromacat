@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::gradient::{GradientConfig, GradientEngine};
 use colorgrad::Gradient;
-use std::io::{self, Write};
+use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -14,7 +14,11 @@ pub struct Colorizer {
 
 impl Colorizer {
     /// Creates a new Colorizer instance with the specified gradient and configuration
-    pub fn new(gradient: Box<dyn Gradient + Send + Sync>, config: GradientConfig, no_color: bool) -> Self {
+    pub fn new(
+        gradient: Box<dyn Gradient + Send + Sync>,
+        config: GradientConfig,
+        no_color: bool,
+    ) -> Self {
         let choice = if no_color {
             ColorChoice::Never
         } else {
@@ -29,9 +33,9 @@ impl Colorizer {
     }
 
     /// Processes and colorizes text input
-    pub fn colorize<R: io::BufRead>(&mut self, reader: R) -> Result<()> {
-        let lines: Vec<String> = reader.lines().collect::<io::Result<Vec<String>>>()?;
-        
+    pub fn colorize<R: std::io::BufRead>(&mut self, reader: R) -> Result<()> {
+        let lines: Vec<String> = reader.lines().collect::<std::io::Result<Vec<String>>>()?;
+
         self.engine.set_total_lines(lines.len());
 
         for (i, line) in lines.iter().enumerate() {
@@ -60,7 +64,8 @@ impl Colorizer {
                 (gradient_color.b * 255.0) as u8,
             );
 
-            self.stdout.set_color(ColorSpec::new().set_fg(Some(color)))?;
+            self.stdout
+                .set_color(ColorSpec::new().set_fg(Some(color)))?;
             write!(self.stdout, "{}", grapheme)?;
         }
 

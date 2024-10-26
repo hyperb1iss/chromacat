@@ -12,7 +12,7 @@ fn test_colorizer_basic() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("Test line\nAnother line");
     assert!(colorizer.colorize(input).is_ok());
@@ -27,7 +27,7 @@ fn test_colorizer_empty_input() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("");
     assert!(colorizer.colorize(input).is_ok());
@@ -42,7 +42,7 @@ fn test_colorizer_single_character() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("x");
     assert!(colorizer.colorize(input).is_ok());
@@ -57,7 +57,7 @@ fn test_colorizer_unicode() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("Hello 世界\nこんにちは\n🌈🌟");
     assert!(colorizer.colorize(input).is_ok());
@@ -72,7 +72,7 @@ fn test_colorizer_long_text() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let long_text = "x".repeat(1000) + "\n" + &"y".repeat(1000);
     let input = Cursor::new(long_text);
@@ -88,7 +88,7 @@ fn test_colorizer_diagonal() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("Line 1\nLine 2\nLine 3\nLine 4");
     assert!(colorizer.colorize(input).is_ok());
@@ -103,7 +103,7 @@ fn test_colorizer_cycling() {
         angle: 45,
         cycle: true,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("Test cycling gradient effect");
     assert!(colorizer.colorize(input).is_ok());
@@ -118,7 +118,7 @@ fn test_colorizer_no_color() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, true);
     let input = Cursor::new("Test line\nAnother line");
     assert!(colorizer.colorize(input).is_ok());
@@ -184,9 +184,10 @@ fn test_colorizer_whitespace() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
-    let input = Cursor::new("  Leading spaces\nTrailing spaces  \n\tTabs\t\n\n\nMultiple empty lines");
+    let input =
+        Cursor::new("  Leading spaces\nTrailing spaces  \n\tTabs\t\n\n\nMultiple empty lines");
     assert!(colorizer.colorize(input).is_ok());
 }
 
@@ -199,7 +200,7 @@ fn test_colorizer_special_characters() {
         angle: 45,
         cycle: false,
     };
-    
+
     let mut colorizer = Colorizer::new(gradient, config, false);
     let input = Cursor::new("Special chars: !@#$%^&*()_+-=[]{}|;:'\",.<>?/\\");
     assert!(colorizer.colorize(input).is_ok());

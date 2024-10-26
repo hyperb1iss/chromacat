@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::themes::Theme;
 use colorgrad::{Color, Gradient};
 use std::f64::consts::PI;
 
@@ -27,6 +28,12 @@ impl GradientEngine {
             total_lines: 0,
             current_line: 0,
         }
+    }
+
+    /// Creates a new GradientEngine from a theme
+    pub fn from_theme(theme: &Theme, config: GradientConfig) -> Result<Self> {
+        let gradient = theme.create_gradient()?;
+        Ok(Self::new(gradient, config))
     }
 
     /// Sets the total number of lines for diagonal gradient calculations
@@ -77,5 +84,15 @@ impl GradientEngine {
         }
 
         t.clamp(0.0, 1.0)
+    }
+}
+
+impl Default for GradientConfig {
+    fn default() -> Self {
+        Self {
+            diagonal: false,
+            angle: 45,
+            cycle: false,
+        }
     }
 }
