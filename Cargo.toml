@@ -1,0 +1,22 @@
+[package]
+name = "chromacat"
+version = "0.1.0"
+edition = "2021"
+authors = ["Stefanie Jane <stef@hyperbliss.tech>"]
+description = "A versatile command-line tool for applying color gradients to text output"
+license = "Apache-2.0"
+repository = "https://github.com/hyperb1iss/chromacat"
+keywords = ["cli", "color", "terminal", "gradient", "text"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+clap = { version = "4.1", features = ["derive"] }
+colorgrad = "0.7.0"
+termcolor = "1.2"
+atty = "0.2"
+unicode-segmentation = "1.10"
+thiserror = "1.0"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+env_logger = "0.11.5"
