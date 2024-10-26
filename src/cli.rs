@@ -9,9 +9,11 @@ use crate::pattern::{CommonParams, PatternConfig, PatternParams};
 use crate::renderer::AnimationConfig;
 use crate::themes::Theme;
 use clap::{Parser, ValueEnum};
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
+use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
 /// ChromaCat - A versatile command-line tool for applying animated color gradients to text
 #[derive(Parser, Debug)]
@@ -300,9 +302,35 @@ impl Cli {
         }
     }
 
+    /// Creates a colored preview string for a theme
+    fn create_theme_preview(theme: &Theme) -> String {
+        let gradient = theme
+            .create_gradient()
+            .unwrap_or_else(|_| Theme::Rainbow.create_gradient().unwrap());
+
+        let mut preview = String::new();
+        // Create a gradient preview using background colors
+        for i in 0..30 {
+            let t = i as f32 / 30.0;
+            let color = gradient.at(t);
+            let r = (color.r * 255.0) as u8;
+            let g = (color.g * 255.0) as u8;
+            let b = (color.b * 255.0) as u8;
+            // Use space with background color instead of foreground colored block
+            preview.push_str(&format!("\x1b[48;2;{};{};{}m \x1b[0m", r, g, b));
+        }
+        preview
+    }
+
     /// Prints available themes and patterns
     pub fn print_available_options() {
-        println!("\nAvailable patterns:");
+        // Simple, elegant header
+        println!("\n\x1b[1;38;5;213m✨ ChromaCat Theme Gallery ✨\x1b[0m");
+
+        // Print patterns section with styled header
+        println!("\n\x1b[1;38;5;39m🎮 Available Patterns\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(50));
+
         for pattern in [
             ("horizontal", "Simple left-to-right gradient"),
             ("diagonal", "Gradient at specified angle"),
@@ -314,35 +342,120 @@ impl Cli {
             ("diamond", "Diamond-shaped gradient pattern"),
             ("perlin", "Organic, cloud-like noise pattern"),
         ] {
-            println!("  {:<12} - {}", pattern.0, pattern.1);
+            println!("  \x1b[1;38;5;75m{:<12}\x1b[0m │ {}", pattern.0, pattern.1);
         }
 
-        println!("\nAvailable themes:");
-        for (name, description) in Theme::list_all() {
-            println!("  {:<12} - {}", name, description);
+        println!("\n\x1b[1;38;5;213m🎨 Theme Collection\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(50));
+
+        let categories = [
+            ("Classic Themes", "🌈", 226),   // Yellow
+            ("Nature Themes", "🌿", 84),     // Green
+            ("Tech Themes", "💻", 39),       // Blue
+            ("Aesthetic Themes", "✨", 213), // Pink
+            ("Space Themes", "🌌", 99),      // Purple
+            ("Abstract Themes", "🎯", 203),  // Coral
+            ("Mood Themes", "🎭", 147),      // Lavender
+            ("Party Themes", "🎉", 214),     // Orange
+            ("Color Theory", "🎨", 159),     // Cyan
+            ("Special Effects", "⚡", 227),  // Light Yellow
+        ];
+
+        let themes = Theme::list_all();
+
+        for (category, emoji, color) in categories {
+            // Print category header with custom styling
+            println!(
+                "\n\x1b[1;38;5;{}m{} {} {}\x1b[0m",
+                color, emoji, category, emoji
+            );
+            println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(40));
+
+            let category_themes: Vec<_> = themes
+                .iter()
+                .filter(|(name, _)| {
+                    matches!(
+                        (category, name.as_str()),
+                        (
+                            "Classic Themes",
+                            "rainbow" | "grayscale" | "sepia" | "monochrome"
+                        ) | (
+                            "Nature Themes",
+                            "ocean"
+                                | "forest"
+                                | "autumn"
+                                | "sunset"
+                                | "desert"
+                                | "arctic"
+                                | "tropical"
+                        ) | (
+                            "Tech Themes",
+                            "matrix" | "cyberpunk" | "terminal" | "hackerman"
+                        ) | (
+                            "Aesthetic Themes",
+                            "pastel" | "neon" | "retrowave" | "vaporwave"
+                        ) | ("Space Themes", "nebula" | "galaxy" | "aurora" | "cosmos")
+                            | ("Abstract Themes", "heat" | "ice" | "fire" | "toxic")
+                            | ("Mood Themes", "calm" | "energy" | "dream")
+                            | ("Party Themes", "rave" | "disco" | "festival")
+                            | ("Color Theory", "complementary" | "analogous" | "triadic")
+                            | (
+                                "Special Effects",
+                                "hologram" | "glitch" | "plasma" | "lightning"
+                            )
+                    )
+                })
+                .collect();
+
+            // Print themes in this category with color previews
+            for (name, description) in category_themes {
+                let theme = Theme::from_str(name).unwrap();
+                let preview = Self::create_theme_preview(&theme);
+                println!(
+                    "  \x1b[1;38;5;{}m{:<12}\x1b[0m {} \x1b[38;5;239m│\x1b[0m {}",
+                    color, name, preview, description
+                );
+            }
         }
 
-        // Print example usage
-        Self::print_example_usage();
+        Self::print_styled_examples();
     }
 
-    /// Prints example usage information
-    fn print_example_usage() {
-        println!("\nExample usage:");
-        println!("  # Basic usage with file input");
-        println!("  chromacat file1.txt file2.txt");
-        println!();
-        println!("  # Plasma effect with animation");
-        println!("  chromacat -p plasma --complexity 3.0 --scale 1.5 -a input.txt");
-        println!();
-        println!("  # Ocean theme with ripple effect");
-        println!("  chromacat -p ripple --wavelength 0.5 --damping 0.3 -t ocean *.txt");
-        println!();
-        println!("  # Pipe from another command");
-        println!("  ls -l | chromacat -p wave --height 1.5 --count 3");
-        println!();
-        println!("  # Infinite animation");
-        println!("  chromacat -p spiral --density 2.0 -a --duration 0 file.txt");
+    /// Prints styled example usage
+    fn print_styled_examples() {
+        println!("\n\x1b[1;38;5;39m📚 Example Usage\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(50));
+
+        let examples = [
+            (
+                "Basic usage with file input:",
+                "chromacat file1.txt file2.txt",
+            ),
+            (
+                "Plasma effect with animation:",
+                "chromacat -p plasma --complexity 3.0 --scale 1.5 -a input.txt",
+            ),
+            (
+                "Ocean theme with ripple effect:",
+                "chromacat -p ripple --wavelength 0.5 --damping 0.3 -t ocean *.txt",
+            ),
+            (
+                "Pipe from another command:",
+                "ls -l | chromacat -p wave --height 1.5 --count 3",
+            ),
+            (
+                "Infinite animation:",
+                "chromacat -p spiral --density 2.0 -a --duration 0 file.txt",
+            ),
+        ];
+
+        for (description, command) in examples {
+            println!("  \x1b[38;5;75m{}\x1b[0m", description);
+            println!(
+                "  \x1b[1;38;5;239m$\x1b[0m \x1b[38;5;222m{}\x1b[0m\n",
+                command
+            );
+        }
     }
 
     /// Validates the CLI arguments
