@@ -1,8 +1,9 @@
 use crate::cli::Cli;
 use crate::colorizer::Colorizer;
 use crate::error::Result;
-use crate::gradient::{GradientConfig, Theme};
+use crate::gradient::GradientConfig;
 use crate::input::InputHandler;
+use crate::themes::Theme;
 use std::str::FromStr;
 
 /// Main application struct that coordinates all ChromaCat functionality

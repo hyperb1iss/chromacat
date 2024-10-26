@@ -1,5 +1,6 @@
 use chromacat::colorizer::Colorizer;
-use chromacat::gradient::{GradientConfig, Theme};
+use chromacat::gradient::GradientConfig;
+use chromacat::themes::Theme;
 use std::io::Cursor;
 
 #[test]
@@ -133,6 +134,13 @@ fn test_colorizer_all_themes() {
         Theme::Pastel,
         Theme::Neon,
         Theme::Autumn,
+        Theme::Matrix,
+        Theme::Cyberpunk,
+        Theme::Nebula,
+        Theme::Galaxy,
+        Theme::Retrowave,
+        Theme::Vaporwave,
+        // Add more themes to test...
     ];
 
     let config = GradientConfig {

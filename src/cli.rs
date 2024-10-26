@@ -1,4 +1,5 @@
 use crate::error::{ChromaCatError, Result};
+use crate::themes::Theme;
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -6,7 +7,7 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Select a built-in theme for the gradient (rainbow, heat, ocean, forest, pastel, neon, autumn)
+    /// Select a theme for the gradient (use --list-themes to see all options)
     #[arg(short, long, default_value = "rainbow")]
     pub theme: String,
 
@@ -37,16 +38,8 @@ pub struct Cli {
 
 impl Cli {
     /// Get a list of available theme descriptions
-    pub fn theme_descriptions() -> Vec<(&'static str, &'static str)> {
-        vec![
-            ("rainbow", "Classic rainbow colors (red, orange, yellow, green, blue, indigo, violet)"),
-            ("heat", "Warm colors transitioning from red through orange to yellow"),
-            ("ocean", "Cool blue tones reminiscent of ocean depths"),
-            ("forest", "Natural green tones inspired by forests"),
-            ("pastel", "Soft, muted colors for a gentle appearance"),
-            ("neon", "Bright, vibrant colors that pop"),
-            ("autumn", "Warm fall colors (browns, oranges, and red-oranges)"),
-        ]
+    pub fn theme_descriptions() -> Vec<(String, &'static str)> {
+        Theme::list_all()
     }
 
     /// Validates the command line arguments

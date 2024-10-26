@@ -6,5 +6,6 @@ pub mod colorizer;
 pub mod error;
 pub mod gradient;
 pub mod input;
+pub mod themes;
 
 pub use app::ChromaCat;
