@@ -1,12 +1,14 @@
 //! Pattern generation and configuration for ChromaCat
 //!
-//! This module provides the core pattern generation functionality, including:
+//! This module provides the core pattern generation functionality, handling:
 //! - Pattern type definitions
 //! - Parameter configuration
 //! - Pattern calculation algorithms
+//! - Animation timing and updates
 //! - Color gradient mapping
 
 use crate::error::Result;
+use colorgrad::{Color, Gradient};
 use std::f64::consts::PI;
 use std::sync::Arc;
 
@@ -75,7 +77,7 @@ pub enum PatternParams {
         offset: f64,
     },
 
-    /// Spiral from center
+    /// Spiral pattern from center
     Spiral {
         /// How tightly wound the spiral is (0.1-5.0)
         density: f64,
@@ -134,16 +136,17 @@ pub struct PatternConfig {
 }
 
 /// Pattern generation engine
-#[derive(Clone)]
 pub struct PatternEngine {
-    /// Configuration for pattern generation
+    /// Pattern configuration
     config: PatternConfig,
-    /// Width of the pattern area
-    width: usize,
-    /// Height of the pattern area
-    height: usize,
+    /// Color gradient for pattern
+    gradient: Arc<Box<dyn Gradient + Send + Sync>>,
     /// Current animation time (0.0-1.0)
     time: f64,
+    /// Width of pattern area
+    width: usize,
+    /// Height of pattern area
+    height: usize,
     /// Lookup table for sine values
     sin_table: Arc<Vec<f64>>,
     /// Lookup table for cosine values
@@ -156,57 +159,54 @@ impl PatternEngine {
     /// Creates a new pattern engine instance
     ///
     /// # Arguments
+    /// * `gradient` - Color gradient for pattern
     /// * `config` - Pattern configuration
-    /// * `width` - Width of the pattern area
-    /// * `height` - Height of the pattern area
-    pub fn new(config: PatternConfig, width: usize, height: usize) -> Self {
-        // Pre-calculate trigonometric tables for performance
-        let sin_table: Vec<f64> = (0..360).map(|i| (i as f64 * PI / 180.0).sin()).collect();
-        let cos_table: Vec<f64> = (0..360).map(|i| (i as f64 * PI / 180.0).cos()).collect();
-        let perm_table = Self::init_perm_table(match &config.params {
-            PatternParams::Perlin { seed, .. } => *seed,
-            _ => 0,
-        });
-
+    /// * `width` - Width of pattern area
+    /// * `height` - Height of pattern area
+    pub fn new(
+        gradient: Box<dyn Gradient + Send + Sync>,
+        config: PatternConfig,
+        width: usize,
+        height: usize,
+    ) -> Self {
         Self {
             config,
+            gradient: Arc::new(gradient),
+            time: 0.0,
             width,
             height,
-            time: 0.0,
-            sin_table: Arc::new(sin_table),
-            cos_table: Arc::new(cos_table),
-            perm_table: Arc::new(perm_table),
+            sin_table: Arc::new(Self::init_sin_table()),
+            cos_table: Arc::new(Self::init_cos_table()),
+            perm_table: Arc::new(Self::init_perm_table(0)),
         }
     }
 
     /// Updates the animation time
     ///
-    /// Time increases linearly based on speed and wraps at 1.0.
-    /// Speed multiplies the rate of time increase:
-    /// - speed 1.0: time increases at normal rate
-    /// - speed 2.0: time increases twice as fast
-    /// - speed 0.5: time increases at half speed
+    /// # Arguments
+    /// * `delta` - Time increment (0.0-1.0)
     pub fn update(&mut self, delta: f64) {
-        // Apply speed to delta time
         let adjusted_delta = delta * self.config.common.speed;
-        self.time = (self.time + adjusted_delta) % 1.0;
+        self.time = if adjusted_delta.is_finite() {
+            (self.time + adjusted_delta) % 1.0
+        } else {
+            0.0
+        };
     }
 
-    /// Gets the current animation time (0.0-1.0)
+    /// Gets the current animation time
     pub fn time(&self) -> f64 {
         self.time
     }
 
-    /// Calculates pattern value at given coordinates
-    ///
-    /// # Arguments
-    /// * `x` - X coordinate
-    /// * `y` - Y coordinate
-    ///
-    /// # Returns
-    /// Pattern value in range 0.0-1.0
+    /// Gets the gradient for color mapping
+    pub fn gradient(&self) -> &Box<dyn Gradient + Send + Sync> {
+        &self.gradient
+    }
+
+    /// Gets the pattern value at given coordinates
     pub fn get_value_at(&self, x: usize, y: usize) -> Result<f64> {
-        let value = match &self.config.params {
+        let base_value = match &self.config.params {
             PatternParams::Horizontal => self.horizontal_pattern(x, y),
             PatternParams::Diagonal { angle } => self.diagonal_pattern(x, y, *angle),
             PatternParams::Plasma { complexity, scale } => {
@@ -246,11 +246,39 @@ impl PatternEngine {
                 octaves,
                 persistence,
                 scale,
-                ..
+                seed: _,
             } => self.perlin_pattern(x, y, *octaves, *persistence, *scale),
         };
 
-        Ok(value.clamp(0.0, 1.0))
+        // Apply time-based animation based on pattern type
+        let final_value = match &self.config.params {
+            // Static patterns - no time animation
+            PatternParams::Horizontal | PatternParams::Diagonal { .. } => base_value,
+
+            // Patterns that use time internally
+            PatternParams::Plasma { .. }
+            | PatternParams::Ripple { .. }
+            | PatternParams::Wave { .. }
+            | PatternParams::Spiral { .. } => base_value,
+
+            // Patterns that should offset by time
+            _ if self.config.common.speed > 0.0 => (base_value + self.time) % 1.0,
+
+            // Default case - no animation
+            _ => base_value,
+        };
+
+        Ok(final_value.clamp(0.0, 1.0))
+    }
+
+    /// Initialize sine lookup table
+    fn init_sin_table() -> Vec<f64> {
+        (0..360).map(|i| (i as f64 * PI / 180.0).sin()).collect()
+    }
+
+    /// Initialize cosine lookup table
+    fn init_cos_table() -> Vec<f64> {
+        (0..360).map(|i| (i as f64 * PI / 180.0).cos()).collect()
     }
 
     /// Fast sine approximation using lookup table
@@ -268,28 +296,35 @@ impl PatternEngine {
     }
 
     // Pattern implementations
+
     fn horizontal_pattern(&self, x: usize, _y: usize) -> f64 {
-        x as f64 / (self.width.max(1) - 1) as f64
+        if self.width <= 1 {
+            return 0.0;
+        }
+        x as f64 / (self.width - 1) as f64
     }
 
     fn diagonal_pattern(&self, x: usize, y: usize, angle: i32) -> f64 {
-        let angle_rad = (angle as f64) * PI / 180.0;
-        let x_norm = x as f64 / (self.width.max(1) - 1) as f64;
-        let y_norm = y as f64 / (self.height.max(1) - 1) as f64;
+        if self.width <= 1 || self.height <= 1 {
+            return 0.0;
+        }
 
-        // Center the coordinates
-        let x_centered = x_norm * 2.0 - 1.0;
-        let y_centered = y_norm * 2.0 - 1.0;
+        // Convert coordinates to -1..1 range
+        let x_norm = (2.0 * x as f64 / (self.width - 1) as f64) - 1.0;
+        let y_norm = (2.0 * y as f64 / (self.height - 1) as f64) - 1.0;
 
-        // Rotate
+        // Convert angle to radians
+        let angle_rad = (angle % 360) as f64 * PI / 180.0;
+
+        // Rotate the point
         let cos_angle = self.fast_cos(angle_rad);
         let sin_angle = self.fast_sin(angle_rad);
-        let rotated_x = x_centered * cos_angle - y_centered * sin_angle;
-        let rotated_y = x_centered * sin_angle + y_centered * cos_angle;
+        
+        // Project onto the angle vector (using dot product)
+        let rotated = x_norm * cos_angle + y_norm * sin_angle;
 
-        // Map back to 0..1 range using just one coordinate
-        // This ensures we get a proper gradient in the angle direction
-        rotated_x.mul_add(0.5, 0.5)
+        // Map from -1..1 to 0..1
+        (rotated + 1.0) * 0.5
     }
 
     fn plasma_pattern(&self, x: usize, y: usize, complexity: f64, scale: f64) -> f64 {
@@ -334,25 +369,20 @@ impl PatternEngine {
     fn wave_pattern(
         &self,
         x: usize,
-        y: usize,
+        _y: usize,
         amplitude: f64,
         frequency: f64,
         phase: f64,
         offset: f64,
     ) -> f64 {
         let x_norm = x as f64 / (self.width.max(1) - 1) as f64;
-
-        // Calculate wave with correct amplitude scaling
         let wave_angle = x_norm * frequency * self.config.common.frequency * 2.0 * PI
             + phase
             + self.time * 2.0 * PI;
 
-        // Scale amplitude to preserve 0..1 range
-        // Amplitude of 1.0 should oscillate between 0 and 1
-        let scaled_amplitude = amplitude * 0.5; // Halve the amplitude to keep within bounds
+        let scaled_amplitude = amplitude * 0.5;
         let wave = self.fast_sin(wave_angle) * scaled_amplitude;
 
-        // Center around offset
         (offset + wave).clamp(0.0, 1.0)
     }
 
@@ -513,10 +543,10 @@ impl PatternEngine {
         let sy = Self::smoothstep(dy);
 
         // Calculate dot products with gradient vectors
-        let n00 = self.gradient(x0, y0, dx, dy);
-        let n10 = self.gradient(x1, y0, dx - 1.0, dy);
-        let n01 = self.gradient(x0, y1, dx, dy - 1.0);
-        let n11 = self.gradient(x1, y1, dx - 1.0, dy - 1.0);
+        let n00 = self.perlin_gradient(x0, y0, dx, dy);
+        let n10 = self.perlin_gradient(x1, y0, dx - 1.0, dy);
+        let n01 = self.perlin_gradient(x0, y1, dx, dy - 1.0);
+        let n11 = self.perlin_gradient(x1, y1, dx - 1.0, dy - 1.0);
 
         // Interpolate between values
         let nx0 = Self::lerp(n00, n10, sx);
@@ -534,8 +564,8 @@ impl PatternEngine {
         a + t * (b - a)
     }
 
-    /// Get gradient vector for Perlin noise
-    fn gradient(&self, x: i32, y: i32, dx: f64, dy: f64) -> f64 {
+    /// Calculate local gradient for Perlin noise
+    fn perlin_gradient(&self, x: i32, y: i32, dx: f64, dy: f64) -> f64 {
         // Hash coordinates to get table index
         let hash = self.perm_table
             [(self.perm_table[(x & 255) as usize] as usize + y as usize) & 255]
@@ -547,6 +577,21 @@ impl PatternEngine {
             1 => -dx + dy,
             2 => dx - dy,
             _ => -dx - dy,
+        }
+    }
+}
+
+impl Clone for PatternEngine {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            gradient: self.gradient.clone(),
+            time: self.time,
+            width: self.width,
+            height: self.height,
+            sin_table: self.sin_table.clone(),
+            cos_table: self.cos_table.clone(),
+            perm_table: self.perm_table.clone(),
         }
     }
 }

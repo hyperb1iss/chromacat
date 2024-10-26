@@ -8,7 +8,8 @@ use crate::cli::Cli;
 use crate::error::{ChromaCatError, Result};
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
-use crate::renderer::Renderer;
+use crate::renderer::{AnimationConfig, Renderer};
+use crate::themes::Theme;
 
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{self, Event, KeyCode};
@@ -16,15 +17,16 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use std::io::{stdout, Write};
+use std::str::FromStr;
 use std::time::Instant;
 
 /// Main application struct that coordinates ChromaCat functionality
 pub struct ChromaCat {
     /// Command line interface configuration
     cli: Cli,
-    /// Terminal dimensions
+    /// Terminal dimensions (width, height)
     term_size: (u16, u16),
     /// Whether the application is in raw mode
     raw_mode: bool,
@@ -33,7 +35,7 @@ pub struct ChromaCat {
 }
 
 impl ChromaCat {
-    /// Creates a new ChromaCat instance
+    /// Creates a new ChromaCat instance with the given CLI configuration
     pub fn new(cli: Cli) -> Self {
         Self {
             cli,
@@ -59,12 +61,18 @@ impl ChromaCat {
         // Initialize terminal
         self.setup_terminal()?;
 
-        // Create pattern configuration and engine
+        // Create pattern configuration
         info!("Creating pattern configuration");
         let pattern_config = self.cli.create_pattern_config()?;
 
+        // Create theme and gradient
+        info!("Creating theme and gradient");
+        let theme = Theme::from_str(&self.cli.theme)?;
+        let gradient = theme.create_gradient()?;
+
         info!("Initializing pattern engine");
         let engine = PatternEngine::new(
+            gradient,
             pattern_config,
             self.term_size.0 as usize,
             self.term_size.1 as usize,
@@ -96,11 +104,8 @@ impl ChromaCat {
             self.raw_mode = true;
 
             // Enter alternate screen
-            execute!(stdout(), EnterAlternateScreen)?;
+            execute!(stdout(), EnterAlternateScreen, Hide)?;
             self.alternate_screen = true;
-
-            // Hide cursor
-            execute!(stdout(), Hide)?;
         }
 
         Ok(())
@@ -110,19 +115,17 @@ impl ChromaCat {
     fn cleanup_terminal(&mut self) -> Result<()> {
         let mut stdout = stdout();
 
+        if self.alternate_screen {
+            execute!(stdout, Show, LeaveAlternateScreen)?;
+            self.alternate_screen = false;
+        }
+
         if self.raw_mode {
             disable_raw_mode().map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
             self.raw_mode = false;
         }
 
-        if self.alternate_screen {
-            execute!(stdout, LeaveAlternateScreen)?;
-            self.alternate_screen = false;
-        }
-
-        execute!(stdout, Show)?;
         stdout.flush()?;
-
         Ok(())
     }
 
@@ -174,14 +177,23 @@ impl ChromaCat {
         let mut last_frame = Instant::now();
         let mut paused = false;
 
+        info!("Starting animation loop");
+        debug!("Frame duration: {:?}", frame_duration);
+
         loop {
-            // Handle input
+            // Handle input with small timeout
             if event::poll(std::time::Duration::from_millis(1))? {
                 match event::read()? {
                     Event::Key(key) => match key.code {
                         KeyCode::Esc | KeyCode::Char('q') => break,
-                        KeyCode::Char(' ') => paused = !paused,
-                        KeyCode::Char('r') => last_frame = Instant::now(),
+                        KeyCode::Char(' ') => {
+                            paused = !paused;
+                            debug!("Animation {}", if paused { "paused" } else { "resumed" });
+                        }
+                        KeyCode::Char('r') => {
+                            debug!("Resetting animation time");
+                            last_frame = Instant::now();
+                        }
                         _ => {}
                     },
                     Event::Resize(width, height) => {
@@ -200,9 +212,11 @@ impl ChromaCat {
 
                 // Check animation duration
                 if !renderer.is_infinite() && elapsed >= renderer.cycle_duration() {
+                    debug!("Animation complete");
                     break;
                 }
 
+                trace!("Rendering frame at elapsed time: {:?}", elapsed);
                 renderer.render_frame(content, elapsed)?;
                 last_frame = now;
             }

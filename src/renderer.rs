@@ -1,3 +1,9 @@
+//! Renderer module for ChromaCat
+//!
+//! This module handles the rendering of colored text output using patterns and gradients.
+//! It supports both static and animated rendering modes, with configurable parameters
+//! for animation speed, frame rate, and display options.
+
 use crate::error::Result;
 use crate::pattern::PatternEngine;
 use crossterm::{
@@ -15,15 +21,15 @@ use unicode_width::UnicodeWidthStr;
 /// Configuration for animation rendering
 #[derive(Debug, Clone)]
 pub struct AnimationConfig {
-    /// Frames per second
+    /// Frames per second for animation playback
     pub fps: u32,
     /// Duration of one complete pattern cycle
     pub cycle_duration: Duration,
     /// Whether to loop indefinitely
     pub infinite: bool,
-    /// Whether to show animation progress
+    /// Whether to show animation progress bar
     pub show_progress: bool,
-    /// Enable smooth transitions
+    /// Enable smooth transitions between frames
     pub smooth: bool,
 }
 
@@ -45,7 +51,7 @@ pub struct Renderer {
     engine: PatternEngine,
     /// Animation configuration
     config: AnimationConfig,
-    /// Terminal dimensions
+    /// Terminal dimensions (width, height)
     term_size: (u16, u16),
     /// Buffer for rendered lines
     line_buffer: Vec<String>,
@@ -57,6 +63,13 @@ pub struct Renderer {
 
 impl Renderer {
     /// Creates a new renderer instance
+    ///
+    /// # Arguments
+    /// * `engine` - Pattern generation engine
+    /// * `config` - Animation configuration
+    ///
+    /// # Returns
+    /// * `Result<Self>` - New renderer instance or error
     pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self> {
         let term_size = terminal::size()?;
         let colors_enabled = atty::is(atty::Stream::Stdout);
@@ -71,22 +84,28 @@ impl Renderer {
         })
     }
 
-    /// Returns the frame duration based on FPS
+    /// Returns the frame duration based on configured FPS
     pub fn frame_duration(&self) -> Duration {
         Duration::from_secs(1) / self.config.fps
     }
 
-    /// Returns whether animation is infinite
+    /// Returns whether animation is set to run indefinitely
     pub fn is_infinite(&self) -> bool {
         self.config.infinite
     }
 
-    /// Returns the animation cycle duration
+    /// Returns the configured animation cycle duration
     pub fn cycle_duration(&self) -> Duration {
         self.config.cycle_duration
     }
 
     /// Renders static text with pattern
+    ///
+    /// # Arguments
+    /// * `text` - Text to render
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     pub fn render_static(&mut self, text: &str) -> Result<()> {
         self.prepare_text_buffer(text)?;
         self.update_color_buffer()?;
@@ -100,10 +119,17 @@ impl Renderer {
     }
 
     /// Renders a single animation frame
+    ///
+    /// # Arguments
+    /// * `text` - Text to render
+    /// * `elapsed` - Time elapsed since animation start
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     pub fn render_frame(&mut self, text: &str, elapsed: Duration) -> Result<()> {
         self.prepare_text_buffer(text)?;
 
-        // Update pattern time
+        // Calculate animation progress
         let cycle_progress = if self.config.infinite {
             (elapsed.as_secs_f64() % self.cycle_duration().as_secs_f64())
                 / self.cycle_duration().as_secs_f64()
@@ -111,10 +137,12 @@ impl Renderer {
             elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()
         };
 
+        // Update pattern and render
         self.engine.update(cycle_progress);
         self.update_color_buffer()?;
         self.render_frame_content()?;
 
+        // Show progress bar if enabled
         if self.config.show_progress {
             self.render_progress_bar(cycle_progress)?;
         }
@@ -123,7 +151,13 @@ impl Renderer {
         Ok(())
     }
 
-    /// Prepares the text buffer for rendering
+    /// Prepares the text buffer for rendering by splitting into lines and handling wrapping
+    ///
+    /// # Arguments
+    /// * `text` - Input text to prepare
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     fn prepare_text_buffer(&mut self, text: &str) -> Result<()> {
         debug!("Preparing text buffer");
         self.line_buffer.clear();
@@ -131,9 +165,11 @@ impl Renderer {
         let mut current_line = String::new();
         let mut current_width = 0;
 
+        // Process text grapheme by grapheme
         for grapheme in text.graphemes(true) {
             let width = grapheme.width();
 
+            // Handle line wrapping
             if current_width + width > self.term_size.0 as usize {
                 self.line_buffer.push(current_line);
                 current_line = String::new();
@@ -144,6 +180,7 @@ impl Renderer {
             current_width += width;
         }
 
+        // Add final line if not empty
         if !current_line.is_empty() {
             self.line_buffer.push(current_line);
         }
@@ -152,7 +189,10 @@ impl Renderer {
         Ok(())
     }
 
-    /// Updates the color buffer based on pattern values
+    /// Updates the color buffer based on current pattern values
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     fn update_color_buffer(&mut self) -> Result<()> {
         if !self.colors_enabled {
             return Ok(());
@@ -180,7 +220,10 @@ impl Renderer {
         Ok(())
     }
 
-    /// Renders the current frame content
+    /// Renders the current frame content to the terminal
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     fn render_frame_content(&self) -> Result<()> {
         let mut stdout = stdout();
         queue!(stdout, Clear(ClearType::All))?;
@@ -215,6 +258,12 @@ impl Renderer {
     }
 
     /// Renders the animation progress bar
+    ///
+    /// # Arguments
+    /// * `progress` - Current animation progress (0.0 to 1.0)
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     fn render_progress_bar(&self, progress: f64) -> Result<()> {
         let bar_width = self.term_size.0.saturating_sub(20) as usize;
         let filled = (progress * bar_width as f64).min(bar_width as f64) as usize;
@@ -222,7 +271,7 @@ impl Renderer {
         let mut stdout = stdout();
         queue!(
             stdout,
-            MoveTo(0, self.term_size.1),
+            MoveTo(0, self.term_size.1.saturating_sub(1)),
             SetForegroundColor(Color::White)
         )?;
 
@@ -238,18 +287,42 @@ impl Renderer {
     }
 
     /// Converts a pattern value to a terminal color
+    ///
+    /// # Arguments
+    /// * `value` - Pattern value (0.0 to 1.0)
+    ///
+    /// # Returns
+    /// * `Color` - Terminal color
     fn value_to_color(&self, value: f64) -> Color {
-        let hue = (value + 0.618033988749895) % 1.0;
-        let (r, g, b) = hsv_to_rgb(hue, 0.8, 0.95);
+        let clamped_value = value.clamp(0.0, 1.0);
+        let gradient_color = self.engine.gradient().at(clamped_value as f32);
+
         Color::Rgb {
-            r: (r * 255.0) as u8,
-            g: (g * 255.0) as u8,
-            b: (b * 255.0) as u8,
+            r: (gradient_color.r * 255.0) as u8,
+            g: (gradient_color.g * 255.0) as u8,
+            b: (gradient_color.b * 255.0) as u8,
         }
     }
 }
 
-/// Converts HSV color values to RGB
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        // Ensure we reset terminal colors on drop
+        if let Err(e) = execute!(stdout(), ResetColor) {
+            eprintln!("Error resetting colors: {}", e);
+        }
+    }
+}
+
+/// Utility function to convert HSV color values to RGB
+///
+/// # Arguments
+/// * `h` - Hue (0.0 to 1.0)
+/// * `s` - Saturation (0.0 to 1.0)
+/// * `v` - Value (0.0 to 1.0)
+///
+/// # Returns
+/// * `(f64, f64, f64)` - RGB color components (0.0 to 1.0)
 fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (f64, f64, f64) {
     let h = if h < 0.0 {
         h + 1.0
@@ -273,14 +346,5 @@ fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (f64, f64, f64) {
         3 => (p, q, v),
         4 => (t, p, v),
         _ => (v, p, q),
-    }
-}
-
-impl Drop for Renderer {
-    fn drop(&mut self) {
-        // Ensure we reset terminal colors
-        if let Err(e) = execute!(stdout(), ResetColor) {
-            eprintln!("Error resetting colors: {}", e);
-        }
     }
 }

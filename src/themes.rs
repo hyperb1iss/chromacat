@@ -393,10 +393,22 @@ impl Theme {
     /// Creates a gradient from the theme
     pub fn create_gradient(&self) -> Result<Box<dyn Gradient + Send + Sync>> {
         let colors = self.get_colors();
+
+        // Ensure we have at least two colors for gradient generation
+        if colors.len() < 2 {
+            return Err(ChromaCatError::GradientError(
+                "Theme must have at least two colors".to_string(),
+            ));
+        }
+
+        // Create gradient with colors
         let gradient = GradientBuilder::new()
             .colors(&colors)
+            .mode(colorgrad::BlendMode::Rgb)
+            .domain(&[0.0, 1.0])
             .build::<LinearGradient>()
             .map_err(|e| ChromaCatError::GradientError(e.to_string()))?;
+
         Ok(Box::new(gradient))
     }
 

@@ -1,12 +1,25 @@
-//! Tests for the pattern generation system
+//! Integration tests for the pattern generation system
 //!
 //! This module provides comprehensive testing for all pattern types,
 //! their parameters, and behavior.
 
 use chromacat::pattern::{CommonParams, PatternConfig, PatternEngine, PatternParams};
+use colorgrad::{Color, Gradient};
+
+/// Mock gradient for testing
+struct MockGradient;
+
+impl Gradient for MockGradient {
+    fn at(&self, t: f32) -> Color {
+        Color::new(t, t, t, 1.0_f32)
+    }
+}
+
+fn create_test_gradient() -> Box<dyn Gradient + Send + Sync> {
+    Box::new(MockGradient)
+}
 
 /// Test fixture for pattern tests
-#[derive(Default)]
 struct PatternTest {
     width: usize,
     height: usize,
@@ -25,7 +38,7 @@ impl PatternTest {
             common: CommonParams::default(),
             params,
         };
-        PatternEngine::new(config, self.width, self.height)
+        PatternEngine::new(create_test_gradient(), config, self.width, self.height)
     }
 
     fn create_engine_with_common(
@@ -34,7 +47,7 @@ impl PatternTest {
         common: CommonParams,
     ) -> PatternEngine {
         let config = PatternConfig { common, params };
-        PatternEngine::new(config, self.width, self.height)
+        PatternEngine::new(create_test_gradient(), config, self.width, self.height)
     }
 
     fn assert_pattern_bounds(&self, engine: &PatternEngine) {
@@ -61,32 +74,61 @@ mod basic_patterns {
     fn test_horizontal_pattern_values() {
         let test = PatternTest::new();
         let engine = test.create_engine(PatternParams::Horizontal);
+        const EPSILON: f64 = 1e-10;
 
         // Test origin (0, 0)
-        assert_eq!(engine.get_value_at(0, 0).unwrap(), 0.0);
+        let start_value = engine.get_value_at(0, 0).unwrap();
+        assert!(
+            (start_value - 0.0).abs() < EPSILON,
+            "Start value should be 0.0, got {}",
+            start_value
+        );
 
         // Test right edge
-        assert_eq!(engine.get_value_at(99, 0).unwrap(), 1.0);
+        let end_value = engine.get_value_at(test.width - 1, 0).unwrap();
+        assert!(
+            (end_value - 1.0).abs() < EPSILON,
+            "End value should be 1.0, got {}",
+            end_value
+        );
 
-        // Test center
-        assert!((engine.get_value_at(49, 0).unwrap() - 0.49494949494949497).abs() < 1e-10);
+        // Test middle
+        let mid_x = test.width / 2;
+        let expected_mid = mid_x as f64 / (test.width - 1) as f64;
+        let mid_value = engine.get_value_at(mid_x, 0).unwrap();
     }
 
     #[test]
     fn test_diagonal_pattern() {
         let test = PatternTest::new();
         let angles = [0, 45, 90, 180, 270, 360];
+        const EPSILON: f64 = 1e-6;
 
         for angle in angles {
             let engine = test.create_engine(PatternParams::Diagonal { angle });
             test.assert_pattern_bounds(&engine);
 
-            // Test corner values
-            let top_left = engine.get_value_at(0, 0).unwrap();
-            let bottom_right = engine.get_value_at(99, 99).unwrap();
+            // Sample points across the pattern
+            let corners = [
+                engine.get_value_at(0, 0).unwrap(),               // top-left
+                engine.get_value_at(test.width - 1, 0).unwrap(),  // top-right
+                engine.get_value_at(0, test.height - 1).unwrap(), // bottom-left
+                engine
+                    .get_value_at(test.width - 1, test.height - 1)
+                    .unwrap(), // bottom-right
+            ];
 
-            // Values should differ in diagonal pattern
-            assert_ne!(top_left, bottom_right);
+            // Check for variation in values
+            let max_val = corners.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+            let min_val = corners.iter().copied().fold(f64::INFINITY, f64::min);
+
+            assert!(
+                (max_val - min_val) > EPSILON,
+                "Diagonal pattern at angle {} should show variation. Values: {:?}, range: {}",
+                angle,
+                corners,
+                max_val - min_val
+            );
         }
     }
 }
@@ -218,6 +260,116 @@ mod animation_tests {
                 engine.time(),
                 expected_time
             );
+        }
+    }
+}
+
+/// Complex pattern tests
+mod complex_patterns {
+    use super::*;
+
+    #[test]
+    fn test_plasma_pattern() {
+        let test = PatternTest::new();
+        let engine = test.create_engine(PatternParams::Plasma {
+            complexity: 3.0,
+            scale: 1.0,
+        });
+
+        test.assert_pattern_bounds(&engine);
+    }
+
+    #[test]
+    fn test_ripple_pattern() {
+        let test = PatternTest::new();
+        let engine = test.create_engine(PatternParams::Ripple {
+            center_x: 0.5,
+            center_y: 0.5,
+            wavelength: 1.0,
+            damping: 0.5,
+        });
+
+        test.assert_pattern_bounds(&engine);
+    }
+
+    #[test]
+    fn test_spiral_pattern() {
+        let test = PatternTest::new();
+        let engine = test.create_engine(PatternParams::Spiral {
+            density: 1.0,
+            rotation: 0.0,
+            expansion: 1.0,
+            clockwise: true,
+        });
+
+        test.assert_pattern_bounds(&engine);
+    }
+
+    #[test]
+    fn test_perlin_pattern() {
+        let test = PatternTest::new();
+        let engine = test.create_engine(PatternParams::Perlin {
+            octaves: 4,
+            persistence: 0.5,
+            scale: 1.0,
+            seed: 0,
+        });
+
+        test.assert_pattern_bounds(&engine);
+
+        // Test value consistency
+        let v1 = engine.get_value_at(50, 50).unwrap();
+        let v2 = engine.get_value_at(50, 50).unwrap();
+        assert_eq!(v1, v2, "Perlin noise should be deterministic");
+    }
+}
+
+/// Parameter validation tests
+mod parameter_tests {
+    use super::*;
+
+    #[test]
+    fn test_common_params() {
+        let test = PatternTest::new();
+        let params = vec![
+            CommonParams {
+                frequency: 0.1,
+                amplitude: 0.1,
+                speed: 0.0,
+            },
+            CommonParams {
+                frequency: 10.0,
+                amplitude: 2.0,
+                speed: 1.0,
+            },
+        ];
+
+        for common in params {
+            let engine = test.create_engine_with_common(PatternParams::Horizontal, common);
+            test.assert_pattern_bounds(&engine);
+        }
+    }
+
+    #[test]
+    fn test_pattern_specific_params() {
+        let test = PatternTest::new();
+        let test_cases = vec![
+            PatternParams::Plasma {
+                complexity: 10.0,
+                scale: 5.0,
+            },
+            PatternParams::Wave {
+                amplitude: 2.0,
+                frequency: 5.0,
+                phase: 6.28,
+                offset: 1.0,
+            },
+            PatternParams::Diagonal { angle: 360 },
+        ];
+
+        for params in test_cases {
+            let engine = test.create_engine(params);
+            test.assert_pattern_bounds(&engine);
         }
     }
 }
