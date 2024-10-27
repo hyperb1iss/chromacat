@@ -8,6 +8,7 @@ use crate::error::{ChromaCatError, Result};
 use crate::pattern::{CommonParams, PatternConfig, PatternParams};
 use crate::renderer::AnimationConfig;
 use crate::themes;
+use crate::cli_format::CliFormat;
 
 use clap::{Parser, ValueEnum};
 use std::f64::consts::TAU;
@@ -16,132 +17,304 @@ use std::time::Duration;
 
 /// ChromaCat - A versatile command-line tool for applying animated color gradients to text
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author, 
+    version,
+    about = format!("😺 {}Chroma{}Cat{} - Create magical color gradients for your text ✨", 
+        CliFormat::TITLE_1, CliFormat::TITLE_2, CliFormat::RESET),
+    long_about = None,
+    help_template = "{about}\n\nUsage: {usage}\n\n{options}",
+    styles = clap::builder::Styles::styled()
+        .header(anstyle::AnsiColor::BrightMagenta.on_default())
+        .usage(anstyle::AnsiColor::BrightCyan.on_default())
+        .literal(anstyle::AnsiColor::BrightYellow.on_default())
+)]
 pub struct Cli {
-    /// Files to read. If none provided, reads from stdin
-    #[arg(name = "FILES")]
+    #[arg(
+        name = "FILES",
+        help_heading = CliFormat::HEADING_INPUT,
+        value_name = "FILE",
+        help = CliFormat::general("Input files (reads from stdin if none provided)")
+    )]
     pub files: Vec<PathBuf>,
 
-    /// Select pattern type for gradient effect
-    #[arg(short = 'p', long, value_enum, default_value = "horizontal")]
+    #[arg(
+        short = 'p',
+        long,
+        value_enum,
+        default_value = "horizontal",
+        help_heading = CliFormat::HEADING_CORE,
+        value_name = "TYPE",
+        help = CliFormat::core("Select pattern type")
+    )]
     pub pattern: PatternKind,
 
-    /// Select a theme for the gradient effect
-    #[arg(short = 't', long, default_value = "rainbow")]
+    #[arg(
+        short = 't',
+        long,
+        default_value = "rainbow",
+        help_heading = CliFormat::HEADING_CORE,
+        value_name = "NAME",
+        help = CliFormat::core("Select color theme (use --list to see available)")
+    )]
     pub theme: String,
 
-    /// Enable animation mode
-    #[arg(short = 'a', long)]
-    pub animate: bool,
-
-    /// Animation frames per second (1-144)
-    #[arg(long, default_value = "30")]
-    pub fps: u32,
-
-    /// Animation duration in seconds (0 for infinite)
-    #[arg(long, default_value = "0")]
-    pub duration: u64,
-
-    /// Disable colored output
-    #[arg(short = 'n', long = "no-color")]
-    pub no_color: bool,
-
-    /// Show available themes and patterns
-    #[arg(short = 'l', long = "list")]
-    pub list_available: bool,
-
-    /// Enable smooth transitions
-    #[arg(long)]
-    pub smooth: bool,
-
-    /// Base frequency of the pattern (0.1-10.0)
-    #[arg(short = 'f', long, default_value = "1.0")]
+    #[arg(
+        short = 'f',
+        long,
+        default_value = "1.0",
+        help_heading = CliFormat::HEADING_CORE,
+        value_name = "NUM",
+        help = CliFormat::core("Base frequency (0.1-10.0)")
+    )]
     pub frequency: f64,
 
-    /// Pattern amplitude (0.1-2.0)
-    #[arg(short = 'm', long, default_value = "1.0")]
+    #[arg(
+        short = 'm',
+        long,
+        default_value = "1.0",
+        help_heading = CliFormat::HEADING_CORE,
+        value_name = "NUM",
+        help = CliFormat::core("Pattern amplitude (0.1-2.0)")
+    )]
     pub amplitude: f64,
 
-    /// Animation speed (0.0-1.0)
-    #[arg(short = 's', long, default_value = "1.0")]
+    #[arg(
+        short = 'a',
+        long,
+        help_heading = CliFormat::HEADING_ANIMATION,
+        help = CliFormat::animation("Enable animation mode")
+    )]
+    pub animate: bool,
+
+    #[arg(
+        long,
+        default_value = "30",
+        help_heading = CliFormat::HEADING_ANIMATION,
+        value_name = "NUM",
+        help = CliFormat::animation("Frames per second (1-144)")
+    )]
+    pub fps: u32,
+
+    #[arg(
+        long,
+        default_value = "0",
+        help_heading = CliFormat::HEADING_ANIMATION,
+        value_name = "SECS",
+        help = CliFormat::animation("Duration in seconds (0 = infinite)")
+    )]
+    pub duration: u64,
+
+    #[arg(
+        short = 's',
+        long,
+        default_value = "1.0",
+        help_heading = CliFormat::HEADING_ANIMATION,
+        value_name = "NUM",
+        help = CliFormat::animation("Animation speed (0.0-1.0)")
+    )]
     pub speed: f64,
 
-    // Pattern-specific parameters
+    #[arg(
+        long,
+        help_heading = CliFormat::HEADING_ANIMATION,
+        help = CliFormat::animation("Enable smooth transitions")
+    )]
+    pub smooth: bool,
+
+    #[arg(
+        short = 'n',
+        long = "no-color",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::general("Disable colored output")
+    )]
+    pub no_color: bool,
+
+    #[arg(
+        short = 'l',
+        long = "list",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::general("Show available themes and patterns")
+    )]
+    pub list_available: bool,
+
     #[command(flatten)]
     pub pattern_params: PatternParameters,
 }
 
 /// Pattern-specific parameters grouped by pattern type
 #[derive(Parser, Debug, Default)]
+#[command(next_help_heading = "Pattern-Specific Options")]
 pub struct PatternParameters {
-    // Plasma parameters
-    #[arg(long, help = "Plasma complexity (1.0-10.0)")]
-    pub complexity: Option<f64>,
-
-    #[arg(long, help = "Pattern scale (0.1-5.0)")]
-    pub scale: Option<f64>,
-
-    // Ripple parameters
-    #[arg(long, help = "Ripple center X position (0.0-1.0)")]
-    pub center_x: Option<f64>,
-
-    #[arg(long, help = "Ripple center Y position (0.0-1.0)")]
-    pub center_y: Option<f64>,
-
-    #[arg(long, help = "Distance between ripples (0.1-5.0)")]
-    pub wavelength: Option<f64>,
-
-    #[arg(long, help = "Ripple fade-out rate (0.0-1.0)")]
-    pub damping: Option<f64>,
-
-    // Wave parameters
-    #[arg(long, help = "Wave height (0.1-2.0)")]
+    // Wave & Ripple
+    #[arg(
+        long, 
+        value_name = "NUM",
+        help = format!("{} (0.1-2.0)", CliFormat::pattern("Wave height or ripple amplitude")),
+        help_heading = CliFormat::HEADING_WAVE
+    )]
     pub height: Option<f64>,
 
-    #[arg(long, help = "Number of waves (0.1-5.0)")]
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.1-5.0)", CliFormat::pattern("Number of waves")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
     pub count: Option<f64>,
 
-    #[arg(long, help = "Wave phase shift (0.0-2π)")]
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.0-2π)", CliFormat::pattern("Wave/ripple phase")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
     pub phase: Option<f64>,
 
-    #[arg(long, help = "Wave vertical offset (0.0-1.0)")]
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.0-1.0)", CliFormat::pattern("Vertical offset")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
     pub offset: Option<f64>,
 
-    // Spiral parameters
-    #[arg(long, help = "Spiral density (0.1-5.0)")]
-    pub density: Option<f64>,
+    #[arg(
+        long, 
+        value_name = "X", 
+        help = format!("{} (0.0-1.0)", CliFormat::pattern("Ripple center X position")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
+    pub center_x: Option<f64>,
 
-    #[arg(long, help = "Pattern rotation angle (0-360)")]
-    pub rotation: Option<f64>,
+    #[arg(
+        long, 
+        value_name = "Y", 
+        help = format!("{} (0.0-1.0)", CliFormat::pattern("Ripple center Y position")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
+    pub center_y: Option<f64>,
 
-    #[arg(long, help = "Spiral expansion rate (0.1-2.0)")]
-    pub expansion: Option<f64>,
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.1-5.0)", CliFormat::pattern("Distance between ripples")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
+    pub wavelength: Option<f64>,
 
-    #[arg(long, help = "Reverse spiral direction")]
-    pub counterclockwise: bool,
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.0-1.0)", CliFormat::pattern("Ripple fade-out rate")), 
+        help_heading = CliFormat::HEADING_WAVE
+    )]
+    pub damping: Option<f64>,
 
-    // Checker/Diamond parameters
-    #[arg(long, help = "Pattern size (1-10)")]
-    pub size: Option<usize>,
+    // Plasma & Perlin
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (1.0-10.0)", CliFormat::pattern("Pattern complexity")), 
+        help_heading = CliFormat::HEADING_PLASMA
+    )]
+    pub complexity: Option<f64>,
 
-    #[arg(long, help = "Edge blur (0.0-1.0)")]
-    pub blur: Option<f64>,
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.1-5.0)", CliFormat::pattern("Pattern scale")), 
+        help_heading = CliFormat::HEADING_PLASMA
+    )]
+    pub scale: Option<f64>,
 
-    #[arg(long, help = "Diamond edge sharpness (0.1-5.0)")]
-    pub sharpness: Option<f64>,
-
-    // Perlin parameters
-    #[arg(long, help = "Perlin noise octaves (1-8)")]
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (1-8)", CliFormat::pattern("Noise octaves")), 
+        help_heading = CliFormat::HEADING_PLASMA
+    )]
     pub octaves: Option<u32>,
 
-    #[arg(long, help = "Perlin persistence (0.0-1.0)")]
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.0-1.0)", CliFormat::pattern("Noise persistence")), 
+        help_heading = CliFormat::HEADING_PLASMA
+    )]
     pub persistence: Option<f64>,
 
-    #[arg(long, help = "Random seed for noise")]
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{}", CliFormat::pattern("Random seed")), 
+        help_heading = CliFormat::HEADING_PLASMA
+    )]
     pub seed: Option<u32>,
 
-    // Diagonal parameters
-    #[arg(long, help = "Gradient angle (0-360)")]
+    // Spiral & Diamond
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.1-5.0)", CliFormat::pattern("Pattern density")), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub density: Option<f64>,
+
+    #[arg(
+        long, 
+        value_name = "DEG", 
+        help = format!("{} (0-360)", CliFormat::pattern("Rotation angle")), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub rotation: Option<f64>,
+
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.1-2.0)", CliFormat::pattern("Expansion rate")), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub expansion: Option<f64>,
+
+    #[arg(
+        long, 
+        help = CliFormat::pattern("Reverse spiral direction"), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub counterclockwise: bool,
+
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (1-10)", CliFormat::pattern("Pattern size")), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub size: Option<usize>,
+
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.0-1.0)", CliFormat::pattern("Edge blur")), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub blur: Option<f64>,
+
+    #[arg(
+        long, 
+        value_name = "NUM", 
+        help = format!("{} (0.1-5.0)", CliFormat::pattern("Diamond edge sharpness")), 
+        help_heading = CliFormat::HEADING_SPIRAL
+    )]
+    pub sharpness: Option<f64>,
+
+    // Diagonal & Checkerboard
+    #[arg(
+        long, 
+        value_name = "DEG", 
+        help = format!("{} (0-360)", CliFormat::pattern("Gradient angle")), 
+        help_heading = CliFormat::HEADING_OTHER
+    )]
     pub angle: Option<i32>,
 }
 
