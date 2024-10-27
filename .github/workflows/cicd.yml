@@ -45,10 +45,10 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build
-        run: ${{ matrix.cmd }} build --verbose --locked --target ${{ matrix.target }}
+        run: ${{ matrix.cmd }} build --verbose --target ${{ matrix.target }}
 
       - name: Run tests
-        run: ${{ matrix.cmd }} test --verbose --locked --target ${{ matrix.target }}
+        run: ${{ matrix.cmd }} test --verbose --target ${{ matrix.target }}
 
   # The following jobs only run on tag pushes (i.e., releases)
   create-release:
@@ -108,7 +108,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build
-        run: ${{ matrix.cmd }} build --verbose --locked --release --target ${{ matrix.target }}
+        run: ${{ matrix.cmd }} build --verbose --release --target ${{ matrix.target }}
 
       - name: Get Release URL
         uses: actions/download-artifact@v4
