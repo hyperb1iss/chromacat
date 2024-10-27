@@ -17,12 +17,15 @@ use crossterm::{
     event::{KeyCode, KeyEvent},
     execute, queue,
     style::{Color, Print, ResetColor, SetForegroundColor},
-    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        self, disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    },
 };
 use std::cmp::min;
 use std::fmt::Write as FmtWrite;
 use std::io::{stdout, Write};
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -97,6 +100,7 @@ pub struct Renderer {
 impl Renderer {
     /// Creates a new renderer instance
     pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self> {
+        enable_raw_mode()?; // Enable raw mode
         let term_size = terminal::size()?;
         let colors_enabled = atty::is(atty::Stream::Stdout);
         let color_buffer = vec![vec![Color::White; term_size.0 as usize]; term_size.1 as usize];
@@ -133,6 +137,15 @@ impl Renderer {
 
     /// Handle scrolling key events
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Result<bool> {
+        // Remove or comment out the debug prints
+        // eprintln!(
+        //     "Debug - top_line: {}, viewport_height: {}, total_lines: {}, color_buffer_len: {}",
+        //     self.scroll_state.top_line,
+        //     self.scroll_state.viewport_height,
+        //     self.scroll_state.total_lines,
+        //     self.color_buffer.len()
+        // );
+
         match key.code {
             KeyCode::PageUp => {
                 if self.scroll_state.top_line > 0 {
@@ -142,12 +155,11 @@ impl Renderer {
                 Ok(true)
             }
             KeyCode::PageDown => {
-                if self.scroll_state.top_line
-                    < self
-                        .scroll_state
-                        .total_lines
-                        .saturating_sub(self.scroll_state.viewport_height as usize)
-                {
+                let max_scroll = self
+                    .scroll_state
+                    .total_lines
+                    .saturating_sub(self.scroll_state.viewport_height as usize);
+                if self.scroll_state.top_line < max_scroll {
                     let scroll_amount = self.scroll_state.viewport_height as i32 - 1;
                     self.scroll_viewport(scroll_amount);
                 }
@@ -160,12 +172,11 @@ impl Renderer {
                 Ok(true)
             }
             KeyCode::Down => {
-                if self.scroll_state.top_line
-                    < self
-                        .scroll_state
-                        .total_lines
-                        .saturating_sub(self.scroll_state.viewport_height as usize)
-                {
+                let max_scroll = self
+                    .scroll_state
+                    .total_lines
+                    .saturating_sub(self.scroll_state.viewport_height as usize);
+                if self.scroll_state.top_line < max_scroll {
                     self.scroll_viewport(1);
                 }
                 Ok(true)
@@ -177,19 +188,12 @@ impl Renderer {
 
     /// Adjust viewport position when scrolling
     fn scroll_viewport(&mut self, direction: i32) {
-        let new_top = self.scroll_state.top_line as i32 + direction;
-
-        if new_top < 0 {
-            self.scroll_state.top_line = 0;
-            return;
-        }
-
+        let new_top = (self.scroll_state.top_line as i32 + direction).max(0);
         let max_scroll = self
             .scroll_state
             .total_lines
             .saturating_sub(self.scroll_state.viewport_height as usize);
-
-        self.scroll_state.top_line = min(new_top as usize, max_scroll);
+        self.scroll_state.top_line = new_top.min(max_scroll as i32) as usize;
     }
 
     /// Renders static text with pattern (non-animated mode)
@@ -250,11 +254,20 @@ impl Renderer {
             self.alternate_screen = true;
 
             self.prepare_text_buffer(text)?;
+
             self.scroll_state = ScrollState {
                 top_line: 0,
                 viewport_height: self.term_size.1.saturating_sub(2),
                 total_lines: self.line_buffer.len(),
             };
+
+            self.update_color_buffer()?;
+
+            // Initial full screen draw
+            queue!(stdout, Hide)?;
+            self.draw_full_screen(&mut stdout)?;
+            stdout.flush()?;
+            return Ok(());
         }
 
         // Calculate animation progress
@@ -266,7 +279,7 @@ impl Renderer {
 
         self.engine.update(progress);
 
-        // Calculate visible range
+        // Update colors for visible region
         let visible_lines = min(
             self.scroll_state.viewport_height as usize,
             self.scroll_state
@@ -274,49 +287,57 @@ impl Renderer {
                 .saturating_sub(self.scroll_state.top_line),
         );
 
-        // Update colors for visible region
-        self.update_color_buffer_range(
-            self.scroll_state.top_line,
+        let end_line = min(
             self.scroll_state.top_line + visible_lines,
-            progress,
-        )?;
+            self.line_buffer.len(),
+        );
 
-        // Build frame in memory
-        let mut current_color = None;
+        self.update_color_buffer_range(self.scroll_state.top_line, end_line, progress)?;
 
-        // Render visible lines
-        for (display_line, line_idx) in
-            (self.scroll_state.top_line..self.scroll_state.top_line + visible_lines).enumerate()
-        {
+        // **Start of changes: Optimize Rendering to Update Only Necessary Lines**
+
+        for display_line in 0..visible_lines {
+            let line_idx = self.scroll_state.top_line + display_line;
+            if line_idx >= self.line_buffer.len() {
+                break;
+            }
+
+            // Move cursor to the specific line
             queue!(stdout, MoveTo(0, display_line as u16))?;
 
             if !self.colors_enabled {
-                queue!(stdout, Print(&self.line_buffer[line_idx]))?;
+                // No color rendering
+                queue!(stdout, Print(&self.line_buffer[line_idx]), Print("\x1b[K"))?;
                 continue;
             }
 
-            // Render line with colors
+            // Optimize color changes and rendering
+            let mut current_color = None;
+            let mut line_output = String::new();
+
             for (x, grapheme) in self.line_buffer[line_idx].graphemes(true).enumerate() {
-                if x < self.color_buffer[line_idx].len() {
-                    let color = self.color_buffer[line_idx][x];
-                    if current_color != Some(color) {
-                        queue!(stdout, SetForegroundColor(color))?;
-                        current_color = Some(color);
-                    }
+                if x >= self.color_buffer[line_idx].len() {
+                    break;
                 }
-                queue!(stdout, Print(grapheme))?;
+                let color = self.color_buffer[line_idx][x];
+                if current_color != Some(color) {
+                    // Only emit color codes when color changes
+                    match color {
+                        Color::Rgb { r, g, b } => {
+                            line_output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
+                        }
+                        _ => {}
+                    }
+                    current_color = Some(color);
+                }
+                line_output.push_str(grapheme);
             }
 
-            // Clear to end of line
-            queue!(stdout, Print("\x1b[K"))?;
+            // Write the prepared line and clear to the end of the line
+            queue!(stdout, Print(line_output), Print("\x1b[K"))?;
         }
 
-        // Clear remaining lines
-        for y in visible_lines..self.scroll_state.viewport_height as usize {
-            queue!(stdout, MoveTo(0, y as u16), Print("\x1b[K"))?;
-        }
-
-        // Render status line
+        // Update status line only if necessary
         queue!(
             stdout,
             MoveTo(0, self.term_size.1 - 1),
@@ -330,8 +351,68 @@ impl Renderer {
             Print("\x1b[K")
         )?;
 
-        queue!(stdout, ResetColor)?;
+        // Restore cursor position and attributes
+        queue!(stdout, Show)?;
+
+        // Flush all changes at once
         stdout.flush()?;
+
+        Ok(())
+    }
+
+    // Add this new helper method
+    fn draw_full_screen(&mut self, stdout: &mut std::io::StdoutLock) -> Result<()> {
+        let visible_lines = min(
+            self.scroll_state.viewport_height as usize,
+            self.scroll_state
+                .total_lines
+                .saturating_sub(self.scroll_state.top_line),
+        );
+
+        let mut current_color = None;
+
+        // Clear screen and move to top
+        queue!(stdout, Print("\x1b[2J"), MoveTo(0, 0))?;
+
+        // Render all visible lines
+        for display_line in 0..visible_lines {
+            let line_idx = self.scroll_state.top_line + display_line;
+            if line_idx >= self.line_buffer.len() {
+                break;
+            }
+
+            if !self.colors_enabled {
+                queue!(stdout, Print(&self.line_buffer[line_idx]), Print("\n"))?;
+                continue;
+            }
+
+            for (x, grapheme) in self.line_buffer[line_idx].graphemes(true).enumerate() {
+                if x >= self.color_buffer[line_idx].len() {
+                    break;
+                }
+                let color = self.color_buffer[line_idx][x];
+                if current_color != Some(color) {
+                    queue!(stdout, SetForegroundColor(color))?;
+                    current_color = Some(color);
+                }
+                queue!(stdout, Print(grapheme))?;
+            }
+            queue!(stdout, Print("\n"))?;
+        }
+
+        // Render status line
+        queue!(
+            stdout,
+            MoveTo(0, self.term_size.1 - 1),
+            SetForegroundColor(Color::White),
+            Print(format!(
+                "Lines {}-{}/{} [↑/↓/PgUp/PgDn to scroll, q to quit]",
+                self.scroll_state.top_line + 1,
+                self.scroll_state.top_line + visible_lines,
+                self.scroll_state.total_lines
+            ))
+        )?;
+
         Ok(())
     }
 
@@ -380,18 +461,29 @@ impl Renderer {
             .iter()
             .map(|line| line.graphemes(true).count())
             .max()
-            .unwrap_or(0);
+            .unwrap_or(0)
+            .max(self.term_size.0 as usize);
 
-        let buffer_height = self.line_buffer.len();
+        let buffer_height = self.line_buffer.len().max(self.term_size.1 as usize);
 
-        if self.color_buffer.len() < buffer_height
-            || self.color_buffer.first().map_or(0, |row| row.len()) < max_line_length
-        {
-            self.color_buffer =
-                vec![
-                    vec![Color::White; max_line_length.max(self.term_size.0 as usize)];
-                    buffer_height.max(self.term_size.1 as usize)
-                ];
+        // Always ensure the color buffer is large enough
+        if self.color_buffer.len() < buffer_height || self.color_buffer[0].len() < max_line_length {
+            // Preserve existing colors when resizing
+            let mut new_buffer = vec![vec![Color::White; max_line_length]; buffer_height];
+
+            // Copy existing colors
+            for (y, row) in self
+                .color_buffer
+                .iter()
+                .enumerate()
+                .take(min(buffer_height, self.color_buffer.len()))
+            {
+                for (x, &color) in row.iter().enumerate().take(min(max_line_length, row.len())) {
+                    new_buffer[y][x] = color;
+                }
+            }
+
+            self.color_buffer = new_buffer;
         }
 
         self.update_color_buffer_range(0, buffer_height, 0.0)
@@ -403,9 +495,15 @@ impl Renderer {
             return Ok(());
         }
 
+        let end = min(end, self.line_buffer.len());
+        let max_width = self.color_buffer[0].len();
+
         for y in start..end {
             let line = &self.line_buffer[y];
             for (x, _) in line.graphemes(true).enumerate() {
+                if x >= max_width {
+                    break;
+                }
                 let pattern_value = self.engine.get_value_at(x, y)?;
                 let gradient_color = self.engine.gradient().at(pattern_value as f32);
 
@@ -419,6 +517,25 @@ impl Renderer {
 
         Ok(())
     }
+
+    pub fn run(&mut self) -> Result<()> {
+        let frame_duration = self.frame_duration();
+
+        loop {
+            let start = Instant::now();
+
+            // Handle input events
+            // self.handle_input()?
+
+            // Render frame
+            self.render_frame("Your text here", start.elapsed())?;
+
+            let elapsed = start.elapsed();
+            if elapsed < frame_duration {
+                thread::sleep(frame_duration - elapsed);
+            }
+        }
+    }
 }
 
 impl Drop for Renderer {
@@ -430,6 +547,7 @@ impl Drop for Renderer {
             self.alternate_screen = false;
         }
         let _ = execute!(stdout, ResetColor);
+        let _ = disable_raw_mode(); // Disable raw mode
         let _ = stdout.flush();
     }
 }
