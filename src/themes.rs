@@ -496,18 +496,26 @@ pub fn list_category(category: &str) -> Option<Vec<String>> {
     THEME_REGISTRY
         .read()
         .ok()
-        .and_then(|registry| registry.categories.get(category).cloned())
+        .and_then(|registry| {
+            registry.categories.get(category).map(|themes| {
+                let mut themes = themes.clone();
+                themes.sort(); // Sort themes alphabetically
+                themes
+            })
+        })
 }
 
 pub fn list_categories() -> Vec<String> {
     THEME_REGISTRY
         .read()
         .map(|registry| {
-            registry
+            let mut categories: Vec<String> = registry
                 .categories
                 .keys()
-                .cloned() // Clone the String keys
-                .collect()
+                .cloned()
+                .collect();
+            categories.sort(); // Sort categories alphabetically
+            categories
         })
         .unwrap_or_default()
 }
