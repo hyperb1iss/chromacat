@@ -5,6 +5,8 @@ edition = "2021"
 authors = ["Stefanie Jane <stef@hyperbliss.tech>"]
 description = "A versatile command-line tool for applying color gradients to text output"
 license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/hyperb1iss/chromacat"
 repository = "https://github.com/hyperb1iss/chromacat"
 keywords = ["cli", "color", "terminal", "gradient", "text"]
 categories = ["command-line-utilities"]
@@ -34,3 +36,32 @@ path = "src/lib.rs"
 [[bin]]
 name = "chromacat"
 path = "src/main.rs"
+
+[package.metadata.deb]
+maintainer = "Stefanie Jane <stef@hyperbliss.tech>"
+copyright = "2024, chromacat Contributors <https://github.com/hyperb1iss/chromacat>"
+license-file = ["LICENSE", "4"]
+extended-description = """
+ChromaCat is a turbocharged terminal colorizer written in Rust
+"""
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    [
+        "target/release/chromacat",
+        "usr/bin/",
+        "755",
+    ],
+    [
+        "README.md",
+        "usr/share/doc/chromacat/README",
+        "644",
+    ],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/chromacat", dest = "/usr/bin/chromacat", mode = "755" },
+    { source = "README.md", dest = "/usr/share/doc/chromacat/README", mode = "644" },
+]
