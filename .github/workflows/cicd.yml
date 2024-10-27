@@ -1,0 +1,211 @@
+# This workflow handles continuous integration and deployment for the ChromaCat project.
+# It runs tests and builds for all pushes, and creates releases for tagged pushes.
+
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to main branch
+    tags:
+      - "v*.*.*" # Trigger on version tags
+  pull_request:
+    branches:
+      - main # Trigger on pull requests to main branch
+
+jobs:
+  # This job runs for all pushes and pull requests
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - build: linux-amd64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cmd: cargo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: ${{ matrix.cmd }} build --verbose --locked --target ${{ matrix.target }}
+
+      - name: Run tests
+        run: ${{ matrix.cmd }} test --verbose --locked --target ${{ matrix.target }}
+
+  # The following jobs only run on tag pushes (i.e., releases)
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Output Release URL File
+        run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+      - name: Save Release URL File for publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_url
+          path: release_url.txt
+
+  build-and-publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - build: linux-amd64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cmd: cargo
+            binary_name: chromacat
+
+          - build: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            cmd: cargo
+
+          - build: windows-gnu
+            os: windows-latest
+            target: x86_64-pc-windows-gnu
+            cmd: cargo
+            binary_name: chromacat.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: ${{ matrix.cmd }} build --verbose --locked --release --target ${{ matrix.target }}
+
+      - name: Get Release URL
+        uses: actions/download-artifact@v4
+        with:
+          name: release_url
+          path: ./
+
+      - name: Get Release File Name & Upload URL
+        id: get_release_info
+        run: |
+          value=`cat release_url.txt`
+          echo ::set-output name=upload_url::$value
+        shell: bash
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+          asset_name: chromacat-${{ matrix.build }}
+          asset_content_type: application/octet-stream
+
+  build-deb:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+      - name: Build .deb package
+        run: cargo deb
+      - name: Get Release URL
+        uses: actions/download-artifact@v4
+        with:
+          name: release_url
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF_NAME#v}
+      - name: Get Release File Name & Upload URL
+        id: get_release_info
+        run: |
+          value=`cat release_url.txt`
+          echo ::set-output name=upload_url::$value
+      - name: Upload .deb package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ./target/debian/chromacat_${{ steps.get_version.outputs.VERSION }}-1_amd64.deb
+          asset_name: chromacat_${{ steps.get_version.outputs.VERSION }}-1_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  build-rpm:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Build Release Binary
+        run: cargo build --release
+      - name: Install cargo-generate-rpm
+        run: cargo install cargo-generate-rpm
+      - name: Build .rpm package
+        run: cargo generate-rpm
+      - name: Get Release URL
+        uses: actions/download-artifact@v4
+        with:
+          name: release_url
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF_NAME#v}
+      - name: Get Release File Name & Upload URL
+        id: get_release_info
+        run: |
+          value=`cat release_url.txt`
+          echo ::set-output name=upload_url::$value
+      - name: Upload .rpm package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ./target/generate-rpm/chromacat-${{ steps.get_version.outputs.VERSION }}-1.x86_64.rpm
+          asset_name: chromacat-${{ steps.get_version.outputs.VERSION }}-1.x86_64.rpm
+          asset_content_type: application/x-rpm
+
