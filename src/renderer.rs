@@ -28,7 +28,7 @@ use std::io::{stdout, Write};
 use std::thread;
 use std::time::{Duration, Instant};
 use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr; // Add if needed for thread safety
+use unicode_width::UnicodeWidthStr;
 
 /// Configuration for animation rendering
 #[derive(Debug, Clone)]
@@ -87,13 +87,14 @@ pub struct Renderer {
     /// Scrolling state for animated viewing
     scroll_state: ScrollState,
     /// Original unwrapped text for proper re-wrapping on resize
-    original_text: String, // **Added Field**
+    original_text: String,
 }
 
 impl Renderer {
     /// Creates a new renderer instance
     pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self> {
         enable_raw_mode()?; // Enable raw mode
+        execute!(stdout(), Hide)?;
         let term_size = terminal::size()?;
         // Always enable colors regardless of stdout type
         let colors_enabled = true;
@@ -213,7 +214,7 @@ impl Renderer {
         for (y, line) in self.line_buffer.iter().enumerate() {
             if !self.colors_enabled {
                 output.push_str(line);
-                output.push('\r'); // Add carriage return before newline
+                output.push('\r');
                 output.push('\n');
                 continue;
             }
@@ -233,7 +234,7 @@ impl Renderer {
                 }
                 output.push_str(grapheme);
             }
-            output.push('\r'); // Add carriage return before newline
+            output.push('\r');
             output.push('\n');
         }
 
@@ -250,7 +251,8 @@ impl Renderer {
 
         // First-time initialization
         if self.line_buffer.is_empty() {
-            execute!(stdout, EnterAlternateScreen, Hide)?;
+            execute!(stdout, EnterAlternateScreen)?;
+            execute!(stdout, Hide)?;
             self.alternate_screen = true;
 
             // Clone text first, then use it
@@ -268,7 +270,6 @@ impl Renderer {
             self.update_color_buffer()?;
 
             // Initial full screen draw
-            queue!(stdout, Hide)?;
             self.draw_full_screen(&mut stdout)?;
             stdout.flush()?;
             return Ok(());
@@ -461,11 +462,17 @@ impl Renderer {
                 g: 100,
                 b: 100
             }),
-            Print(" to quit ┃")
+            Print(" to quit ┃ "),
+            SetForegroundColor(Color::Rgb {
+                r: 255,
+                g: 182,
+                b: 193
+            }),
+            Print("😺")
         )?;
 
-        // Restore cursor position and attributes
-        queue!(stdout, Show)?;
+        // Keep cursor hidden during animation
+        queue!(stdout, Hide)?;
 
         // Flush all changes at once
         stdout.flush()?;
@@ -473,8 +480,10 @@ impl Renderer {
         Ok(())
     }
 
-    // Add this new helper method
     fn draw_full_screen(&mut self, stdout: &mut std::io::StdoutLock) -> Result<()> {
+        // Hide cursor immediately
+        queue!(stdout, Hide)?;
+
         let visible_lines = min(
             self.scroll_state.viewport_height as usize,
             self.scroll_state
@@ -666,7 +675,6 @@ impl Renderer {
         Ok(())
     }
 
-    // Add this new method to handle terminal resizes
     pub fn handle_resize(&mut self, new_width: u16, new_height: u16) -> Result<()> {
         // Store old dimensions for comparison
         let old_width = self.term_size.0;
@@ -717,7 +725,7 @@ impl Renderer {
 
         // Clear screen and redraw everything
         let mut stdout = stdout().lock();
-        queue!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+        queue!(stdout, Clear(ClearType::All), MoveTo(0, 0), Hide)?;
 
         // Redraw the screen
         self.draw_full_screen(&mut stdout)?;
@@ -750,11 +758,13 @@ impl Drop for Renderer {
         let mut stdout = stdout();
 
         if self.alternate_screen {
-            let _ = execute!(stdout, Show, LeaveAlternateScreen);
+            let _ = execute!(stdout, LeaveAlternateScreen, Show); // Only show cursor here
             self.alternate_screen = false;
+        } else {
+            let _ = execute!(stdout, Show); // Show cursor if we weren't in alternate screen
         }
         let _ = execute!(stdout, ResetColor);
-        let _ = disable_raw_mode(); // Disable raw mode
+        let _ = disable_raw_mode();
         let _ = stdout.flush();
     }
 }
