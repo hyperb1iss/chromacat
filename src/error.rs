@@ -1,4 +1,4 @@
-use std::io;
+use std::{fmt, io};
 use thiserror::Error;
 
 /// Represents all possible errors that can occur in ChromaCat
@@ -40,6 +40,10 @@ pub enum ChromaCatError {
     /// IO Error wrapper
     #[error("IO Error: {0}")]
     IoError(#[from] io::Error),
+
+    /// Format Error wrapper
+    #[error("Format Error: {0}")]
+    FormatError(#[from] fmt::Error),
 }
 
 /// A Result type alias using ChromaCatError

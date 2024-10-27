@@ -12,15 +12,15 @@ use crate::renderer::Renderer;
 use crate::themes::Theme;
 
 use crossterm::cursor::{Hide, Show};
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use log::{debug, info, trace, warn};
+use log::{debug, info};
 use std::io::{stdout, Write};
 use std::str::FromStr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// Main application struct that coordinates ChromaCat functionality
 pub struct ChromaCat {
@@ -155,6 +155,7 @@ impl ChromaCat {
         Ok(())
     }
 
+    
     /// Processes input from stdin
     fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
         let mut reader = InputReader::from_stdin()?;
@@ -175,53 +176,59 @@ impl ChromaCat {
         let start_time = Instant::now();
         let frame_duration = renderer.frame_duration();
         let mut last_frame = Instant::now();
-        let mut paused = false;
-
-        info!("Starting animation loop");
-        debug!("Frame duration: {:?}", frame_duration);
-
-        loop {
-            // Handle input with small timeout
-            if event::poll(std::time::Duration::from_millis(1))? {
+        let paused = false;
+    
+        // Set up terminal
+        enable_raw_mode()?;
+    
+        // Main animation loop
+        'main: loop {
+            // Handle input with minimal polling delay
+            if event::poll(Duration::from_millis(1))? {
                 match event::read()? {
-                    Event::Key(key) => match key.code {
-                        KeyCode::Esc | KeyCode::Char('q') => break,
-                        KeyCode::Char(' ') => {
-                            paused = !paused;
-                            debug!("Animation {}", if paused { "paused" } else { "resumed" });
+                    Event::Key(key) => {
+                        match renderer.handle_key_event(key) {
+                            Ok(true) => continue 'main,  // Continue running
+                            Ok(false) => break 'main,    // Exit requested
+                            Err(e) => {
+                                // Handle error but continue running
+                                eprintln!("Key handling error: {}", e);
+                                continue 'main;
+                            }
                         }
-                        KeyCode::Char('r') => {
-                            debug!("Resetting animation time");
-                            last_frame = Instant::now();
-                        }
-                        _ => {}
-                    },
-                    Event::Resize(width, height) => {
-                        warn!("Terminal resized to {}x{}", width, height);
-                        // Could implement resize handling here
                     }
-                    _ => {}
+                    Event::Resize(width, height) => {
+                        // Update terminal size if needed
+                        // For now, we just continue
+                        continue 'main;
+                    }
+                    _ => continue 'main,
                 }
             }
-
+    
             let now = Instant::now();
-
+            
             // Update and render frame
             if !paused && now.duration_since(last_frame) >= frame_duration {
                 let elapsed = now.duration_since(start_time);
-
-                // Check animation duration
-                if !renderer.is_infinite() && elapsed >= renderer.cycle_duration() {
-                    debug!("Animation complete");
-                    break;
+    
+                // Render frame, handle potential errors
+                if let Err(e) = renderer.render_frame(content, elapsed) {
+                    eprintln!("Render error: {}", e);
+                    // Optionally break or continue based on error severity
+                    continue 'main;
                 }
-
-                trace!("Rendering frame at elapsed time: {:?}", elapsed);
-                renderer.render_frame(content, elapsed)?;
+                
                 last_frame = now;
+            } else {
+                // Avoid busy-waiting
+                std::thread::sleep(Duration::from_millis(1));
             }
         }
-
+    
+        // Clean up terminal
+        disable_raw_mode()?;
+    
         Ok(())
     }
 }
