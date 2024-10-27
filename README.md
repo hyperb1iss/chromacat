@@ -67,9 +67,9 @@ ChromaCat offers several pattern types to make your terminal output pop:
 - `diamond` - Diamond-shaped gradient pattern
 - `perlin` - Organic, cloud-like noise pattern
 
-## 🌈 Available Themes
+## 🌈 Built-in Themes
 
-Here's a taste of the available themes (there are many more!):
+ChromaCat comes with a rich selection of pre-configured themes:
 
 ### Classic Themes
 
@@ -94,6 +94,44 @@ Here's a taste of the available themes (there are many more!):
 - `vaporwave` - 90s aesthetic with pink and cyan
 - `retrowave` - 80s-inspired synthwave colors
 - `neon` - Bright, vibrant pop
+
+## 🎨 Custom Themes
+
+Create your own themes using YAML format. Custom themes support all features of built-in themes and can be used alongside them.
+
+### Loading Custom Themes
+
+```bash
+# Load a custom theme file
+chromacat --theme-file my-themes.yaml -t my-custom-theme
+
+# Combine with any pattern
+chromacat --theme-file themes/neon.yaml -t cyberpunk-nights -p wave
+```
+
+### Theme Format
+
+```yaml
+- name: sunset-dream
+  desc: Warm sunset colors with smooth transitions
+  colors:
+    - [1.0, 0.2, 0.0, 0.0, deep-orange]
+    - [1.0, 0.6, 0.2, 0.3, light-orange]
+    - [0.8, 0.4, 0.6, 0.7, purple]
+    - [0.4, 0.2, 0.8, 1.0, deep-blue]
+  dist: back
+  repeat: pulse(0.3)
+  speed: 0.8
+  ease: smoother
+```
+
+### Theme Properties
+
+- **Colors**: RGB values (0.0-1.0) with optional position and name
+- **Distribution (`dist`)**: `even`, `front`, `back`, `center`, `alt`
+- **Repeat**: `none`, `mirror`, `repeat`, `pulse(rate)`, `rotate(rate)`
+- **Easing**: `linear`, `smooth`, `smoother`, `sine`, `exp`, `elastic`
+- **Speed**: Animation speed multiplier (default: 1.0)
 
 ## 💫 Usage Examples
 
@@ -136,19 +174,6 @@ chromacat -p plasma --complexity 3.0 --scale 1.5 file.txt
 chromacat -p wave --height 1.5 --count 3 file.txt
 ```
 
-### Advanced Usage
-
-```bash
-# Combine with other commands
-git status | chromacat -p ripple -t neon
-
-# Custom animation speed
-find . -type f | chromacat -a --speed 0.5
-
-# Progress logging with style
-yarn build | chromacat -t cyberpunk
-```
-
 ## 🎮 Interactive Controls
 
 When running in animation mode (`-a`):
@@ -159,7 +184,7 @@ When running in animation mode (`-a`):
 - `←` `→` - Adjust animation speed
 - `↑` `↓` - Modify pattern parameters
 
-## 🛠 Configuration Options
+## 🛠 Configuration
 
 ### Common Parameters
 
@@ -219,9 +244,7 @@ cargo build 2>&1 | chromacat -p plasma -t matrix
 watch -n1 "ps aux | sort -rn -k 3,3 | head -n 5 | chromacat -t heat"
 ```
 
-## 🎯 Performance Considerations
-
-ChromaCat is designed to be fast and efficient, but here are some tips for optimal performance:
+## 🎯 Performance Tips
 
 - Use static rendering for large files instead of animation mode
 - Adjust FPS based on your terminal's capabilities
@@ -272,129 +295,3 @@ Created by [Stefanie Jane 🌠](https://github.com/hyperb1iss)
 If you find ChromaCat useful, [buy me a Monster Ultra Violet](https://ko-fi.com/hyperb1iss)! ⚡️
 
 </div>
-
-## 🎨 Custom Themes
-
-ChromaCat allows you to create and load your own custom theme files in YAML format. Custom themes can be used alongside built-in themes and support all the same features.
-
-### Loading Custom Themes
-
-```bash
-# Load a custom theme file
-chromacat --theme-file my-themes.yaml -t my-custom-theme
-
-# You can combine custom themes with any pattern
-chromacat --theme-file themes/neon.yaml -t cyberpunk-nights -p wave
-```
-
-### Custom Theme Format
-
-Custom themes are defined in YAML files. Each file can contain multiple themes:
-
-```yaml
-- name: my-custom-theme
-  desc: A beautiful custom gradient
-  colors:
-    - [1.0, 0.0, 0.0, 0.0, red] # [R, G, B, position, name]
-    - [0.0, 1.0, 0.0, 0.5, green] # position and name are optional
-    - [0.0, 0.0, 1.0, 1.0, blue]
-  dist: even # Distribution pattern
-  repeat: mirror # Repeat mode
-  speed: 1.0 # Animation speed
-  ease: smooth # Easing function
-
-- name: another-theme
-  desc: Another custom theme
-  colors:
-    - [0.8, 0.2, 0.8] # Minimal color definition
-    - [0.2, 0.8, 0.8]
-    - [0.8, 0.8, 0.2]
-  # Optional fields will use defaults
-```
-
-### Theme Properties
-
-#### Colors
-
-- RGB values must be between 0.0 and 1.0
-- Position (optional) defines color stop position (0.0 to 1.0)
-- Name (optional) is for reference only
-
-#### Distribution Types (`dist`)
-
-- `even` - Colors evenly distributed (default)
-- `front` - Colors concentrated at start
-- `back` - Colors concentrated at end
-- `center` - Colors concentrated in middle
-- `alt` - Alternating distribution
-
-#### Repeat Modes (`repeat`)
-
-- `none` - No repetition (default)
-- `mirror` - Reverse pattern at end
-- `repeat` - Repeat pattern
-- `pulse(rate)` - Pulsing effect with rate (e.g., `pulse(0.5)`)
-- `rotate(rate)` - Rotating effect with rate (e.g., `rotate(1.0)`)
-
-#### Easing Functions (`ease`)
-
-- `linear` - No easing (default)
-- `smooth` - Smooth transition
-- `smoother` - Extra smooth transition
-- `sine` - Sinusoidal easing
-- `exp` - Exponential easing
-- `elastic` - Elastic bounce effect
-
-#### Other Properties
-
-- `speed` - Animation speed multiplier (default: 1.0)
-- `desc` - Theme description (optional)
-
-### Example Theme File
-
-Here's a more complex example showing various features:
-
-```yaml
-- name: sunset-dream
-  desc: Warm sunset colors with smooth transitions
-  colors:
-    - [1.0, 0.2, 0.0, 0.0, deep-orange]
-    - [1.0, 0.6, 0.2, 0.3, light-orange]
-    - [0.8, 0.4, 0.6, 0.7, purple]
-    - [0.4, 0.2, 0.8, 1.0, deep-blue]
-  dist: back
-  repeat: pulse(0.3)
-  speed: 0.8
-  ease: smoother
-
-- name: neon-flash
-  desc: Bright neon colors with sharp transitions
-  colors:
-    - [1.0, 0.0, 1.0, 0.0, magenta]
-    - [0.0, 1.0, 1.0, 0.33, cyan]
-    - [1.0, 1.0, 0.0, 0.66, yellow]
-    - [0.0, 1.0, 0.0, 1.0, green]
-  dist: alt
-  repeat: rotate(0.8)
-  speed: 1.2
-  ease: exp
-```
-
-### Tips for Creating Themes
-
-1. Start with 2-4 colors for simple gradients
-2. Use position values to control color distribution
-3. Match the distribution type to your desired effect
-4. Experiment with repeat modes for dynamic effects
-5. Choose easing functions that complement your pattern
-6. Test themes with different patterns and animations
-
-### Validation
-
-ChromaCat validates custom themes when loading them and will report specific errors if:
-
-- Color values are outside the valid range (0.0-1.0)
-- Required fields are missing
-- Position values are invalid
-- Speed value is not positive
-- Theme has fewer than 2 colors
