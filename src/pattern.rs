@@ -187,10 +187,11 @@ impl PatternEngine {
     /// # Arguments
     /// * `delta` - Time increment (0.0-1.0)
     pub fn update(&mut self, delta: f64) {
-        // Scale the animation speed by the common frequency parameter
-        let adjusted_delta = delta * self.config.common.speed * self.config.common.frequency;
+        // Scale the animation speed by the common speed parameter only
+        // (removed frequency from this calculation as it shouldn't affect time progression)
+        let adjusted_delta = delta * self.config.common.speed;
         self.time = if adjusted_delta.is_finite() {
-            (self.time + adjusted_delta) % 1.0
+            self.time + adjusted_delta
         } else {
             0.0
         };
@@ -342,23 +343,25 @@ impl PatternEngine {
         let time = self.time * std::f64::consts::PI * 2.0;
         let x_norm = x as f64 / self.width as f64;
         let y_norm = y as f64 / self.height as f64;
-    
+
         let base_freq = self.config.common.frequency * scale;
-    
+
         let mut sum = 0.0;
         for i in 0..complexity as u32 {
             let factor = 2.0_f64.powi(i as i32);
             let freq = base_freq * factor;
-            
+
             // Add time to each component to create movement
             sum += self.fast_sin((x_norm * freq + time) * PI * 2.0) / factor;
             sum += self.fast_sin((y_norm * freq + time) * PI * 2.0) / factor;
             sum += self.fast_sin(((x_norm + y_norm) * freq + time) * PI * 2.0) / factor;
-            
+
             // Add some rotating components
-            sum += self.fast_sin((x_norm * self.fast_cos(time) + y_norm * self.fast_sin(time)) * freq) / factor;
+            sum += self
+                .fast_sin((x_norm * self.fast_cos(time) + y_norm * self.fast_sin(time)) * freq)
+                / factor;
         }
-    
+
         // Normalize to 0..1 range
         (sum / complexity + 1.0) / 2.0
     }

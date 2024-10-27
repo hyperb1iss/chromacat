@@ -37,8 +37,8 @@ impl RendererTest {
         let engine = PatternEngine::new(
             create_test_gradient(),
             pattern_config,
-            80,  // width
-            24   // height
+            80, // width
+            24, // height
         );
 
         let config = AnimationConfig {
@@ -125,9 +125,9 @@ fn test_animation_progress() {
     let mut renderer = test.create_renderer().unwrap();
 
     let progress_points = [
-        Duration::from_millis(0),    // Start
-        Duration::from_millis(500),  // Middle
-        Duration::from_millis(999),  // Just before end
+        Duration::from_millis(0),   // Start
+        Duration::from_millis(500), // Middle
+        Duration::from_millis(999), // Just before end
     ];
 
     for duration in progress_points {
@@ -146,12 +146,12 @@ fn test_unicode_width() {
 
     // Text with various width characters
     let test_cases = vec![
-        "Hello",             // ASCII
-        "世界",              // CJK
-        "👨‍👩‍👧‍👦",    // Wide emoji
-        "α β γ",            // Greek
-        "🏳️‍🌈",           // Flag
-        "ｆｕｌｌwidth",    // Full-width
+        "Hello",         // ASCII
+        "世界",          // CJK
+        "👨‍👩‍👧‍👦",      // Wide emoji
+        "α β γ",         // Greek
+        "🏳️‍🌈",          // Flag
+        "ｆｕｌｌwidth", // Full-width
     ];
 
     for text in test_cases {
@@ -180,7 +180,7 @@ mod terminal_tests {
     fn test_terminal_resize() {
         let test = RendererTest::new();
         let mut renderer = test.create_renderer().unwrap();
-        
+
         // Test rendering before and after theoretical resize
         assert!(renderer.render_static("Before resize").is_ok());
         assert!(renderer.render_static("After resize").is_ok());
@@ -278,16 +278,16 @@ mod config_tests {
     #[test]
     fn test_various_fps() {
         let fps_values = [1, 30, 60, 144];
-        
+
         for fps in fps_values {
             let mut config = AnimationConfig::default();
             config.fps = fps;
-            
+
             let test = RendererTest {
                 config,
                 ..RendererTest::new()
             };
-            
+
             let renderer = test.create_renderer().unwrap();
             assert_eq!(
                 renderer.frame_duration(),
@@ -300,12 +300,12 @@ mod config_tests {
     fn test_infinite_animation() {
         let mut config = AnimationConfig::default();
         config.infinite = true;
-        
+
         let test = RendererTest {
             config,
             ..RendererTest::new()
         };
-        
+
         let renderer = test.create_renderer().unwrap();
         assert!(renderer.is_infinite());
     }

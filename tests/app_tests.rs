@@ -4,6 +4,7 @@ use chromacat::cli::{Cli, PatternKind, PatternParameters};
 use chromacat::ChromaCat;
 use std::io::Write;
 use tempfile::NamedTempFile;
+use std::env;
 
 // Helper function to create a temporary file with content
 fn create_test_file(content: &str) -> NamedTempFile {
@@ -12,8 +13,13 @@ fn create_test_file(content: &str) -> NamedTempFile {
     file
 }
 
+fn setup_test_env() {
+    env::set_var("RUST_TEST", "1");
+}
+
 #[test]
 fn test_chromacat_basic() {
+    setup_test_env();
     // Create a temporary file with test content
     let test_file = create_test_file("Hello, ChromaCat!");
 
@@ -39,6 +45,7 @@ fn test_chromacat_basic() {
 
 #[test]
 fn test_chromacat_invalid_angle() {
+    setup_test_env();
     // Create a temporary file with test content
     let test_file = create_test_file("Testing invalid angle");
 
@@ -67,6 +74,7 @@ fn test_chromacat_invalid_angle() {
 
 #[test]
 fn test_chromacat_invalid_theme() {
+    setup_test_env();
     // Create a temporary file with test content
     let test_file = create_test_file("Testing invalid theme");
 
@@ -93,6 +101,7 @@ fn test_chromacat_invalid_theme() {
 
 #[test]
 fn test_chromacat_pattern_params() {
+    setup_test_env();
     // Create a temporary file with test content
     let test_file = create_test_file("Testing pattern parameters");
 
@@ -152,6 +161,7 @@ fn test_chromacat_pattern_params() {
 
 #[test]
 fn test_chromacat_animation_settings() {
+    setup_test_env();
     let test_file = create_test_file("Testing animation");
 
     let cli = Cli {

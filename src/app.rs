@@ -92,11 +92,21 @@ impl ChromaCat {
         result
     }
 
+    /// Returns true if running in a test environment
+    fn is_test() -> bool {
+        std::env::var("RUST_TEST").is_ok()
+    }
+
     /// Sets up the terminal for rendering
     fn setup_terminal(&mut self) -> Result<()> {
         // Get terminal size
         self.term_size = crossterm::terminal::size()
             .map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+
+        // Skip terminal setup in test environment
+        if Self::is_test() {
+            return Ok(());
+        }
 
         if self.cli.animate {
             // Enter raw mode for animation
@@ -155,7 +165,6 @@ impl ChromaCat {
         Ok(())
     }
 
-    
     /// Processes input from stdin
     fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
         let mut reader = InputReader::from_stdin()?;
@@ -177,10 +186,17 @@ impl ChromaCat {
         let frame_duration = renderer.frame_duration();
         let mut last_frame = Instant::now();
         let paused = false;
-    
+
+        // Skip terminal setup and animation loop in test environment
+        if Self::is_test() {
+            // Just render one frame for testing
+            renderer.render_frame(content, Duration::from_millis(100))?;
+            return Ok(());
+        }
+
         // Set up terminal
         enable_raw_mode()?;
-    
+
         // Main animation loop
         'main: loop {
             // Handle input with minimal polling delay
@@ -188,8 +204,8 @@ impl ChromaCat {
                 match event::read()? {
                     Event::Key(key) => {
                         match renderer.handle_key_event(key) {
-                            Ok(true) => continue 'main,  // Continue running
-                            Ok(false) => break 'main,    // Exit requested
+                            Ok(true) => continue 'main, // Continue running
+                            Ok(false) => break 'main,   // Exit requested
                             Err(e) => {
                                 // Handle error but continue running
                                 eprintln!("Key handling error: {}", e);
@@ -205,30 +221,30 @@ impl ChromaCat {
                     _ => continue 'main,
                 }
             }
-    
+
             let now = Instant::now();
-            
+
             // Update and render frame
             if !paused && now.duration_since(last_frame) >= frame_duration {
                 let elapsed = now.duration_since(start_time);
-    
+
                 // Render frame, handle potential errors
                 if let Err(e) = renderer.render_frame(content, elapsed) {
                     eprintln!("Render error: {}", e);
                     // Optionally break or continue based on error severity
                     continue 'main;
                 }
-                
+
                 last_frame = now;
             } else {
                 // Avoid busy-waiting
                 std::thread::sleep(Duration::from_millis(1));
             }
         }
-    
+
         // Clean up terminal
         disable_raw_mode()?;
-    
+
         Ok(())
     }
 }

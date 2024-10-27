@@ -260,9 +260,9 @@ mod animation_tests {
         let test = PatternTest::new();
         let delta = 0.5;
         let samples = vec![
-            (0.5, 0.25), // half speed
-            (1.0, 0.5),  // normal speed
-            (2.0, 0.0),  // double speed (wrapped)
+            (0.5, 0.25), // half speed: delta * speed = 0.5 * 0.5 = 0.25
+            (1.0, 0.5),  // normal speed: delta * speed = 0.5 * 1.0 = 0.5
+            (2.0, 1.0),  // double speed: delta * speed = 0.5 * 2.0 = 1.0
         ];
 
         for &(speed, expected_time) in &samples {
