@@ -344,7 +344,7 @@ impl ThemeDefinition {
             }
 
             if let Some(p) = color.position {
-                if p < 0.0 || p > 1.0 {
+                if !(0.0..=1.0).contains(&p) {
                     return Err(ChromaCatError::GradientError(
                         "Color positions must be between 0.0 and 1.0".to_string(),
                     ));

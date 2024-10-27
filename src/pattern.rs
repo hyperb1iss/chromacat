@@ -187,8 +187,9 @@ impl PatternEngine {
     /// # Arguments
     /// * `delta` - Time increment (0.0-1.0)
     pub fn update(&mut self, delta: f64) {
-        // Store the raw time value directly
-        self.time = delta;
+        // Apply speed multiplier from common parameters
+        let scaled_delta = delta * self.config.common.speed;
+        self.time = scaled_delta;
     }
 
     /// Gets the current animation time

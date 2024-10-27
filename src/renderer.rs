@@ -114,7 +114,11 @@ impl Renderer {
     /// Returns the frame duration based on configured FPS
     #[inline]
     pub fn frame_duration(&self) -> Duration {
-        Duration::from_secs(1) / self.config.fps
+        // Ensure FPS is at least 1 to prevent division by zero
+        let fps = self.config.fps.max(1);
+        // Calculate frame duration in nanoseconds for better precision
+        let nanos = 1_000_000_000u64 / fps as u64;
+        Duration::from_nanos(nanos)
     }
 
     /// Returns whether animation is set to run indefinitely
@@ -273,7 +277,8 @@ impl Renderer {
         let progress = if self.config.infinite {
             elapsed.as_secs_f64() * 0.5
         } else {
-            elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()
+            // Clamp progress to 1.0 to prevent overflow
+            (elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()).min(1.0)
         };
 
         self.engine.update(progress);
@@ -731,6 +736,7 @@ impl Renderer {
             self.render_frame(&text_copy, start.elapsed())?;
 
             let elapsed = start.elapsed();
+            // Calculate sleep duration safely
             if elapsed < frame_duration {
                 thread::sleep(frame_duration - elapsed);
             }
