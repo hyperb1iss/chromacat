@@ -95,7 +95,8 @@ impl Renderer {
     pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self> {
         enable_raw_mode()?; // Enable raw mode
         let term_size = terminal::size()?;
-        let colors_enabled = atty::is(atty::Stream::Stdout);
+        // Always enable colors regardless of stdout type
+        let colors_enabled = true;
         let color_buffer = vec![vec![Color::White; term_size.0 as usize]; term_size.1 as usize];
 
         Ok(Self {
