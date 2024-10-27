@@ -9,11 +9,10 @@ use crate::pattern::{CommonParams, PatternConfig, PatternParams};
 use crate::renderer::AnimationConfig;
 use crate::themes::Theme;
 use clap::{Parser, ValueEnum};
-use std::io::Write;
+use std::f64::consts::TAU;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
-use termcolor::{Color, ColorSpec, StandardStream, WriteColor};
 
 /// ChromaCat - A versatile command-line tool for applying animated color gradients to text
 #[derive(Parser, Debug)]
@@ -73,7 +72,7 @@ pub struct Cli {
 }
 
 /// Pattern-specific parameters grouped by pattern type
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 pub struct PatternParameters {
     // Plasma parameters
     #[arg(long, help = "Plasma complexity (1.0-10.0)")]
@@ -210,7 +209,7 @@ impl Cli {
                 let offset = self.pattern_params.offset.unwrap_or(0.5);
                 self.validate_range("height", height, 0.1, 2.0)?;
                 self.validate_range("count", count, 0.1, 5.0)?;
-                self.validate_range("phase", phase, 0.0, 6.28)?;
+                self.validate_range("phase", phase, 0.0, TAU)?;
                 self.validate_range("offset", offset, 0.0, 1.0)?;
                 PatternParams::Wave {
                     amplitude: height,
@@ -527,34 +526,6 @@ impl Default for Cli {
             amplitude: 1.0,
             speed: 1.0,
             pattern_params: PatternParameters::default(),
-        }
-    }
-}
-
-impl Default for PatternParameters {
-    fn default() -> Self {
-        Self {
-            complexity: None,
-            scale: None,
-            center_x: None,
-            center_y: None,
-            wavelength: None,
-            damping: None,
-            height: None,
-            count: None,
-            phase: None,
-            offset: None,
-            density: None,
-            rotation: None,
-            expansion: None,
-            counterclockwise: false,
-            size: None,
-            blur: None,
-            sharpness: None,
-            octaves: None,
-            persistence: None,
-            seed: None,
-            angle: None,
         }
     }
 }

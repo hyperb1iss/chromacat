@@ -2,7 +2,13 @@
 //!
 //! This module handles the rendering of colored text output using patterns and gradients.
 //! It supports both static and animated rendering modes, with configurable parameters
-//! for animation speed, frame rate, and display options.
+//! for animation speed, frame rate, and display options. The renderer handles:
+//!
+//! - Color gradient application to text
+//! - Terminal manipulation and state management
+//! - Unicode text handling and proper width calculations
+//! - Animation frame timing and progress display
+//! - Terminal cleanup and error handling
 
 use crate::error::Result;
 use crate::pattern::PatternEngine;
@@ -12,7 +18,6 @@ use crossterm::{
     style::{Color, ResetColor, SetForegroundColor},
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use log::{debug, trace};
 use std::io::{stdout, Write};
 use std::time::Duration;
 use unicode_segmentation::UnicodeSegmentation;
@@ -21,7 +26,7 @@ use unicode_width::UnicodeWidthStr;
 /// Configuration for animation rendering
 #[derive(Debug, Clone)]
 pub struct AnimationConfig {
-    /// Frames per second for animation playback
+    /// Frames per second for animation playback (1-144)
     pub fps: u32,
     /// Duration of one complete pattern cycle
     pub cycle_duration: Duration,
@@ -65,6 +70,13 @@ pub struct Renderer {
 
 impl Renderer {
     /// Creates a new renderer instance
+    ///
+    /// # Arguments
+    /// * `engine` - Pattern generation engine
+    /// * `config` - Animation configuration
+    ///
+    /// # Returns
+    /// * `Result<Renderer>` - New renderer instance or error
     pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self> {
         let term_size = terminal::size()?;
         let colors_enabled = atty::is(atty::Stream::Stdout);
@@ -82,16 +94,19 @@ impl Renderer {
     }
 
     /// Returns the frame duration based on configured FPS
+    #[inline]
     pub fn frame_duration(&self) -> Duration {
         Duration::from_secs(1) / self.config.fps
     }
 
     /// Returns whether animation is set to run indefinitely
+    #[inline]
     pub fn is_infinite(&self) -> bool {
         self.config.infinite
     }
 
     /// Returns the configured animation cycle duration
+    #[inline]
     pub fn cycle_duration(&self) -> Duration {
         self.config.cycle_duration
     }
@@ -99,7 +114,13 @@ impl Renderer {
     /// Renders static text with pattern
     ///
     /// For static rendering, we write directly to the main screen
-    /// and preserve scrollback buffer
+    /// and preserve scrollback buffer.
+    ///
+    /// # Arguments
+    /// * `text` - Text to render with pattern
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     pub fn render_static(&mut self, text: &str) -> Result<()> {
         let mut stdout = stdout();
 
@@ -116,8 +137,7 @@ impl Renderer {
             }
 
             // Render colored text
-            let mut x_pos = 0;
-            for grapheme in line.graphemes(true) {
+            for (x_pos, grapheme) in line.graphemes(true).enumerate() {
                 // Ensure we don't access beyond color buffer bounds
                 if x_pos >= self.color_buffer[y].len() {
                     write!(stdout, "{}", grapheme)?;
@@ -126,12 +146,9 @@ impl Renderer {
 
                 queue!(stdout, SetForegroundColor(self.color_buffer[y][x_pos]))?;
                 write!(stdout, "{}", grapheme)?;
-
-                x_pos += 1;
             }
 
-            // Always write a newline after each line
-            write!(stdout, "\n")?;
+            writeln!(stdout)?;
         }
 
         // Reset colors and flush
@@ -141,6 +158,13 @@ impl Renderer {
     }
 
     /// Renders a single animation frame
+    ///
+    /// # Arguments
+    /// * `text` - Text to render with pattern
+    /// * `elapsed` - Time elapsed since animation start
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     pub fn render_frame(&mut self, text: &str, elapsed: Duration) -> Result<()> {
         let mut stdout = stdout();
 
@@ -174,6 +198,12 @@ impl Renderer {
     }
 
     /// Prepares the text buffer by handling line wrapping and newlines
+    ///
+    /// # Arguments
+    /// * `text` - Input text to process
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     fn prepare_text_buffer(&mut self, text: &str) -> Result<()> {
         self.line_buffer.clear();
 
@@ -193,12 +223,10 @@ impl Renderer {
                 let width = grapheme.width();
 
                 // Handle line wrapping at terminal width
-                if current_width + width > self.term_size.0 as usize {
-                    if !current_line.is_empty() {
-                        self.line_buffer.push(current_line);
-                        current_line = String::new();
-                        current_width = 0;
-                    }
+                if current_width + width > self.term_size.0 as usize && !current_line.is_empty() {
+                    self.line_buffer.push(current_line);
+                    current_line = String::new();
+                    current_width = 0;
                 }
 
                 current_line.push_str(grapheme);
@@ -242,16 +270,13 @@ impl Renderer {
 
         // Update colors for each character
         for (y, line) in self.line_buffer.iter().enumerate() {
-            let mut x_pos = 0;
-            for grapheme in line.graphemes(true) {
+            for (x_pos, _grapheme) in line.graphemes(true).enumerate() {
                 if x_pos >= self.color_buffer[y].len() {
                     break;
                 }
 
                 let pattern_value = self.engine.get_value_at(x_pos, y)?;
                 self.color_buffer[y][x_pos] = self.value_to_color(pattern_value);
-
-                x_pos += 1;
             }
         }
 
@@ -281,8 +306,7 @@ impl Renderer {
             }
 
             // Render colored text
-            let mut x_pos = 0;
-            for grapheme in line.graphemes(true) {
+            for (x_pos, grapheme) in line.graphemes(true).enumerate() {
                 // Ensure we don't access beyond color buffer bounds
                 if x_pos >= self.color_buffer[y].len() {
                     write!(stdout, "{}", grapheme)?;
@@ -291,11 +315,9 @@ impl Renderer {
 
                 queue!(stdout, SetForegroundColor(self.color_buffer[y][x_pos]))?;
                 write!(stdout, "{}", grapheme)?;
-
-                x_pos += 1;
             }
 
-            write!(stdout, "\n")?;
+            writeln!(stdout)?;
         }
 
         stdout.flush()?;
@@ -303,6 +325,12 @@ impl Renderer {
     }
 
     /// Renders the animation progress bar
+    ///
+    /// # Arguments
+    /// * `progress` - Animation progress (0.0 - 1.0)
+    ///
+    /// # Returns
+    /// * `Result<()>` - Success or error
     fn render_progress_bar(&self, progress: f64) -> Result<()> {
         let mut stdout = stdout();
         let bar_width = self.term_size.0.saturating_sub(20) as usize;
@@ -327,6 +355,12 @@ impl Renderer {
     }
 
     /// Converts a pattern value to a terminal color
+    ///
+    /// # Arguments
+    /// * `value` - Pattern value (0.0 - 1.0)
+    ///
+    /// # Returns
+    /// * `Color` - Terminal color value
     fn value_to_color(&self, value: f64) -> Color {
         let clamped_value = value.clamp(0.0, 1.0);
         let gradient_color = self.engine.gradient().at(clamped_value as f32);
@@ -349,32 +383,5 @@ impl Drop for Renderer {
         }
         let _ = execute!(stdout, ResetColor);
         let _ = stdout.flush();
-    }
-}
-
-/// Utility function to convert HSV color values to RGB
-fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (f64, f64, f64) {
-    let h = if h < 0.0 {
-        h + 1.0
-    } else if h > 1.0 {
-        h - 1.0
-    } else {
-        h
-    };
-    let h = h * 6.0;
-
-    let i = h.floor();
-    let f = h - i;
-    let p = v * (1.0 - s);
-    let q = v * (1.0 - s * f);
-    let t = v * (1.0 - s * (1.0 - f));
-
-    match i as i64 % 6 {
-        0 => (v, t, p),
-        1 => (q, v, p),
-        2 => (p, v, t),
-        3 => (p, q, v),
-        4 => (t, p, v),
-        _ => (v, p, q),
     }
 }

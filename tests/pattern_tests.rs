@@ -92,10 +92,16 @@ mod basic_patterns {
             end_value
         );
 
-        // Test middle
+        // Test middle point
         let mid_x = test.width / 2;
         let expected_mid = mid_x as f64 / (test.width - 1) as f64;
         let mid_value = engine.get_value_at(mid_x, 0).unwrap();
+        assert!(
+            (mid_value - expected_mid).abs() < EPSILON,
+            "Middle value should be {}, got {}",
+            expected_mid,
+            mid_value
+        );
     }
 
     #[test]
@@ -143,12 +149,21 @@ mod wave_patterns {
         let amplitudes = [0.1f64, 0.5, 1.0, 2.0];
 
         for &amp in &amplitudes {
-            let engine = test.create_engine(PatternParams::Wave {
-                amplitude: amp,
+            let common = CommonParams {
                 frequency: 1.0,
-                phase: 0.0,
-                offset: 0.5,
-            });
+                amplitude: 1.0,
+                speed: 1.0,
+            };
+
+            let engine = test.create_engine_with_common(
+                PatternParams::Wave {
+                    amplitude: amp,
+                    frequency: 1.0,
+                    phase: 0.0,
+                    offset: 0.5,
+                },
+                common,
+            );
 
             // Sample middle row
             let mid_y = test.height / 2;
@@ -162,14 +177,14 @@ mod wave_patterns {
             }
 
             // Range should be proportional to amplitude, but not exceed 1.0
-            let expected_range = amp.min(1.0);
-            let range = max_val - min_val;
+            let expected_range = (amp * 2.0).min(1.0); // Doubled because sine wave oscillates both ways
+            let actual_range = max_val - min_val;
             assert!(
-                (range - expected_range).abs() < 0.1,
+                (actual_range - expected_range).abs() < 0.1,
                 "Expected range {} for amplitude {}, got {}",
                 expected_range,
                 amp,
-                range
+                actual_range
             );
         }
     }
@@ -177,12 +192,21 @@ mod wave_patterns {
     #[test]
     fn test_wave_frequency() {
         let test = PatternTest::new();
-        let engine = test.create_engine(PatternParams::Wave {
+        let common = CommonParams {
+            frequency: 1.0,
             amplitude: 1.0,
-            frequency: 2.0,
-            phase: 0.0,
-            offset: 0.5,
-        });
+            speed: 1.0,
+        };
+
+        let engine = test.create_engine_with_common(
+            PatternParams::Wave {
+                amplitude: 1.0,
+                frequency: 2.0,
+                phase: 0.0,
+                offset: 0.5,
+            },
+            common,
+        );
 
         // Count zero crossings to verify frequency
         let mid_y = test.height / 2;
@@ -197,7 +221,12 @@ mod wave_patterns {
             last_value = value;
         }
 
-        assert!(crossings > 2, "Wave frequency too low");
+        // With frequency 2.0, we should see at least 4 crossings in a full width
+        assert!(
+            crossings >= 4,
+            "Wave frequency too low: expected at least 4 crossings, got {}",
+            crossings
+        );
     }
 }
 

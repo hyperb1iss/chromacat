@@ -1,7 +1,6 @@
 use chromacat::cli::Cli;
 use chromacat::ChromaCat;
 use clap::Parser;
-use env_logger;
 use std::process;
 
 fn main() {

@@ -1,19 +1,24 @@
 //! Pattern generation and configuration for ChromaCat
 //!
-//! This module provides the core pattern generation functionality, handling:
-//! - Pattern type definitions
-//! - Parameter configuration
+//! This module provides the core pattern generation functionality for creating
+//! visual effects in text output. It includes:
+//!
+//! - Pattern type definitions and parameters
 //! - Pattern calculation algorithms
 //! - Animation timing and updates
 //! - Color gradient mapping
+//! - Performance optimizations through lookup tables
+//!
+//! The pattern system supports multiple effect types including waves, spirals,
+//! plasma effects, and more, each with configurable parameters for customization.
 
 use crate::error::Result;
-use colorgrad::{Color, Gradient};
+use colorgrad::Gradient;
 use std::f64::consts::PI;
 use std::sync::Arc;
 
 /// Common parameters that apply to all pattern types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CommonParams {
     /// Base frequency of the pattern (0.1-10.0)
     pub frequency: f64,
@@ -21,16 +26,6 @@ pub struct CommonParams {
     pub amplitude: f64,
     /// Animation speed multiplier (0.0-1.0)
     pub speed: f64,
-}
-
-impl Default for CommonParams {
-    fn default() -> Self {
-        Self {
-            frequency: 1.0,
-            amplitude: 1.0,
-            speed: 1.0,
-        }
-    }
 }
 
 /// Available pattern types with their specific parameters
@@ -126,8 +121,14 @@ pub enum PatternParams {
     },
 }
 
+impl Default for PatternParams {
+    fn default() -> Self {
+        Self::Horizontal
+    }
+}
+
 /// Complete pattern configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PatternConfig {
     /// Common parameters
     pub common: CommonParams,
@@ -195,16 +196,24 @@ impl PatternEngine {
     }
 
     /// Gets the current animation time
+    #[inline]
     pub fn time(&self) -> f64 {
         self.time
     }
 
     /// Gets the gradient for color mapping
-    pub fn gradient(&self) -> &Box<dyn Gradient + Send + Sync> {
-        &self.gradient
+    pub fn gradient(&self) -> &(dyn Gradient + Send + Sync) {
+        &**self.gradient
     }
 
     /// Gets the pattern value at given coordinates
+    ///
+    /// # Arguments
+    /// * `x` - X coordinate
+    /// * `y` - Y coordinate
+    ///
+    /// # Returns
+    /// * `Result<f64>` - Pattern value between 0.0 and 1.0
     pub fn get_value_at(&self, x: usize, y: usize) -> Result<f64> {
         let base_value = match &self.config.params {
             PatternParams::Horizontal => self.horizontal_pattern(x, y),
@@ -295,7 +304,7 @@ impl PatternEngine {
         self.cos_table[index]
     }
 
-    // Pattern implementations
+    // Pattern implementations follow...
 
     fn horizontal_pattern(&self, x: usize, _y: usize) -> f64 {
         if self.width <= 1 {
@@ -319,7 +328,7 @@ impl PatternEngine {
         // Rotate the point
         let cos_angle = self.fast_cos(angle_rad);
         let sin_angle = self.fast_sin(angle_rad);
-        
+
         // Project onto the angle vector (using dot product)
         let rotated = x_norm * cos_angle + y_norm * sin_angle;
 
@@ -328,17 +337,19 @@ impl PatternEngine {
     }
 
     fn plasma_pattern(&self, x: usize, y: usize, complexity: f64, scale: f64) -> f64 {
-        let freq = self.config.common.frequency * scale;
         let time = self.time * PI * 2.0;
         let x_norm = x as f64 / self.width as f64;
         let y_norm = y as f64 / self.height as f64;
 
+        let base_freq = self.config.common.frequency * scale;
+
         let mut sum = 0.0;
         for i in 0..complexity as u32 {
             let factor = 2.0_f64.powi(i as i32);
-            sum += self.fast_sin((x_norm * freq * factor + time) * PI * 2.0) / factor;
-            sum += self.fast_sin((y_norm * freq * factor + time) * PI * 2.0) / factor;
-            sum += self.fast_sin(((x_norm + y_norm) * freq * factor + time) * PI * 2.0) / factor;
+            let freq = base_freq * factor;
+            sum += self.fast_sin((x_norm * freq + time) * PI * 2.0) / factor;
+            sum += self.fast_sin((y_norm * freq + time) * PI * 2.0) / factor;
+            sum += self.fast_sin(((x_norm + y_norm) * freq + time) * PI * 2.0) / factor;
         }
 
         (sum / complexity + 1.0) / 2.0
@@ -360,7 +371,7 @@ impl PatternEngine {
         let freq = self.config.common.frequency;
         let time = self.time * PI * 2.0;
 
-        let value = self.fast_sin(distance / wavelength * PI * 10.0 + time);
+        let value = self.fast_sin(distance / wavelength * PI * 10.0 * freq + time);
         let amplitude = (-distance * damping * 5.0).exp();
 
         (value * amplitude + 1.0) / 2.0
@@ -376,11 +387,13 @@ impl PatternEngine {
         offset: f64,
     ) -> f64 {
         let x_norm = x as f64 / (self.width.max(1) - 1) as f64;
-        let wave_angle = x_norm * frequency * self.config.common.frequency * 2.0 * PI
+
+        // Multiply by 2π and frequency to get more cycles
+        let wave_angle = x_norm * frequency * self.config.common.frequency * PI * 4.0
             + phase
             + self.time * 2.0 * PI;
 
-        let scaled_amplitude = amplitude * 0.5;
+        let scaled_amplitude = amplitude * self.config.common.amplitude;
         let wave = self.fast_sin(wave_angle) * scaled_amplitude;
 
         (offset + wave).clamp(0.0, 1.0)
@@ -512,13 +525,10 @@ impl PatternEngine {
 
     /// Initialize Perlin noise permutation table
     fn init_perm_table(seed: u32) -> Vec<u8> {
-        let mut perm = vec![0; 256];
-        for i in 0..256 {
-            perm[i] = i as u8;
-        }
+        let mut rng = seed;
+        let mut perm: Vec<_> = (0..=255).map(|i| i as u8).collect();
 
         // Basic shuffle using the seed
-        let mut rng = seed;
         for i in (1..256).rev() {
             rng = rng.wrapping_mul(48271).wrapping_add(1);
             let j = (rng % (i + 1) as u32) as usize;
@@ -555,11 +565,13 @@ impl PatternEngine {
     }
 
     /// Smoothstep interpolation
+    #[inline]
     fn smoothstep(t: f64) -> f64 {
         t * t * (3.0 - 2.0 * t)
     }
 
     /// Linear interpolation
+    #[inline]
     fn lerp(a: f64, b: f64, t: f64) -> f64 {
         a + t * (b - a)
     }
@@ -585,28 +597,13 @@ impl Clone for PatternEngine {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
-            gradient: self.gradient.clone(),
+            gradient: Arc::clone(&self.gradient),
             time: self.time,
             width: self.width,
             height: self.height,
-            sin_table: self.sin_table.clone(),
-            cos_table: self.cos_table.clone(),
-            perm_table: self.perm_table.clone(),
-        }
-    }
-}
-
-impl Default for PatternParams {
-    fn default() -> Self {
-        Self::Horizontal
-    }
-}
-
-impl Default for PatternConfig {
-    fn default() -> Self {
-        Self {
-            common: CommonParams::default(),
-            params: PatternParams::default(),
+            sin_table: Arc::clone(&self.sin_table),
+            cos_table: Arc::clone(&self.cos_table),
+            perm_table: Arc::clone(&self.perm_table),
         }
     }
 }

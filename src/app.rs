@@ -8,7 +8,7 @@ use crate::cli::Cli;
 use crate::error::{ChromaCatError, Result};
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
-use crate::renderer::{AnimationConfig, Renderer};
+use crate::renderer::Renderer;
 use crate::themes::Theme;
 
 use crossterm::cursor::{Hide, Show};
