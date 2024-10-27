@@ -1,4 +1,4 @@
-# 🌈 ChromaCat
+# 😺 ChromaCat ✨
 
 > _Because your terminal deserves to be fabulous_ ✨
 
@@ -248,8 +248,16 @@ Please make sure to update tests as appropriate and follow the existing coding s
 
 ## 🙏 Acknowledgements
 
-- Inspired by the original `lolcat` utility
-- Built with Rust and lots of ❤️
+ChromaCat leverages several open-source Rust crates and tools that make its functionalities possible:
+
+- [**clap**](https://crates.io/crates/clap) for command-line argument parsing
+- [**colorgrad**](https://crates.io/crates/colorgrad) for creating and managing color gradients
+- [**termcolor**](https://crates.io/crates/termcolor) for handling colored terminal output
+- [**atty**](https://crates.io/crates/atty) for detecting terminal streams
+- [**unicode-segmentation**](https://crates.io/crates/unicode-segmentation) for accurate Unicode character handling
+- [**lolcat**](https://github.com/busyloop/lolcat) for inspiring the initial concept of colorizing terminal output
+
+Special thanks to the Rust community for their continuous contributions and support.
 
 ## 📝 License
 
@@ -261,6 +269,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 Created by [Stefanie Jane 🌠](https://github.com/hyperb1iss)
 
-If you find Git-Iris useful, [buy me a Monster Ultra Violet](https://ko-fi.com/hyperb1iss)! ⚡️
+If you find ChromaCat useful, [buy me a Monster Ultra Violet](https://ko-fi.com/hyperb1iss)! ⚡️
 
 </div>
