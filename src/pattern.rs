@@ -242,7 +242,20 @@ impl PatternEngine {
                 blur,
                 rotation,
                 scale,
-            } => self.checkerboard_pattern(x, y, *size, *blur, *rotation, *scale),
+            } => {
+                // For static rendering, use a fixed time value instead of 0
+                let effective_time = if self.config.common.speed == 0.0 {
+                    0.25  // Use a fixed time value that gives good contrast
+                } else {
+                    self.time
+                };
+
+                // Create a temporary copy of self with the effective time
+                let mut temp_self = self.clone();
+                temp_self.time = effective_time;
+
+                temp_self.checkerboard_pattern(x, y, *size, *blur, *rotation, *scale)
+            }
             PatternParams::Diamond {
                 size,
                 offset,
@@ -267,7 +280,8 @@ impl PatternEngine {
             | PatternParams::Ripple { .. }
             | PatternParams::Wave { .. }
             | PatternParams::Spiral { .. }
-            | PatternParams::Diagonal { .. }  // Add Diagonal to this list - it now uses time internally
+            | PatternParams::Diagonal { .. }
+            | PatternParams::Checkerboard { .. }
             => base_value,
 
             // Patterns that should offset by time with improved smoothness
@@ -508,30 +522,60 @@ impl PatternEngine {
         rotation: f64,
         scale: f64,
     ) -> f64 {
-        let rot_rad = rotation * PI / 180.0;
-        let scaled_x = x as f64 * scale;
-        let scaled_y = y as f64 * scale;
+        // Normalize time and slow it down overall
+        let normalized_time = (self.time % (PI * 2.0)) * 0.25;  // Reduced from 0.5 to 0.25
 
-        // Apply rotation
-        let rx = scaled_x * self.fast_cos(rot_rad) - scaled_y * self.fast_sin(rot_rad);
-        let ry = scaled_x * self.fast_sin(rot_rad) + scaled_y * self.fast_cos(rot_rad);
+        // Convert coordinates to floating point for rotation
+        let x_norm = x as f64 / self.width as f64;
+        let y_norm = y as f64 / self.height as f64;
 
-        let cell_x = (rx / size as f64).floor() as i32;
-        let cell_y = (ry / size as f64).floor() as i32;
+        // Center coordinates around origin for rotation
+        let cx = x_norm - 0.5;
+        let cy = y_norm - 0.5;
 
-        if blur > 0.0 {
-            // Add smooth transitions between cells
-            let fx = (rx / size as f64).fract();
-            let fy = (ry / size as f64).fract();
+        // Create an even gentler pulsing motion
+        let pulse = self.fast_sin(normalized_time * PI * 0.4) * 0.05;  // Reduced from 0.7 to 0.4
+        let dynamic_scale = scale * (1.0 + pulse);
 
-            let edge_x = (0.5 - (fx - 0.5).abs()) / blur;
-            let edge_y = (0.5 - (fy - 0.5).abs()) / blur;
+        // Apply slower rotation
+        let base_rotation = rotation * PI / 180.0;
+        let time_rotation = normalized_time * 2.0;  // Reduced from 4.0 to 2.0
+        let rot_rad = base_rotation + time_rotation;
 
-            let base = ((cell_x + cell_y) % 2) as f64;
-            base + (edge_x + edge_y).min(1.0) * (1.0 - base)
-        } else {
-            ((cell_x + cell_y) % 2) as f64
-        }
+        let rx = cx * self.fast_cos(rot_rad) - cy * self.fast_sin(rot_rad);
+        let ry = cx * self.fast_sin(rot_rad) + cy * self.fast_cos(rot_rad);
+
+        // Move back from origin and apply dynamic scale
+        let scaled_x = (rx + 0.5) * dynamic_scale * self.width as f64;
+        let scaled_y = (ry + 0.5) * dynamic_scale * self.height as f64;
+
+        // Calculate cells with floating-point precision
+        let cell_size = size as f64 * 2.0;
+        let fx = (scaled_x / cell_size).fract() - 0.5;
+        let fy = (scaled_y / cell_size).fract() - 0.5;
+
+        // Create soft circular pattern within each cell
+        let dist_from_center = (fx * fx + fy * fy).sqrt() * 1.5;
+
+        // Add slower wave motion
+        let wave = self.fast_sin(normalized_time * PI * 0.8 + dist_from_center * PI * 2.0) * 0.1;  // Reduced from 1.2 to 0.8
+
+        // Create organic pattern
+        let cell_x = (scaled_x / cell_size).floor() as i32;
+        let cell_y = (scaled_y / cell_size).floor() as i32;
+        let checker = ((cell_x + cell_y) % 2).abs() as f64;
+
+        // Create soft transitions between cells
+        let edge_fade = (1.0 - dist_from_center).max(0.0) * (blur + 0.3);
+        let base = checker * (1.0 - edge_fade) + (1.0 - checker) * edge_fade;
+
+        // Combine everything with gentler transitions
+        let result = base * 0.8 + wave * 0.2 + pulse;
+
+        // Add very subtle position variation
+        let position_variation = (fx.abs() + fy.abs()) * 0.05;
+
+        (result + position_variation).clamp(0.0, 1.0)
     }
 
     fn diamond_pattern(
