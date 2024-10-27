@@ -350,21 +350,137 @@ impl Renderer {
             queue!(stdout, Print(line_output), Print("\x1b[K"))?;
         }
 
-        // Clear the last two lines completely before drawing status
+        // Draw a fancy status bar
+        let visible_lines = min(
+            self.scroll_state.viewport_height as usize,
+            self.scroll_state
+                .total_lines
+                .saturating_sub(self.scroll_state.top_line),
+        );
+
+        // Draw separator line
         queue!(
             stdout,
             MoveTo(0, self.term_size.1 - 2),
-            Print("\x1b[K"), // Clear second to last line
+            Print("\x1b[K"), // Clear line
+            SetForegroundColor(Color::DarkGrey),
+            Print("─".repeat(self.term_size.0 as usize))
+        )?;
+
+        // Calculate progress for infinite mode
+        let progress = if self.config.infinite {
+            (elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()) % 1.0
+        } else {
+            elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()
+        };
+
+        // Create progress indicator
+        let progress_width = 20;
+        let filled = (progress * progress_width as f64) as usize;
+        let progress_bar = format!(
+            "{}{}",
+            "█".repeat(filled),
+            "▒".repeat(progress_width - filled)
+        );
+
+        // Format line numbers with padding
+        let line_info = format!(
+            "{:>width$}/{:width$}",
+            self.scroll_state.top_line + visible_lines,
+            self.scroll_state.total_lines,
+            width = self.scroll_state.total_lines.to_string().len()
+        );
+
+        // Create status line with multiple segments
+        queue!(
+            stdout,
             MoveTo(0, self.term_size.1 - 1),
-            Print("\x1b[K"),                 // Clear last line
-            MoveTo(0, self.term_size.1 - 1), // Move to last line
-            SetForegroundColor(Color::White),
-            Print(format!(
-                "Lines {}-{}/{} [↑/↓/PgUp/PgDn to scroll, q to quit]",
+            Print("\x1b[K"), // Clear line
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print("┃ "),
+            SetForegroundColor(Color::Rgb {
+                r: 200,
+                g: 200,
+                b: 200
+            }),
+            Print(&format!(
+                "Lines {:>width$}-{}",
                 self.scroll_state.top_line + 1,
                 self.scroll_state.top_line + visible_lines,
-                self.scroll_state.total_lines
-            ))
+                width = self.scroll_state.total_lines.to_string().len()
+            )),
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print(" of "),
+            SetForegroundColor(Color::Rgb {
+                r: 200,
+                g: 200,
+                b: 200
+            }),
+            Print(self.scroll_state.total_lines),
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print(" ┃ "),
+            // Progress bar section
+            SetForegroundColor(Color::Rgb {
+                r: 80,
+                g: 180,
+                b: 255
+            }),
+            Print(&progress_bar),
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print(" ┃ "),
+            // Controls section with different colors for keys
+            SetForegroundColor(Color::Rgb {
+                r: 180,
+                g: 180,
+                b: 180
+            }),
+            Print("↑/↓"),
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print(" or "),
+            SetForegroundColor(Color::Rgb {
+                r: 180,
+                g: 180,
+                b: 180
+            }),
+            Print("PgUp/PgDn"),
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print(" to scroll ┃ Press "),
+            SetForegroundColor(Color::Rgb {
+                r: 180,
+                g: 180,
+                b: 180
+            }),
+            Print("q"),
+            SetForegroundColor(Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100
+            }),
+            Print(" to quit ┃")
         )?;
 
         // Restore cursor position and attributes
