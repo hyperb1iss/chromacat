@@ -79,3 +79,29 @@
   repeat: pulse(1.5)
   speed: 1.8
   ease: exp
+
+- name: borealis
+  desc: Dynamic northern lights simulation
+  colors:
+    - [0.0, 0.2, 0.3, 0.0, night-blue]
+    - [0.0, 0.8, 0.4, 0.2, emerald]
+    - [0.2, 0.5, 0.8, 0.4, arctic-blue]
+    - [0.5, 0.0, 0.8, 0.7, aurora-purple]
+    - [0.0, 0.9, 0.6, 1.0, shimmer-green]
+  dist: center
+  repeat: pulse(0.3)
+  speed: 0.6
+  ease: smooth
+
+- name: probability
+  desc: Abstract quantum probability fields
+  colors:
+    - [0.0, 0.5, 1.0, 0.0, probability-blue]
+    - [0.8, 0.0, 0.8, 0.3, quantum-purple]
+    - [0.0, 0.8, 0.8, 0.6, uncertainty-cyan]
+    - [1.0, 1.0, 1.0, 0.8, collapse-white]
+    - [0.2, 0.0, 0.4, 1.0, void-purple]
+  dist: alt
+  repeat: rotate(0.5)
+  speed: 1.4
+  ease: smooth

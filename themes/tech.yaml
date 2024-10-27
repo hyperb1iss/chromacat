@@ -41,3 +41,16 @@
   repeat: rotate(0.3)
   speed: 1.5
   ease: sine
+
+- name: quantum
+  desc: Quantum superposition states
+  colors:
+    - [0.0, 0.8, 1.0, 0.0, qubit-blue]
+    - [1.0, 0.0, 0.8, 0.3, entangle-pink]
+    - [0.0, 1.0, 0.8, 0.6, coherence-cyan]
+    - [0.8, 0.0, 1.0, 0.8, quantum-purple]
+    - [1.0, 1.0, 1.0, 1.0, measurement]
+  dist: center
+  repeat: pulse(0.4)
+  speed: 1.1
+  ease: smooth
