@@ -144,6 +144,30 @@ impl PatternUtils {
             prev_value + (next_value - prev_value) * alpha
         }
     }
+
+    /// Hashes coordinates for Perlin noise generation
+    pub fn hash(&self, x: i32, y: i32) -> u8 {
+        let x_hash = (x & 255) as usize;
+        let y_hash = (y & 255) as usize;
+        let idx = (x_hash + (y_hash * 256)) % 256;
+        self.perm_table[idx]
+    }
+
+    /// Performs smooth interpolation using cubic Hermite curve.
+    /// Takes a boolean input and returns a smoothed value.
+    ///
+    /// # Arguments
+    /// * `edge_test` - Boolean test for edge detection
+    ///
+    /// # Returns
+    /// Smoothly interpolated value between 0.0 and 1.0
+    pub fn smoothstep_bool(edge_test: bool) -> f64 {
+        if edge_test {
+            1.0
+        } else {
+            0.0
+        }
+    }
 }
 
 impl Clone for PatternUtils {

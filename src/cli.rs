@@ -5,13 +5,16 @@
 //! types used by the pattern engine and renderer.
 
 use crate::error::{ChromaCatError, Result};
-use crate::pattern::{CommonParams, PatternConfig, PatternParams};
+use crate::pattern::{
+    CommonParams, PatternConfig, PatternParams, PatternParam, ParamType,
+    CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
+    PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
+};
 use crate::renderer::AnimationConfig;
 use crate::themes;
 use crate::cli_format::CliFormat;
 
 use clap::{Parser, ValueEnum};
-use std::f64::consts::TAU;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -154,176 +157,24 @@ pub struct Cli {
 #[derive(Parser, Debug, Default)]
 #[command(next_help_heading = "Pattern-Specific Options")]
 pub struct PatternParameters {
-    // Wave & Ripple
     #[arg(
-        long, 
-        value_name = "NUM",
-        help = format!("{} (0.1-2.0)", CliFormat::pattern("Wave height or ripple amplitude")),
-        help_heading = CliFormat::HEADING_WAVE
+        long = "param",
+        value_name = "KEY=VALUE",
+        help = "Pattern-specific parameter (can be used multiple times)",
+        value_parser = parse_param_value
     )]
-    pub height: Option<f64>,
+    pub params: Vec<String>,
+}
 
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.1-5.0)", CliFormat::pattern("Number of waves")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub count: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.0-2π)", CliFormat::pattern("Wave/ripple phase")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub phase: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.0-1.0)", CliFormat::pattern("Vertical offset")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub offset: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "X", 
-        help = format!("{} (0.0-1.0)", CliFormat::pattern("Ripple center X position")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub center_x: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "Y", 
-        help = format!("{} (0.0-1.0)", CliFormat::pattern("Ripple center Y position")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub center_y: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.1-5.0)", CliFormat::pattern("Distance between ripples")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub wavelength: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.0-1.0)", CliFormat::pattern("Ripple fade-out rate")), 
-        help_heading = CliFormat::HEADING_WAVE
-    )]
-    pub damping: Option<f64>,
-
-    // Plasma & Perlin
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (1.0-10.0)", CliFormat::pattern("Pattern complexity")), 
-        help_heading = CliFormat::HEADING_PLASMA
-    )]
-    pub complexity: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.1-5.0)", CliFormat::pattern("Pattern scale")), 
-        help_heading = CliFormat::HEADING_PLASMA
-    )]
-    pub scale: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (1-8)", CliFormat::pattern("Noise octaves")), 
-        help_heading = CliFormat::HEADING_PLASMA
-    )]
-    pub octaves: Option<u32>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.0-1.0)", CliFormat::pattern("Noise persistence")), 
-        help_heading = CliFormat::HEADING_PLASMA
-    )]
-    pub persistence: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{}", CliFormat::pattern("Random seed")), 
-        help_heading = CliFormat::HEADING_PLASMA
-    )]
-    pub seed: Option<u32>,
-
-    // Spiral & Diamond
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.1-5.0)", CliFormat::pattern("Pattern density")), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub density: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "DEG", 
-        help = format!("{} (0-360)", CliFormat::pattern("Rotation angle")), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub rotation: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.1-2.0)", CliFormat::pattern("Expansion rate")), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub expansion: Option<f64>,
-
-    #[arg(
-        long, 
-        help = CliFormat::pattern("Reverse spiral direction"), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub counterclockwise: bool,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (1-10)", CliFormat::pattern("Pattern size")), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub size: Option<usize>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.0-1.0)", CliFormat::pattern("Edge blur")), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub blur: Option<f64>,
-
-    #[arg(
-        long, 
-        value_name = "NUM", 
-        help = format!("{} (0.1-5.0)", CliFormat::pattern("Diamond edge sharpness")), 
-        help_heading = CliFormat::HEADING_SPIRAL
-    )]
-    pub sharpness: Option<f64>,
-
-    // Diagonal & Checkerboard
-    #[arg(
-        long, 
-        value_name = "DEG", 
-        help = format!("{} (0-360)", CliFormat::pattern("Gradient angle")), 
-        help_heading = CliFormat::HEADING_OTHER
-    )]
-    pub angle: Option<i32>,
+fn parse_param_value(s: &str) -> std::result::Result<String, String> {
+    if !s.contains('=') {
+        return Err("Parameter must be in format key=value".to_string());
+    }
+    let parts: Vec<&str> = s.split('=').collect();
+    if parts.len() != 2 {
+        return Err("Parameter must be in format key=value".to_string());
+    }
+    Ok(s.to_string())
 }
 
 /// Available pattern types for gradient effects
@@ -349,119 +200,68 @@ impl Cli {
             speed: self.speed,
         };
 
+        // Get default parameters for the selected pattern
+        let default_params = self.pattern.default_params();
+        
+        // Validate and parse any provided parameter values
+        let params_str = self.pattern_params.params.join(",");
+        if !params_str.is_empty() {
+            default_params.validate(&params_str)?;
+        }
+
+        let pattern_params = if !params_str.is_empty() {
+            default_params.parse(&params_str)?
+        } else {
+            default_params
+        };
+
+        // Convert to the correct PatternParams variant
         let params = match self.pattern {
-            PatternKind::Horizontal => PatternParams::Horizontal,
-
-            PatternKind::Diagonal => {
-                let angle = self.pattern_params.angle.unwrap_or(45);
-                self.validate_range("angle", angle as f64, 0.0, 360.0)?;
-                PatternParams::Diagonal { angle }
-            }
-
-            PatternKind::Plasma => {
-                let complexity = self.pattern_params.complexity.unwrap_or(3.0);
-                let scale = self.pattern_params.scale.unwrap_or(1.0);
-                self.validate_range("complexity", complexity, 1.0, 10.0)?;
-                self.validate_range("scale", scale, 0.1, 5.0)?;
-                PatternParams::Plasma { complexity, scale }
-            }
-
-            PatternKind::Ripple => {
-                let center_x = self.pattern_params.center_x.unwrap_or(0.5);
-                let center_y = self.pattern_params.center_y.unwrap_or(0.5);
-                let wavelength = self.pattern_params.wavelength.unwrap_or(1.0);
-                let damping = self.pattern_params.damping.unwrap_or(0.5);
-                self.validate_range("center_x", center_x, 0.0, 1.0)?;
-                self.validate_range("center_y", center_y, 0.0, 1.0)?;
-                self.validate_range("wavelength", wavelength, 0.1, 5.0)?;
-                self.validate_range("damping", damping, 0.0, 1.0)?;
-                PatternParams::Ripple {
-                    center_x,
-                    center_y,
-                    wavelength,
-                    damping,
-                }
-            }
-
-            PatternKind::Wave => {
-                let height = self.pattern_params.height.unwrap_or(1.0);
-                let count = self.pattern_params.count.unwrap_or(1.0);
-                let phase = self.pattern_params.phase.unwrap_or(0.0);
-                let offset = self.pattern_params.offset.unwrap_or(0.5);
-                self.validate_range("height", height, 0.1, 2.0)?;
-                self.validate_range("count", count, 0.1, 5.0)?;
-                self.validate_range("phase", phase, 0.0, TAU)?;
-                self.validate_range("offset", offset, 0.0, 1.0)?;
-                PatternParams::Wave {
-                    amplitude: height,
-                    frequency: count,
-                    phase,
-                    offset,
-                }
-            }
-
-            PatternKind::Spiral => {
-                let density = self.pattern_params.density.unwrap_or(1.0);
-                let rotation = self.pattern_params.rotation.unwrap_or(0.0);
-                let expansion = self.pattern_params.expansion.unwrap_or(1.0);
-                self.validate_range("density", density, 0.1, 5.0)?;
-                self.validate_range("rotation", rotation, 0.0, 360.0)?;
-                self.validate_range("expansion", expansion, 0.1, 2.0)?;
-                PatternParams::Spiral {
-                    density,
-                    rotation,
-                    expansion,
-                    clockwise: !self.pattern_params.counterclockwise,
-                }
-            }
-
-            PatternKind::Checkerboard => {
-                let size = self.pattern_params.size.unwrap_or(2);
-                let blur = self.pattern_params.blur.unwrap_or(0.0);
-                let rotation = self.pattern_params.rotation.unwrap_or(0.0);
-                let scale = self.pattern_params.scale.unwrap_or(1.0);
-                self.validate_range("size", size as f64, 1.0, 10.0)?;
-                self.validate_range("blur", blur, 0.0, 1.0)?;
-                self.validate_range("rotation", rotation, 0.0, 360.0)?;
-                self.validate_range("scale", scale, 0.1, 5.0)?;
-                PatternParams::Checkerboard {
-                    size,
-                    blur,
-                    rotation,
-                    scale,
-                }
-            }
-
-            PatternKind::Diamond => {
-                let size = self.pattern_params.size.unwrap_or(1).clamp(1, 10) as f64;
-                let offset = self.pattern_params.offset.unwrap_or(0.0);
-                let sharpness = self.pattern_params.sharpness.unwrap_or(1.0);
-                let rotation = self.pattern_params.rotation.unwrap_or(0.0);
-                self.validate_range("sharpness", sharpness, 0.1, 5.0)?;
-                self.validate_range("rotation", rotation, 0.0, 360.0)?;
-                PatternParams::Diamond {
-                    size,
-                    offset,
-                    sharpness,
-                    rotation,
-                }
-            }
-
-            PatternKind::Perlin => {
-                let octaves = self.pattern_params.octaves.unwrap_or(4);
-                let persistence = self.pattern_params.persistence.unwrap_or(0.5);
-                let scale = self.pattern_params.scale.unwrap_or(1.0);
-                let seed = self.pattern_params.seed.unwrap_or(0);
-                self.validate_range("octaves", octaves as f64, 1.0, 8.0)?;
-                self.validate_range("persistence", persistence, 0.0, 1.0)?;
-                self.validate_range("scale", scale, 0.1, 5.0)?;
-                PatternParams::Perlin {
-                    octaves,
-                    persistence,
-                    scale,
-                    seed,
-                }
-            }
+            PatternKind::Horizontal => PatternParams::Horizontal(
+                pattern_params.as_any().downcast_ref::<HorizontalParams>()
+                    .expect("Failed to downcast horizontal parameters")
+                    .clone()
+            ),
+            PatternKind::Diagonal => PatternParams::Diagonal(
+                pattern_params.as_any().downcast_ref::<DiagonalParams>()
+                    .expect("Failed to downcast diagonal parameters")
+                    .clone()
+            ),
+            PatternKind::Plasma => PatternParams::Plasma(
+                pattern_params.as_any().downcast_ref::<PlasmaParams>()
+                    .expect("Failed to downcast plasma parameters")
+                    .clone()
+            ),
+            PatternKind::Ripple => PatternParams::Ripple(
+                pattern_params.as_any().downcast_ref::<RippleParams>()
+                    .expect("Failed to downcast ripple parameters")
+                    .clone()
+            ),
+            PatternKind::Wave => PatternParams::Wave(
+                pattern_params.as_any().downcast_ref::<WaveParams>()
+                    .expect("Failed to downcast wave parameters")
+                    .clone()
+            ),
+            PatternKind::Spiral => PatternParams::Spiral(
+                pattern_params.as_any().downcast_ref::<SpiralParams>()
+                    .expect("Failed to downcast spiral parameters")
+                    .clone()
+            ),
+            PatternKind::Checkerboard => PatternParams::Checkerboard(
+                pattern_params.as_any().downcast_ref::<CheckerboardParams>()
+                    .expect("Failed to downcast checkerboard parameters")
+                    .clone()
+            ),
+            PatternKind::Diamond => PatternParams::Diamond(
+                pattern_params.as_any().downcast_ref::<DiamondParams>()
+                    .expect("Failed to downcast diamond parameters")
+                    .clone()
+            ),
+            PatternKind::Perlin => PatternParams::Perlin(
+                pattern_params.as_any().downcast_ref::<PerlinParams>()
+                    .expect("Failed to downcast perlin parameters")
+                    .clone()
+            ),
         };
 
         Ok(PatternConfig { common, params })
@@ -486,24 +286,40 @@ impl Cli {
     pub fn print_available_options() {
         println!("\n\x1b[1;38;5;213m✨ ChromaCat Theme Gallery ✨\x1b[0m\n");
 
-        // Print patterns section
+        // Print patterns section with their parameters
         println!("\x1b[1;38;5;39m🎮 Patterns\x1b[0m");
         println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
 
-        let patterns = [
-            ("horizontal", "Simple left-to-right gradient"),
-            ("diagonal", "Gradient at specified angle"),
-            ("plasma", "Psychedelic plasma effect"),
-            ("ripple", "Concentric ripple effect"),
-            ("wave", "Wave distortion pattern"),
-            ("spiral", "Spiral gradient pattern"),
-            ("checkerboard", "Checkerboard pattern"),
-            ("diamond", "Diamond pattern"),
-            ("perlin", "Perlin noise pattern"),
-        ];
-
-        for (name, desc) in patterns {
-            println!("  \x1b[1;38;5;75m{:<15}\x1b[0m {}", name, desc);
+        for pattern_kind in [
+            PatternKind::Horizontal,
+            PatternKind::Diagonal,
+            PatternKind::Plasma,
+            PatternKind::Ripple,
+            PatternKind::Wave,
+            PatternKind::Spiral,
+            PatternKind::Checkerboard,
+            PatternKind::Diamond,
+            PatternKind::Perlin,
+        ] {
+            let params = pattern_kind.default_params();
+            println!("\n\x1b[1;38;5;75m{}\x1b[0m", params.name());
+            println!("  {}", params.description());
+            
+            // Print parameter details
+            for param in params.sub_params() {
+                let range = match param.param_type() {
+                    ParamType::Number { min, max } => format!(" ({}-{})", min, max),
+                    ParamType::Boolean => " (true/false)".to_string(),
+                    ParamType::Enum { options } => format!(" ({})", options.join("/")),
+                    _ => String::new(),
+                };
+                println!("  \x1b[38;5;147m--param {}={}\x1b[0m{}", 
+                    param.name(),
+                    param.default_value(),
+                    range
+                );
+                println!("    {}", param.description());
+            }
         }
 
         // Print theme categories
@@ -675,18 +491,18 @@ impl Cli {
     }
 }
 
-impl std::fmt::Display for PatternKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl PatternKind {
+    fn default_params(&self) -> Box<dyn PatternParam> {
         match self {
-            Self::Horizontal => write!(f, "horizontal"),
-            Self::Diagonal => write!(f, "diagonal"),
-            Self::Plasma => write!(f, "plasma"),
-            Self::Ripple => write!(f, "ripple"),
-            Self::Wave => write!(f, "wave"),
-            Self::Spiral => write!(f, "spiral"),
-            Self::Checkerboard => write!(f, "checkerboard"),
-            Self::Diamond => write!(f, "diamond"),
-            Self::Perlin => write!(f, "perlin"),
+            Self::Horizontal => Box::new(HorizontalParams::default()),
+            Self::Diagonal => Box::new(DiagonalParams::default()),
+            Self::Plasma => Box::new(PlasmaParams::default()),
+            Self::Ripple => Box::new(RippleParams::default()),
+            Self::Wave => Box::new(WaveParams::default()),
+            Self::Spiral => Box::new(SpiralParams::default()),
+            Self::Checkerboard => Box::new(CheckerboardParams::default()),
+            Self::Diamond => Box::new(DiamondParams::default()),
+            Self::Perlin => Box::new(PerlinParams::default()),
         }
     }
 }

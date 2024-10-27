@@ -326,14 +326,14 @@ impl ThemeRegistry {
     // Add new method to load a custom theme file
     pub fn load_theme_file(&mut self, path: &Path) -> Result<()> {
         let content = std::fs::read_to_string(path)
-            .map_err(|e| ChromaCatError::ThemeError(format!("Failed to read theme file: {}", e)))?;
+            .map_err(|e| ChromaCatError::InputError(format!("Failed to read theme file: {}", e)))?;
 
         let themes = from_str::<Vec<ThemeDefinition>>(&content)
-            .map_err(|e| ChromaCatError::ThemeError(format!("Invalid theme file format: {}", e)))?;
+            .map_err(|e| ChromaCatError::InvalidTheme(format!("Invalid theme file format: {}", e)))?;
 
         for theme in themes {
             if let Err(e) = theme.validate() {
-                return Err(ChromaCatError::ThemeError(format!(
+                return Err(ChromaCatError::InvalidTheme(format!(
                     "Invalid theme '{}': {}",
                     theme.name, e
                 )));
@@ -485,7 +485,7 @@ impl ThemeDefinition {
 pub fn get_theme(name: &str) -> Result<ThemeDefinition> {
     THEME_REGISTRY
         .read()
-        .map_err(|e| ChromaCatError::ThemeError(format!("Failed to read theme registry: {}", e)))?
+        .map_err(|e| ChromaCatError::Other(format!("Failed to read theme registry: {}", e)))?
         .themes
         .get(name)
         .cloned()
@@ -538,7 +538,7 @@ pub fn theme_count() -> usize {
 pub fn load_theme_file(path: &Path) -> Result<()> {
     let mut registry = THEME_REGISTRY
         .write()
-        .map_err(|e| ChromaCatError::ThemeError(format!("Failed to lock theme registry: {}", e)))?;
+        .map_err(|e| ChromaCatError::Other(format!("Failed to lock theme registry: {}", e)))?;
 
     registry.load_theme_file(path)
 }

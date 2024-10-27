@@ -109,7 +109,7 @@ impl ChromaCat {
             self.term_size = (80, 24);
         } else {
             self.term_size = crossterm::terminal::size()
-                .map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+                .map_err(|e| ChromaCatError::Other(format!("Failed to get terminal size: {}", e)))?;
         }
 
         // Skip terminal setup in test environment
@@ -119,7 +119,8 @@ impl ChromaCat {
 
         if self.cli.animate {
             // Enter raw mode for animation
-            enable_raw_mode().map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+            enable_raw_mode()
+                .map_err(|e| ChromaCatError::Other(format!("Failed to enable raw mode: {}", e)))?;
             self.raw_mode = true;
 
             // Enter alternate screen
@@ -140,7 +141,8 @@ impl ChromaCat {
         }
 
         if self.raw_mode {
-            disable_raw_mode().map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+            disable_raw_mode()
+                .map_err(|e| ChromaCatError::Other(format!("Failed to disable raw mode: {}", e)))?;
             self.raw_mode = false;
         }
 

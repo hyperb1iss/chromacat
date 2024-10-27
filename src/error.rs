@@ -1,53 +1,85 @@
-use std::{fmt, io};
-use thiserror::Error;
+use std::fmt;
+use std::io;
 
-/// Represents all possible errors that can occur in ChromaCat
-#[derive(Error, Debug)]
+/// Custom error types for ChromaCat
+#[derive(Debug)]
 pub enum ChromaCatError {
-    /// Invalid gradient angle (must be between 0 and 360 degrees)
-    #[error("Invalid gradient angle: {0}. Angle must be between 0 and 360 degrees")]
-    InvalidAngle(i32),
-
-    /// Input/output errors (file access, stdin/stdout)
-    #[error("Input/output error: {0}")]
-    InputError(String),
-
-    /// Invalid theme selection
-    #[error("Invalid theme: {0}. Using default theme 'rainbow'")]
-    InvalidTheme(String),
-
-    /// Gradient generation error
-    #[error("Failed to generate gradient: {0}")]
-    GradientError(String),
-
-    /// Color rendering error
-    #[error("Failed to render color: {0}")]
-    RenderError(String),
-
-    /// Terminal color support error
-    #[error("Terminal color support error: {0}")]
-    TerminalError(String),
-
+    /// I/O operation failed
+    IoError(io::Error),
     /// Invalid parameter value
-    #[error("Invalid parameter '{name}': {value} (must be between {min} and {max})")]
     InvalidParameter {
         name: String,
         value: f64,
         min: f64,
         max: f64,
     },
-
-    /// IO Error wrapper
-    #[error("IO Error: {0}")]
-    IoError(#[from] io::Error),
-
-    /// Format Error wrapper
-    #[error("Format Error: {0}")]
-    FormatError(#[from] fmt::Error),
-
-    #[error("Theme error: {0}")]
-    ThemeError(String),
+    /// Invalid theme name or configuration
+    InvalidTheme(String),
+    /// Invalid gradient configuration
+    GradientError(String),
+    /// Pattern parameter validation error
+    PatternError {
+        pattern: String,
+        param: String,
+        message: String,
+    },
+    /// Input file error
+    InputError(String),
+    /// Parameter parsing error
+    ParseError(String),
+    /// General error with message
+    Other(String),
 }
 
-/// A Result type alias using ChromaCatError
+impl std::error::Error for ChromaCatError {}
+
+impl fmt::Display for ChromaCatError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IoError(err) => write!(f, "I/O error: {}", err),
+            Self::InvalidParameter { name, value, min, max } => {
+                write!(f, "Invalid {} value {}: must be between {} and {}", name, value, min, max)
+            }
+            Self::InvalidTheme(msg) => write!(f, "Invalid theme: {}", msg),
+            Self::GradientError(msg) => write!(f, "Gradient error: {}", msg),
+            Self::PatternError { pattern, param, message } => {
+                write!(f, "Pattern '{}' parameter '{}' error: {}", pattern, param, message)
+            }
+            Self::InputError(msg) => write!(f, "Input error: {}", msg),
+            Self::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            Self::Other(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
+impl From<io::Error> for ChromaCatError {
+    fn from(err: io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
+impl From<std::fmt::Error> for ChromaCatError {
+    fn from(err: std::fmt::Error) -> Self {
+        Self::Other(err.to_string())
+    }
+}
+
+impl From<String> for ChromaCatError {
+    fn from(msg: String) -> Self {
+        Self::ParseError(msg)
+    }
+}
+
+// Add conversion from parameter validation errors
+impl From<(String, String, String)> for ChromaCatError {
+    fn from((pattern, param, message): (String, String, String)) -> Self {
+        Self::PatternError {
+            pattern,
+            param,
+            message,
+        }
+    }
+}
+
+/// Result type alias using ChromaCatError
 pub type Result<T> = std::result::Result<T, ChromaCatError>;

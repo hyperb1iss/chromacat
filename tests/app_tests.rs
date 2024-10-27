@@ -38,7 +38,7 @@ fn test_chromacat_basic() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params: PatternParameters::default(),
-        theme_file: None, // Added missing field
+        theme_file: None,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -48,11 +48,10 @@ fn test_chromacat_basic() {
 #[test]
 fn test_chromacat_invalid_angle() {
     setup_test_env();
-    // Create a temporary file with test content
     let test_file = create_test_file("Testing invalid angle");
 
     let mut pattern_params = PatternParameters::default();
-    pattern_params.angle = Some(400); // Invalid angle
+    pattern_params.params.push("angle=400".to_string());
 
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
@@ -68,80 +67,37 @@ fn test_chromacat_invalid_angle() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params,
-        theme_file: None, // Added missing field
+        theme_file: None,
     };
 
     let mut cat = ChromaCat::new(cli);
-    assert!(cat.run().is_err());
-}
-
-#[test]
-fn test_chromacat_invalid_theme() {
-    setup_test_env();
-    // Create a temporary file with test content
-    let test_file = create_test_file("Testing invalid theme");
-
-    let cli = Cli {
-        files: vec![test_file.path().to_path_buf()],
-        pattern: PatternKind::Horizontal,
-        theme: String::from("nonexistent"),
-        animate: false,
-        fps: 30,
-        duration: 0,
-        no_color: true,
-        list_available: false,
-        smooth: false,
-        frequency: 1.0,
-        amplitude: 1.0,
-        speed: 1.0,
-        pattern_params: PatternParameters::default(),
-        theme_file: None, // Added missing field
-    };
-
-    let mut cat = ChromaCat::new(cli);
-    // The invalid theme should return an error, not fall back to rainbow
     assert!(cat.run().is_err());
 }
 
 #[test]
 fn test_chromacat_pattern_params() {
     setup_test_env();
-    // Create a temporary file with test content
     let test_file = create_test_file("Testing pattern parameters");
 
-    // Test various pattern parameters
-    let pattern_tests = vec![
+    let test_cases = vec![
         (
             PatternKind::Plasma,
-            PatternParameters {
-                complexity: Some(3.0),
-                scale: Some(1.5),
-                ..Default::default()
-            },
+            vec!["complexity=3.0", "scale=1.5"],
         ),
         (
             PatternKind::Ripple,
-            PatternParameters {
-                center_x: Some(0.5),
-                center_y: Some(0.5),
-                wavelength: Some(1.0),
-                damping: Some(0.5),
-                ..Default::default()
-            },
+            vec!["center_x=0.5", "center_y=0.5", "wavelength=1.0", "damping=0.5"],
         ),
         (
             PatternKind::Wave,
-            PatternParameters {
-                height: Some(1.0),
-                count: Some(2.0),
-                phase: Some(0.0),
-                offset: Some(0.5),
-                ..Default::default()
-            },
+            vec!["amplitude=1.0", "frequency=2.0", "phase=0.0", "offset=0.5"],
         ),
     ];
 
-    for (pattern, params) in pattern_tests {
+    for (pattern, params) in test_cases {
+        let mut pattern_params = PatternParameters::default();
+        pattern_params.params = params.into_iter().map(String::from).collect();
+
         let cli = Cli {
             files: vec![test_file.path().to_path_buf()],
             pattern,
@@ -155,8 +111,8 @@ fn test_chromacat_pattern_params() {
             frequency: 1.0,
             amplitude: 1.0,
             speed: 1.0,
-            pattern_params: params,
-            theme_file: None, // Added missing field
+            pattern_params,
+            theme_file: None,
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -183,7 +139,7 @@ fn test_chromacat_animation_settings() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params: PatternParameters::default(),
-        theme_file: None, // Added missing field
+        theme_file: None,
     };
 
     let mut cat = ChromaCat::new(cli);

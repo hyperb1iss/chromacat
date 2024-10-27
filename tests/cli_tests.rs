@@ -39,6 +39,31 @@ fn test_pattern_flags() {
 }
 
 #[test]
+fn test_pattern_specific_args() {
+    // Test diagonal pattern with angle
+    let args = vec![
+        "chromacat", 
+        "-p", "diagonal", 
+        "--param", "angle=45"
+    ];
+    let cli = Cli::try_parse_from(args).unwrap();
+    assert_eq!(cli.pattern, PatternKind::Diagonal);
+    assert!(cli.pattern_params.params.contains(&"angle=45".to_string()));
+
+    // Test plasma pattern with complexity and scale
+    let args = vec![
+        "chromacat",
+        "-p", "plasma",
+        "--param", "complexity=3.0",
+        "--param", "scale=1.5",
+    ];
+    let cli = Cli::try_parse_from(args).unwrap();
+    assert_eq!(cli.pattern, PatternKind::Plasma);
+    assert!(cli.pattern_params.params.contains(&"complexity=3.0".to_string()));
+    assert!(cli.pattern_params.params.contains(&"scale=1.5".to_string()));
+}
+
+#[test]
 fn test_animation_settings() {
     let args = vec![
         "chromacat",
@@ -60,30 +85,6 @@ fn test_invalid_fps() {
     let args = vec!["chromacat", "--fps", "200"];
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.validate().is_err());
-}
-
-#[test]
-fn test_pattern_specific_args() {
-    // Test diagonal pattern with angle
-    let args = vec!["chromacat", "-p", "diagonal", "--angle", "45"];
-    let cli = Cli::try_parse_from(args).unwrap();
-    assert_eq!(cli.pattern, PatternKind::Diagonal);
-    assert_eq!(cli.pattern_params.angle, Some(45));
-
-    // Test plasma pattern with complexity and scale
-    let args = vec![
-        "chromacat",
-        "-p",
-        "plasma",
-        "--complexity",
-        "3.0",
-        "--scale",
-        "1.5",
-    ];
-    let cli = Cli::try_parse_from(args).unwrap();
-    assert_eq!(cli.pattern, PatternKind::Plasma);
-    assert_eq!(cli.pattern_params.complexity, Some(3.0));
-    assert_eq!(cli.pattern_params.scale, Some(1.5));
 }
 
 #[test]
@@ -120,12 +121,9 @@ fn test_pattern_validation() {
     // Test valid parameter ranges
     let args = vec![
         "chromacat",
-        "-p",
-        "wave",
-        "--frequency",
-        "1.0",
-        "--amplitude",
-        "0.5",
+        "-p", "wave",
+        "--param", "amplitude=1.0",
+        "--param", "frequency=2.0",
     ];
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.validate().is_ok());
@@ -133,12 +131,8 @@ fn test_pattern_validation() {
     // Test invalid parameter ranges
     let args = vec![
         "chromacat",
-        "-p",
-        "wave",
-        "--frequency",
-        "20.0", // Too high
-        "--amplitude",
-        "0.5",
+        "-p", "wave",
+        "--param", "amplitude=20.0", // Too high
     ];
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.validate().is_err());

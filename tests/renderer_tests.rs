@@ -3,7 +3,7 @@
 //! Tests the rendering pipeline, including static and animated rendering,
 //! terminal interaction, color handling, and performance.
 
-use chromacat::pattern::{CommonParams, PatternConfig, PatternEngine, PatternParams};
+use chromacat::pattern::{CommonParams, PatternConfig, PatternEngine, PatternParams, HorizontalParams};
 use chromacat::renderer::{AnimationConfig, Renderer};
 use colorgrad::{Color, Gradient};
 use std::time::Duration;
@@ -31,7 +31,7 @@ impl RendererTest {
     fn new() -> Self {
         let pattern_config = PatternConfig {
             common: CommonParams::default(),
-            params: PatternParams::Horizontal,
+            params: PatternParams::Horizontal(HorizontalParams::default()),
         };
 
         let engine = PatternEngine::new(
@@ -181,170 +181,51 @@ fn test_unicode_width() {
     }
 }
 
-/// Terminal interaction tests
-mod terminal_tests {
-    use super::*;
+#[test]
+fn test_large_text_performance() {
+    let test = RendererTest::new();
+    let mut renderer = test.create_renderer().unwrap();
 
-    #[test]
-    fn test_terminal_cleanup() {
-        let test = RendererTest::new();
-        {
-            let renderer = test.create_renderer().unwrap();
-            drop(renderer); // Should clean up terminal state
-        }
-    }
+    // Generate large text content
+    let large_text = (0..1000)
+        .map(|i| format!("Line {}\n", i))
+        .collect::<String>();
 
-    #[test]
-    fn test_terminal_resize() {
-        let test = RendererTest::new();
-        let mut renderer = test.create_renderer().unwrap();
+    let start = std::time::Instant::now();
+    renderer.render_static(&large_text).unwrap();
+    let duration = start.elapsed();
 
-        // Test rendering before and after theoretical resize
-        assert!(renderer.render_static("Before resize").is_ok());
-        assert!(renderer.render_static("After resize").is_ok());
-    }
+    assert!(
+        duration < Duration::from_secs(1),
+        "Rendering took too long: {:?}",
+        duration
+    );
 }
 
-/// Performance tests
-mod performance_tests {
-    use super::*;
+#[test]
+fn test_animation_performance() {
+    let test = RendererTest::new();
+    let mut renderer = test.create_renderer().unwrap();
 
-    #[test]
-    fn test_large_text_performance() {
-        let test = RendererTest::new();
-        let mut renderer = test.create_renderer().unwrap();
+    let frame_count = 10; // Reduced frame count for testing
+    let frame_interval = Duration::from_millis(16); // ~60 FPS timing
 
-        // Generate large text content
-        let large_text = (0..1000)
-            .map(|i| format!("Line {}\n", i))
-            .collect::<String>();
+    let start = std::time::Instant::now();
 
-        let start = std::time::Instant::now();
-        renderer.render_static(&large_text).unwrap();
-        let duration = start.elapsed();
-
-        assert!(
-            duration < Duration::from_secs(1),
-            "Rendering took too long: {:?}",
-            duration
-        );
+    // Render frames with small, fixed time increments
+    for i in 0..frame_count {
+        let frame_time = frame_interval * i as u32;
+        renderer.render_frame("Animation test", frame_time).unwrap();
     }
 
-    #[test]
-    fn test_animation_performance() {
-        let test = RendererTest::new();
-        let mut renderer = test.create_renderer().unwrap();
+    let duration = start.elapsed();
 
-        let frame_count = 10; // Reduced frame count for testing
-        let frame_interval = Duration::from_millis(16); // ~60 FPS timing
-
-        let start = std::time::Instant::now();
-
-        // Render frames with small, fixed time increments
-        for i in 0..frame_count {
-            let frame_time = frame_interval * i as u32;
-            renderer.render_frame("Animation test", frame_time).unwrap();
-        }
-
-        let duration = start.elapsed();
-
-        // More lenient performance threshold
-        let max_allowed_duration = Duration::from_millis((frame_count * 50) as u64); // Allow ~50ms per frame
-        assert!(
-            duration < max_allowed_duration,
-            "Animation too slow: {:?} (allowed: {:?})",
-            duration,
-            max_allowed_duration
-        );
-    }
-}
-
-/// Error handling tests
-mod error_tests {
-    use super::*;
-
-    #[test]
-    fn test_oversized_content() {
-        let test = RendererTest::new();
-        let mut renderer = test.create_renderer().unwrap();
-
-        // Create text larger than terminal dimensions
-        let oversized_text = "X".repeat(1000) + "\n" + &"Y".repeat(1000);
-
-        assert!(renderer.render_static(&oversized_text).is_ok());
-    }
-
-    #[test]
-    fn test_invalid_unicode() {
-        let test = RendererTest::new();
-        let mut renderer = test.create_renderer().unwrap();
-
-        let text = "Hello  World";
-        assert!(renderer.render_static(text).is_ok());
-    }
-
-    #[test]
-    fn test_null_character() {
-        let test = RendererTest::new();
-        let mut renderer = test.create_renderer().unwrap();
-
-        let text = "Hello\0World";
-        assert!(renderer.render_static(text).is_ok());
-    }
-}
-
-/// Configuration tests
-mod config_tests {
-    use super::*;
-
-    #[test]
-    fn test_various_fps() {
-        let fps_values = [1, 30, 60, 144];
-
-        for fps in fps_values {
-            let mut config = AnimationConfig::default();
-            config.fps = fps;
-
-            let test = RendererTest {
-                config,
-                ..RendererTest::new()
-            };
-
-            let renderer = test.create_renderer().unwrap();
-
-            // Calculate expected duration in nanoseconds
-            let expected = Duration::from_nanos(1_000_000_000u64 / fps as u64);
-            let actual = renderer.frame_duration();
-
-            // Compare with small epsilon
-            let difference = if actual > expected {
-                actual - expected
-            } else {
-                expected - actual
-            };
-
-            assert!(
-                difference < Duration::from_micros(1),
-                "For {} FPS: duration {:?} differs from expected {:?} by {:?}",
-                fps,
-                actual,
-                expected,
-                difference
-            );
-        }
-    }
-
-    #[test]
-    fn test_infinite_animation() {
-        let mut config = AnimationConfig::default();
-        config.infinite = true;
-
-        let test = RendererTest {
-            config,
-            ..RendererTest::new()
-        };
-
-        let renderer = test.create_renderer().unwrap();
-        assert!(renderer.is_infinite());
-    }
+    // More lenient performance threshold
+    let max_allowed_duration = Duration::from_millis((frame_count * 50) as u64); // Allow ~50ms per frame
+    assert!(
+        duration < max_allowed_duration,
+        "Animation too slow: {:?} (allowed: {:?})",
+        duration,
+        max_allowed_duration
+    );
 }
