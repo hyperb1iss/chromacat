@@ -206,12 +206,13 @@ impl Renderer {
 
         // Build entire output in memory first
         let mut output =
-            String::with_capacity(self.line_buffer.iter().map(|l| l.len() + 1).sum::<usize>());
+            String::with_capacity(self.line_buffer.iter().map(|l| l.len() + 2).sum::<usize>());
 
         // Render each line
         for (y, line) in self.line_buffer.iter().enumerate() {
             if !self.colors_enabled {
                 output.push_str(line);
+                output.push('\r'); // Add carriage return before newline
                 output.push('\n');
                 continue;
             }
@@ -234,6 +235,7 @@ impl Renderer {
                 }
                 output.push_str(grapheme);
             }
+            output.push('\r'); // Add carriage return before newline
             output.push('\n');
         }
 
