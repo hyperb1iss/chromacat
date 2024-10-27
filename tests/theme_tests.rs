@@ -1,6 +1,10 @@
 use chromacat::error::ChromaCatError;
-use chromacat::themes::{self, ColorStop, Distribution, Easing, Repeat, RepeatMode, ThemeDefinition};
+use chromacat::themes::{
+    self, ColorStop, Distribution, Easing, Repeat, RepeatMode, ThemeDefinition,
+};
 use std::f32::consts::PI;
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 // Helper function to create a basic theme for testing
 fn create_test_theme() -> ThemeDefinition {
@@ -39,9 +43,9 @@ fn test_theme_registry() {
 
     // Test theme categories
     let categories = themes::list_categories();
-    assert!(categories.contains(&"default"));
-    assert!(categories.contains(&"space"));
-    assert!(categories.contains(&"tech"));
+    assert!(categories.iter().any(|c| c == "default"));
+    assert!(categories.iter().any(|c| c == "space"));
+    assert!(categories.iter().any(|c| c == "tech"));
 
     // Test theme count
     assert!(themes::theme_count() > 0);
@@ -126,7 +130,6 @@ fn test_distribution_functions() {
 
     for (dist, input, expected) in distributions {
         let mut test_theme = theme.clone();
-        // Clone dist before moving it
         let dist_debug = format!("{:?}", dist);
         test_theme.dist = dist;
         let result = test_theme.apply_distribution(input);
@@ -148,10 +151,7 @@ fn test_repeat_modes() {
         (Repeat::Named(RepeatMode::None), 1.5, 1.0),
         (Repeat::Named(RepeatMode::Mirror), 1.5, 0.5),
         (Repeat::Named(RepeatMode::Repeat), 1.5, 0.5),
-        // For rotate: t + time * rate = 0.5 + 0.5 * 1.0 = 1.0, then fract() = 0.0
         (Repeat::Function("rotate".to_string(), 1.0), 0.5, 0.0),
-        // For pulse: (time * rate * PI).sin() = (0.5 * 1.0 * PI).sin() ≈ 1.0
-        // Then (t + phase) * 0.5 = (0.5 + 1.0) * 0.5 = 0.75
         (Repeat::Function("pulse".to_string(), 1.0), 0.5, 0.75),
     ];
 
@@ -174,7 +174,6 @@ fn test_repeat_modes() {
 fn test_easing_functions() {
     let theme = create_test_theme();
     let test_points = [0.0, 0.25, 0.5, 0.75, 1.0];
-    // Removed Elastic easing as it intentionally overshoots for bounce effect
     let easings = [
         Easing::Linear,
         Easing::Smooth,
@@ -204,9 +203,9 @@ fn test_easing_functions() {
 #[test]
 fn test_theme_categories() {
     for category in themes::list_categories() {
-        if let Some(theme_names) = themes::list_category(category) {
+        if let Some(theme_names) = themes::list_category(&category) {
             for name in theme_names {
-                let theme = themes::get_theme(name).unwrap();
+                let theme = themes::get_theme(&name).unwrap();
                 assert!(theme.validate().is_ok());
                 assert!(theme.create_gradient().is_ok());
             }
@@ -222,17 +221,56 @@ fn test_invalid_theme_access() {
     ));
 }
 
-// Add a separate test for Elastic easing
 #[test]
 fn test_elastic_easing() {
     let mut theme = create_test_theme();
     theme.ease = Easing::Elastic;
-    
+
     // Test only the boundary conditions where we expect exact values
     assert_eq!(theme.apply_easing(0.0), 0.0);
     assert_eq!(theme.apply_easing(1.0), 1.0);
-    
+
     // Test that middle values produce elastic effect (may go outside 0-1 range)
     let mid = theme.apply_easing(0.5);
     assert!(mid != 0.5, "Elastic easing should not be linear");
+}
+
+#[test]
+fn test_custom_theme_loading() {
+    let custom_theme = r#"
+- name: custom-theme
+  desc: A custom test theme
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [0.0, 1.0, 0.0, 0.5, green]
+    - [0.0, 0.0, 1.0, 1.0, blue]
+  dist: even
+  repeat: mirror
+  speed: 1.0
+  ease: smooth
+"#;
+
+    let mut temp_file = NamedTempFile::new().unwrap();
+    write!(temp_file, "{}", custom_theme).unwrap();
+
+    assert!(themes::load_theme_file(temp_file.path()).is_ok());
+
+    let loaded_theme = themes::get_theme("custom-theme").unwrap();
+    assert_eq!(loaded_theme.name, "custom-theme");
+    assert_eq!(loaded_theme.colors.len(), 3);
+}
+
+#[test]
+fn test_invalid_theme_file() {
+    let invalid_theme = r#"
+- name: invalid-theme
+  desc: An invalid theme
+  colors:
+    - [2.0, 0.0, 0.0] # Invalid color value > 1.0
+"#;
+
+    let mut temp_file = NamedTempFile::new().unwrap();
+    write!(temp_file, "{}", invalid_theme).unwrap();
+
+    assert!(themes::load_theme_file(temp_file.path()).is_err());
 }

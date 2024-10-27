@@ -60,6 +60,11 @@ impl ChromaCat {
         // Initialize terminal
         self.setup_terminal()?;
 
+        // Load custom theme file if specified
+        if let Some(theme_file) = &self.cli.theme_file {
+            themes::load_theme_file(theme_file)?;
+        }
+
         // Create theme and gradient
         info!("Creating theme and gradient");
         let theme = themes::get_theme(&self.cli.theme)?;

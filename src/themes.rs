@@ -13,6 +13,8 @@ use serde_yaml::from_str;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::fmt;
+use std::path::Path;
+use std::sync::RwLock;
 
 /// Color stop with RGB values and optional position/name
 #[derive(Debug, Clone, Serialize)]
@@ -209,7 +211,7 @@ const PARTY_THEMES: &str = include_str!("../themes/party.yaml");
 const ABSTRACT_THEMES: &str = include_str!("../themes/abstract.yaml");
 
 lazy_static! {
-    static ref THEME_REGISTRY: ThemeRegistry = ThemeRegistry::new();
+    static ref THEME_REGISTRY: RwLock<ThemeRegistry> = RwLock::new(ThemeRegistry::new());
 }
 
 #[derive(Debug)]
@@ -319,6 +321,27 @@ impl ThemeRegistry {
                 eprintln!("Warning: Failed to load {} themes: {}", category, e);
             }
         }
+    }
+
+    // Add new method to load a custom theme file
+    pub fn load_theme_file(&mut self, path: &Path) -> Result<()> {
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| ChromaCatError::ThemeError(format!("Failed to read theme file: {}", e)))?;
+
+        let themes = from_str::<Vec<ThemeDefinition>>(&content)
+            .map_err(|e| ChromaCatError::ThemeError(format!("Invalid theme file format: {}", e)))?;
+
+        for theme in themes {
+            if let Err(e) = theme.validate() {
+                return Err(ChromaCatError::ThemeError(format!(
+                    "Invalid theme '{}': {}",
+                    theme.name, e
+                )));
+            }
+            self.themes.insert(theme.name.clone(), theme);
+        }
+
+        Ok(())
     }
 }
 
@@ -459,29 +482,55 @@ impl ThemeDefinition {
 }
 
 // Public interface for accessing themes
-pub fn get_theme(name: &str) -> Result<&'static ThemeDefinition> {
+pub fn get_theme(name: &str) -> Result<ThemeDefinition> {
     THEME_REGISTRY
+        .read()
+        .map_err(|e| ChromaCatError::ThemeError(format!("Failed to read theme registry: {}", e)))?
         .themes
         .get(name)
+        .cloned()
         .ok_or_else(|| ChromaCatError::InvalidTheme(name.to_string()))
 }
 
-pub fn list_category(category: &str) -> Option<&'static Vec<String>> {
-    THEME_REGISTRY.categories.get(category)
-}
-
-pub fn list_categories() -> Vec<&'static str> {
+pub fn list_category(category: &str) -> Option<Vec<String>> {
     THEME_REGISTRY
-        .categories
-        .keys()
-        .map(|s| s.as_str())
-        .collect()
+        .read()
+        .ok()
+        .and_then(|registry| registry.categories.get(category).cloned())
 }
 
-pub fn all_themes() -> impl Iterator<Item = &'static ThemeDefinition> {
-    THEME_REGISTRY.themes.values()
+pub fn list_categories() -> Vec<String> {
+    THEME_REGISTRY
+        .read()
+        .map(|registry| {
+            registry
+                .categories
+                .keys()
+                .cloned() // Clone the String keys
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub fn all_themes() -> Vec<ThemeDefinition> {
+    THEME_REGISTRY
+        .read()
+        .map(|registry| registry.themes.values().cloned().collect())
+        .unwrap_or_default()
 }
 
 pub fn theme_count() -> usize {
-    THEME_REGISTRY.themes.len()
+    THEME_REGISTRY
+        .read()
+        .map(|registry| registry.themes.len())
+        .unwrap_or(0)
+}
+
+// Modify public interface
+pub fn load_theme_file(path: &Path) -> Result<()> {
+    let mut registry = THEME_REGISTRY
+        .write()
+        .map_err(|e| ChromaCatError::ThemeError(format!("Failed to lock theme registry: {}", e)))?;
+
+    registry.load_theme_file(path)
 }

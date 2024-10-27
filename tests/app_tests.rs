@@ -38,6 +38,7 @@ fn test_chromacat_basic() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params: PatternParameters::default(),
+        theme_file: None, // Added missing field
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -67,6 +68,7 @@ fn test_chromacat_invalid_angle() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params,
+        theme_file: None, // Added missing field
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -93,6 +95,7 @@ fn test_chromacat_invalid_theme() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params: PatternParameters::default(),
+        theme_file: None, // Added missing field
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -153,6 +156,7 @@ fn test_chromacat_pattern_params() {
             amplitude: 1.0,
             speed: 1.0,
             pattern_params: params,
+            theme_file: None, // Added missing field
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -179,6 +183,7 @@ fn test_chromacat_animation_settings() {
         amplitude: 1.0,
         speed: 1.0,
         pattern_params: PatternParameters::default(),
+        theme_file: None, // Added missing field
     };
 
     let mut cat = ChromaCat::new(cli);

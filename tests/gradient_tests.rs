@@ -51,14 +51,15 @@ fn test_diagonal_gradient() {
 fn test_all_themes_gradient_creation() {
     let config = GradientConfig::default();
 
-    for theme_name in themes::list_categories()
-        .iter()
-        .flat_map(|cat| themes::list_category(cat).unwrap())
-    {
-        let theme = themes::get_theme(theme_name).unwrap();
-        let gradient = theme.create_gradient().unwrap();
-        let engine = GradientEngine::new(gradient, config.clone());
-        assert!(engine.get_color_at(0, 10).is_ok());
+    for category in themes::list_categories() {
+        if let Some(theme_names) = themes::list_category(&category) {
+            for theme_name in theme_names {
+                let theme = themes::get_theme(&theme_name).unwrap();
+                let gradient = theme.create_gradient().unwrap();
+                let engine = GradientEngine::new(gradient, config.clone());
+                assert!(engine.get_color_at(0, 10).is_ok());
+            }
+        }
     }
 }
 

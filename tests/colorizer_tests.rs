@@ -68,15 +68,16 @@ fn test_colorizer_long_text() {
 fn test_all_themes_colorization() {
     let config = GradientConfig::default();
 
-    for theme_name in themes::list_categories()
-        .iter()
-        .flat_map(|cat| themes::list_category(cat).unwrap())
-    {
-        let theme = themes::get_theme(theme_name).unwrap();
-        let gradient = theme.create_gradient().unwrap();
-        let mut colorizer = Colorizer::new(gradient, config.clone(), false);
-        let input = Cursor::new("Testing different themes");
-        assert!(colorizer.colorize(input).is_ok());
+    for category in themes::list_categories() {
+        if let Some(theme_names) = themes::list_category(&category) {
+            for theme_name in theme_names {
+                let theme = themes::get_theme(&theme_name).unwrap();
+                let gradient = theme.create_gradient().unwrap();
+                let mut colorizer = Colorizer::new(gradient, config.clone(), false);
+                let input = Cursor::new("Testing different themes");
+                assert!(colorizer.colorize(input).is_ok());
+            }
+        }
     }
 }
 

@@ -138,6 +138,14 @@ pub struct Cli {
     )]
     pub list_available: bool,
 
+    #[arg(
+        long = "theme-file",
+        value_name = "FILE",
+        help_heading = CliFormat::HEADING_CORE,
+        help = CliFormat::core("Load custom theme from YAML file")
+    )]
+    pub theme_file: Option<PathBuf>,
+
     #[command(flatten)]
     pub pattern_params: PatternParameters,
 }
@@ -502,12 +510,12 @@ impl Cli {
         println!("\n\x1b[1;38;5;213m🎨 Themes\x1b[0m");
         println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
 
-        for category in themes::list_categories() {
+        for category in themes::list_categories() {  // Now iterating over Vec<String>
             println!("\n\x1b[1;38;5;147m{}\x1b[0m", category);
-            if let Some(theme_names) = themes::list_category(category) {
+            if let Some(theme_names) = themes::list_category(&category) {
                 for name in theme_names {
-                    if let Ok(theme) = themes::get_theme(name) {
-                        let preview = Self::create_theme_preview(theme);
+                    if let Ok(theme) = themes::get_theme(&name) {
+                        let preview = Self::create_theme_preview(&theme);
                         println!(
                             "  \x1b[1;38;5;75m{:<15}\x1b[0m {} \x1b[38;5;239m│\x1b[0m {}",
                             name, preview, theme.desc

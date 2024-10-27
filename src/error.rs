@@ -44,6 +44,9 @@ pub enum ChromaCatError {
     /// Format Error wrapper
     #[error("Format Error: {0}")]
     FormatError(#[from] fmt::Error),
+
+    #[error("Theme error: {0}")]
+    ThemeError(String),
 }
 
 /// A Result type alias using ChromaCatError
