@@ -21,11 +21,11 @@ use crossterm::{
         self, disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
-use std::cmp::min;
 use std::fmt::Write as FmtWrite;
 use std::io::{stdout, Write};
 use std::thread;
 use std::time::{Duration, Instant};
+use std::{cmp::min, f64::consts::PI};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -270,9 +270,9 @@ impl Renderer {
             return Ok(());
         }
 
-        // Calculate animation progress
+        // Increase the animation speed
         let progress = if self.config.infinite {
-            (elapsed.as_secs_f64() * 2.0) % 1.0
+            elapsed.as_secs_f64() * 0.5
         } else {
             elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()
         };

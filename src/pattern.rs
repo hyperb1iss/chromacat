@@ -187,14 +187,8 @@ impl PatternEngine {
     /// # Arguments
     /// * `delta` - Time increment (0.0-1.0)
     pub fn update(&mut self, delta: f64) {
-        // Scale the animation speed by the common speed parameter only
-        // (removed frequency from this calculation as it shouldn't affect time progression)
-        let adjusted_delta = delta * self.config.common.speed;
-        self.time = if adjusted_delta.is_finite() {
-            self.time + adjusted_delta
-        } else {
-            0.0
-        };
+        // Store the raw time value directly
+        self.time = delta;
     }
 
     /// Gets the current animation time
@@ -217,6 +211,7 @@ impl PatternEngine {
     /// # Returns
     /// * `Result<f64>` - Pattern value between 0.0 and 1.0
     pub fn get_value_at(&self, x: usize, y: usize) -> Result<f64> {
+        // Calculate the base pattern value
         let base_value = match &self.config.params {
             PatternParams::Horizontal => self.horizontal_pattern(x, y),
             PatternParams::Diagonal { angle } => self.diagonal_pattern(x, y, *angle),
@@ -261,19 +256,28 @@ impl PatternEngine {
             } => self.perlin_pattern(x, y, *octaves, *persistence, *scale),
         };
 
-        // Apply time-based animation based on pattern type
+        // Apply time-based animation with improved smoothness
         let final_value = match &self.config.params {
             // Static patterns - no time animation
             PatternParams::Horizontal | PatternParams::Diagonal { .. } => base_value,
 
-            // Patterns that use time internally
+            // Patterns that use time internally (already smooth)
             PatternParams::Plasma { .. }
             | PatternParams::Ripple { .. }
             | PatternParams::Wave { .. }
             | PatternParams::Spiral { .. } => base_value,
 
-            // Patterns that should offset by time
-            _ if self.config.common.speed > 0.0 => (base_value + self.time) % 1.0,
+            // Patterns that should offset by time with improved smoothness
+            _ if self.config.common.speed > 0.0 => {
+                // Calculate two time positions and interpolate between them
+                let time_floor = self.time.floor();
+                let time_fract = self.time.fract();
+
+                let value1 = (base_value + time_floor) % 1.0;
+                let value2 = (base_value + time_floor + 1.0) % 1.0;
+
+                self.interpolate_value(value1, value2, time_fract)
+            }
 
             // Default case - no animation
             _ => base_value,
@@ -339,31 +343,65 @@ impl PatternEngine {
     }
 
     fn plasma_pattern(&self, x: usize, y: usize, complexity: f64, scale: f64) -> f64 {
-        // Time should affect the pattern - multiply by 2π for a full cycle
-        let time = self.time * std::f64::consts::PI * 2.0;
+        // Increase overall animation speed
+        let time = self.time * PI; // Removed the 0.2 multiplier
         let x_norm = x as f64 / self.width as f64;
         let y_norm = y as f64 / self.height as f64;
 
-        let base_freq = self.config.common.frequency * scale;
+        // More pronounced center motion
+        let cx = 0.5 + 0.4 * self.fast_sin(time * 0.4); // Doubled from 0.2 to 0.4
+        let cy = 0.5 + 0.4 * self.fast_cos(time * 0.43); // Doubled from 0.23 to 0.43
 
+        let base_freq = self.config.common.frequency * scale * 2.0; // Increased from 1.5 to 2.0
         let mut sum = 0.0;
+        let mut divisor = 0.0;
+
+        // Layer 1: More dynamic circular waves
+        let dx1 = x_norm - cx;
+        let dy1 = y_norm - cy;
+        let dist1 = (dx1 * dx1 + dy1 * dy1).sqrt();
+        sum += self.fast_sin(dist1 * 8.0 * base_freq + time * 0.6) * 1.2; // Doubled from 0.3 to 0.6
+        divisor += 1.2;
+
+        // Layer 2: Faster perpendicular waves
+        sum += self.fast_sin(x_norm * 5.0 * base_freq + time * 0.4) * 0.8; // Doubled from 0.2 to 0.4
+        sum += self.fast_sin(y_norm * 5.0 * base_freq + time * 0.47) * 0.8; // Increased from 0.27 to 0.47
+        divisor += 1.6;
+
+        // Layer 3: Faster rotating waves
+        let angle = time * 0.2; // Doubled from 0.1 to 0.2
+        let rx = x_norm * self.fast_cos(angle) - y_norm * self.fast_sin(angle);
+        let ry = x_norm * self.fast_sin(angle) + y_norm * self.fast_cos(angle);
+        sum += self.fast_sin((rx + ry) * 4.0 * base_freq) * 1.0;
+        divisor += 1.0;
+
+        // Layer 4: Faster spiral
+        let dx2 = x_norm - 0.5;
+        let dy2 = y_norm - 0.5;
+        let angle2 = dy2.atan2(dx2) + time * 0.3; // Doubled from 0.15 to 0.3
+        let dist2 = (dx2 * dx2 + dy2 * dy2).sqrt() * 6.0;
+        sum += self.fast_sin(dist2 + angle2 * 2.0) * 0.8;
+        divisor += 0.8;
+
+        // Layer 5: Faster undulating waves
         for i in 0..complexity as u32 {
-            let factor = 2.0_f64.powi(i as i32);
-            let freq = base_freq * factor;
+            let fi = i as f64;
+            let speed = 0.2 + fi * 0.04; // Doubled from 0.1/0.02 to 0.2/0.04
 
-            // Add time to each component to create movement
-            sum += self.fast_sin((x_norm * freq + time) * PI * 2.0) / factor;
-            sum += self.fast_sin((y_norm * freq + time) * PI * 2.0) / factor;
-            sum += self.fast_sin(((x_norm + y_norm) * freq + time) * PI * 2.0) / factor;
+            let cx = 0.5 + 0.3 * self.fast_sin(time * speed);
+            let cy = 0.5 + 0.3 * self.fast_cos(time * speed + PI * 0.3);
 
-            // Add some rotating components
-            sum += self
-                .fast_sin((x_norm * self.fast_cos(time) + y_norm * self.fast_sin(time)) * freq)
-                / factor;
+            let dx = x_norm - cx;
+            let dy = y_norm - cy;
+            let dist = (dx * dx + dy * dy).sqrt();
+
+            let freq = (3.0 + fi) * base_freq;
+            sum += self.fast_sin(dist * freq + time * (0.4 + fi * 0.1)) * (1.2 / (fi + 1.0)); // Doubled time multipliers
+            divisor += 1.0 / (fi + 1.0);
         }
 
-        // Normalize to 0..1 range
-        (sum / complexity + 1.0) / 2.0
+        let normalized = (sum / divisor) * 1.2;
+        (self.fast_sin(normalized * PI * 0.8) + 1.0) * 0.5
     }
 
     fn ripple_pattern(
@@ -600,6 +638,31 @@ impl PatternEngine {
             1 => -dx + dy,
             2 => dx - dy,
             _ => -dx - dy,
+        }
+    }
+
+    // Add new helper method for interpolation
+    fn interpolate_value(&self, prev_value: f64, next_value: f64, alpha: f64) -> f64 {
+        // Handle wrapping for cyclic patterns (like spirals)
+        let diff = next_value - prev_value;
+        if diff.abs() > 0.5 {
+            // Values are across the 0-1 boundary, adjust for smooth wrapping
+            let wrapped_next = if diff > 0.0 {
+                next_value - 1.0
+            } else {
+                next_value + 1.0
+            };
+            let interpolated = prev_value + (wrapped_next - prev_value) * alpha;
+            if interpolated < 0.0 {
+                interpolated + 1.0
+            } else if interpolated > 1.0 {
+                interpolated - 1.0
+            } else {
+                interpolated
+            }
+        } else {
+            // Normal linear interpolation
+            prev_value + (next_value - prev_value) * alpha
         }
     }
 }
