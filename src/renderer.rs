@@ -22,12 +22,11 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
+use std::cmp::min;
 use std::fmt::Write as FmtWrite;
 use std::io::{stdout, Write};
-use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use std::{cmp::min, f64::consts::PI};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr; // Add if needed for thread safety
 
@@ -59,7 +58,7 @@ impl Default for AnimationConfig {
 }
 
 /// Scrolling state for animated viewing
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ScrollState {
     /// Index of the first visible line
     top_line: usize,
@@ -67,16 +66,6 @@ struct ScrollState {
     viewport_height: u16,
     /// Total number of lines in the content
     total_lines: usize,
-}
-
-impl Default for ScrollState {
-    fn default() -> Self {
-        Self {
-            top_line: 0,
-            viewport_height: 0,
-            total_lines: 0,
-        }
-    }
 }
 
 /// Renders text with gradient patterns
@@ -231,11 +220,8 @@ impl Renderer {
                     let color = self.color_buffer[y][x];
                     if current_color != Some(color) {
                         // Only emit color codes when color changes
-                        match color {
-                            Color::Rgb { r, g, b } => {
-                                write!(output, "\x1b[38;2;{};{};{}m", r, g, b)?;
-                            }
-                            _ => {} // Handle other color types if needed
+                        if let Color::Rgb { r, g, b } = color {
+                            write!(output, "\x1b[38;2;{};{};{}m", r, g, b)?;
                         }
                         current_color = Some(color);
                     }
@@ -335,11 +321,8 @@ impl Renderer {
                 let color = self.color_buffer[line_idx][x];
                 if current_color != Some(color) {
                     // Only emit color codes when color changes
-                    match color {
-                        Color::Rgb { r, g, b } => {
-                            line_output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
-                        }
-                        _ => {}
+                    if let Color::Rgb { r, g, b } = color {
+                        line_output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
                     }
                     current_color = Some(color);
                 }
@@ -381,14 +364,6 @@ impl Renderer {
             "{}{}",
             "█".repeat(filled),
             "▒".repeat(progress_width - filled)
-        );
-
-        // Format line numbers with padding
-        let line_info = format!(
-            "{:>width$}/{:width$}",
-            self.scroll_state.top_line + visible_lines,
-            self.scroll_state.total_lines,
-            width = self.scroll_state.total_lines.to_string().len()
         );
 
         // Create status line with multiple segments
@@ -529,11 +504,8 @@ impl Renderer {
                 }
                 let color = self.color_buffer[line_idx][x];
                 if current_color != Some(color) {
-                    match color {
-                        Color::Rgb { r, g, b } => {
-                            line_output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
-                        }
-                        _ => {}
+                    if let Color::Rgb { r, g, b } = color {
+                        line_output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
                     }
                     current_color = Some(color);
                 }
@@ -662,8 +634,8 @@ impl Renderer {
         let end = min(end, self.line_buffer.len());
         let max_width = self.color_buffer[0].len();
 
-        // Calculate total content height for proper pattern scaling
-        let total_height = self.line_buffer.len();
+        // Remove this line since it's not being used
+        // let total_height = self.line_buffer.len();
 
         for y in start..end {
             let line = &self.line_buffer[y];
