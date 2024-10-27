@@ -259,13 +259,15 @@ impl PatternEngine {
         // Apply time-based animation with improved smoothness
         let final_value = match &self.config.params {
             // Static patterns - no time animation
-            PatternParams::Horizontal | PatternParams::Diagonal { .. } => base_value,
+            PatternParams::Horizontal => base_value,
 
             // Patterns that use time internally (already smooth)
             PatternParams::Plasma { .. }
             | PatternParams::Ripple { .. }
             | PatternParams::Wave { .. }
-            | PatternParams::Spiral { .. } => base_value,
+            | PatternParams::Spiral { .. }
+            | PatternParams::Diagonal { .. }  // Add Diagonal to this list - it now uses time internally
+            => base_value,
 
             // Patterns that should offset by time with improved smoothness
             _ if self.config.common.speed > 0.0 => {
@@ -324,22 +326,42 @@ impl PatternEngine {
             return 0.0;
         }
 
-        // Convert coordinates to -1..1 range
-        let x_norm = (2.0 * x as f64 / (self.width - 1) as f64) - 1.0;
-        let y_norm = (2.0 * y as f64 / (self.height - 1) as f64) - 1.0;
+        // Use simpler coordinate normalization without aspect ratio
+        let x_norm = x as f64 / (self.width - 1) as f64;
+        let y_norm = (y % self.height) as f64 / (self.height - 1) as f64;
 
-        // Convert angle to radians
-        let angle_rad = (angle % 360) as f64 * PI / 180.0;
+        // Scale to -1..1 range
+        let x_scaled = x_norm * 2.0 - 1.0;
+        let y_scaled = y_norm * 2.0 - 1.0;
+
+        // Add time-based animation
+        let time = self.time * PI * 2.0;
+
+        // Create a moving wave effect
+        let wave_offset = self.fast_sin(time * 0.5 + y_norm * 8.0) * 0.2;
+
+        // Animate the angle
+        let base_angle = angle as f64;
+        let animated_angle = (base_angle + self.fast_sin(time * 0.3) * 15.0) * PI / 180.0;
 
         // Rotate the point
-        let cos_angle = self.fast_cos(angle_rad);
-        let sin_angle = self.fast_sin(angle_rad);
+        let cos_angle = self.fast_cos(animated_angle);
+        let sin_angle = self.fast_sin(animated_angle);
 
-        // Project onto the angle vector (using dot product)
-        let rotated = x_norm * cos_angle + y_norm * sin_angle;
+        // Project onto the angle vector with wave distortion
+        let rotated = x_scaled * cos_angle + y_scaled * sin_angle + wave_offset;
 
-        // Map from -1..1 to 0..1
-        (rotated + 1.0) * 0.5
+        // Add wave distortion perpendicular to the gradient
+        let perpendicular = -x_scaled * sin_angle + y_scaled * cos_angle;
+        let wave_distortion = self.fast_sin(perpendicular * 4.0 + time) * 0.1;
+
+        // Combine effects and map to 0..1 range
+        let result = (rotated + wave_distortion + 1.0) * 0.5;
+
+        // Add pulsing effect
+        let pulse = (self.fast_sin(time * 0.7) * 0.1 + 1.0) * result;
+
+        pulse.clamp(0.0, 1.0)
     }
 
     fn plasma_pattern(&self, x: usize, y: usize, complexity: f64, scale: f64) -> f64 {

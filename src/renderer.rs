@@ -464,11 +464,11 @@ impl Renderer {
             .unwrap_or(0)
             .max(self.term_size.0 as usize);
 
-        let buffer_height = self.line_buffer.len().max(self.term_size.1 as usize);
+        // Use the actual content height instead of terminal height
+        let buffer_height = self.line_buffer.len();
 
-        // Always ensure the color buffer is large enough
+        // Resize color buffer if needed
         if self.color_buffer.len() < buffer_height || self.color_buffer[0].len() < max_line_length {
-            // Preserve existing colors when resizing
             let mut new_buffer = vec![vec![Color::White; max_line_length]; buffer_height];
 
             // Copy existing colors
@@ -486,6 +486,7 @@ impl Renderer {
             self.color_buffer = new_buffer;
         }
 
+        // Update the entire content at once
         self.update_color_buffer_range(0, buffer_height, 0.0)
     }
 
@@ -498,12 +499,18 @@ impl Renderer {
         let end = min(end, self.line_buffer.len());
         let max_width = self.color_buffer[0].len();
 
+        // Calculate total content height for proper pattern scaling
+        let total_height = self.line_buffer.len();
+
         for y in start..end {
             let line = &self.line_buffer[y];
             for (x, _) in line.graphemes(true).enumerate() {
                 if x >= max_width {
                     break;
                 }
+
+                // Use the actual y position relative to total content height
+                // This ensures pattern continuity across the entire content
                 let pattern_value = self.engine.get_value_at(x, y)?;
                 let gradient_color = self.engine.gradient().at(pattern_value as f32);
 
