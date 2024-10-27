@@ -1,0 +1,34 @@
+- name: calm
+  desc: Soothing blues and greens
+  colors:
+    - [0.53, 0.81, 0.92, 0.0, light-blue]
+    - [0.53, 0.81, 0.76, 0.3, turquoise]
+    - [0.53, 0.81, 0.61, 1.0, sea-green]
+  dist: even
+  repeat: pulse(0.1)
+  speed: 0.4
+  ease: smooth
+
+- name: energy
+  desc: Vibrant, energetic colors
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [1.0, 0.5, 0.0, 0.3, orange]
+    - [1.0, 1.0, 0.0, 0.7, yellow]
+    - [1.0, 0.0, 0.5, 1.0, pink]
+  dist: alt
+  repeat: rotate(0.8)
+  speed: 1.5
+  ease: exp
+
+- name: dream
+  desc: Soft, dreamy pastels with purple
+  colors:
+    - [0.86, 0.0, 1.0, 0.0, purple]
+    - [0.53, 0.81, 0.92, 0.3, light-blue]
+    - [1.0, 0.71, 0.76, 0.7, pink]
+    - [0.86, 0.0, 0.5, 1.0, dark-pink]
+  dist: center
+  repeat: pulse(0.2)
+  speed: 0.6
+  ease: smoother

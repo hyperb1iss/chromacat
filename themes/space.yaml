@@ -1,0 +1,48 @@
+- name: nebula
+  desc: Cosmic nebula colors
+  colors:
+    - [0.29, 0.0, 0.51, 0.0, deep-purple]
+    - [0.86, 0.0, 1.0, 0.3, bright-purple]
+    - [0.0, 0.72, 1.0, 0.7, bright-blue]
+    - [1.0, 0.0, 0.5, 1.0, pink]
+  dist: center
+  repeat: mirror
+  speed: 0.7
+  ease: smoother
+
+- name: cosmos
+  desc: Deep space with stars
+  colors:
+    - [0.0, 0.0, 0.1, 0.0, space]
+    - [0.2, 0.0, 0.4, 0.4, deep-space]
+    - [0.4, 0.0, 0.6, 0.7, star-field]
+    - [1.0, 1.0, 1.0, 1.0, star]
+  dist: back
+  repeat: pulse(0.1)
+  speed: 0.5
+  ease: sine
+
+- name: aurora
+  desc: Northern lights in motion
+  colors:
+    - [0.0, 0.3, 0.1, 0.0, night-sky]
+    - [0.0, 0.8, 0.4, 0.3, green-aurora]
+    - [0.0, 0.6, 0.8, 0.6, blue-aurora]
+    - [0.3, 0.0, 0.6, 0.8, purple-aurora]
+    - [0.7, 0.0, 0.3, 1.0, pink-aurora]
+  dist: alt
+  repeat: rotate(0.3)
+  speed: 0.8
+  ease: smooth
+
+- name: galaxy
+  desc: Spiral galaxy with star clusters
+  colors:
+    - [0.0, 0.0, 0.2, 0.0, void]
+    - [0.3, 0.0, 0.5, 0.3, galactic-core]
+    - [0.7, 0.4, 1.0, 0.7, stellar-clouds]
+    - [1.0, 0.8, 1.0, 1.0, star-cluster]
+  dist: front
+  repeat: mirror
+  speed: 0.4
+  ease: exp

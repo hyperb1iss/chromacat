@@ -9,7 +9,7 @@ use crate::error::{ChromaCatError, Result};
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
 use crate::renderer::Renderer;
-use crate::themes::Theme;
+use crate::themes;
 
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{self, Event};
@@ -19,7 +19,6 @@ use crossterm::terminal::{
 };
 use log::{debug, info};
 use std::io::{stdout, Write};
-use std::str::FromStr;
 use std::time::{Duration, Instant};
 
 /// Main application struct that coordinates ChromaCat functionality
@@ -61,14 +60,14 @@ impl ChromaCat {
         // Initialize terminal
         self.setup_terminal()?;
 
+        // Create theme and gradient
+        info!("Creating theme and gradient");
+        let theme = themes::get_theme(&self.cli.theme)?;
+        let gradient = theme.create_gradient()?;
+
         // Create pattern configuration
         info!("Creating pattern configuration");
         let pattern_config = self.cli.create_pattern_config()?;
-
-        // Create theme and gradient
-        info!("Creating theme and gradient");
-        let theme = Theme::from_str(&self.cli.theme)?;
-        let gradient = theme.create_gradient()?;
 
         info!("Initializing pattern engine");
         let engine = PatternEngine::new(
@@ -100,8 +99,13 @@ impl ChromaCat {
     /// Sets up the terminal for rendering
     fn setup_terminal(&mut self) -> Result<()> {
         // Get terminal size
-        self.term_size = crossterm::terminal::size()
-            .map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+        if Self::is_test() {
+            // Use fixed size for tests
+            self.term_size = (80, 24);
+        } else {
+            self.term_size = crossterm::terminal::size()
+                .map_err(|e| ChromaCatError::TerminalError(e.to_string()))?;
+        }
 
         // Skip terminal setup in test environment
         if Self::is_test() {

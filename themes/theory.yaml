@@ -1,0 +1,55 @@
+- name: complementary
+  desc: Opposite colors on the color wheel
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [0.5, 0.0, 0.0, 0.3, dark-red]
+    - [0.0, 1.0, 0.0, 0.7, green]
+    - [0.0, 0.5, 0.0, 1.0, dark-green]
+  dist: center
+  repeat: mirror
+  speed: 0.8
+  ease: smooth
+
+- name: analogous
+  desc: Adjacent colors on the color wheel
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [1.0, 0.5, 0.0, 0.5, orange]
+    - [1.0, 0.0, 0.5, 1.0, pink]
+  dist: even
+  repeat: pulse(0.3)
+  speed: 0.7
+  ease: sine
+
+- name: triadic
+  desc: Three colors equally spaced on the color wheel
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [0.0, 1.0, 0.0, 0.33, green]
+    - [0.0, 0.0, 1.0, 0.67, blue]
+  dist: alt
+  repeat: rotate(0.4)
+  speed: 0.9
+  ease: smooth
+
+- name: monochrome
+  desc: Single color in varying intensities
+  colors:
+    - [0.0, 0.0, 0.8, 0.0, bright]
+    - [0.0, 0.0, 0.4, 0.5, medium]
+    - [0.0, 0.0, 0.1, 1.0, dark]
+  dist: even
+  repeat: mirror
+  speed: 0.5
+  ease: smooth
+
+- name: split-complementary
+  desc: Main color plus two adjacent to its complement
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [0.0, 0.8, 0.2, 0.5, green-yellow]
+    - [0.0, 0.2, 0.8, 1.0, blue-green]
+  dist: center
+  repeat: rotate(0.3)
+  speed: 0.8
+  ease: smoother

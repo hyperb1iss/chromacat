@@ -1,0 +1,43 @@
+- name: matrix
+  desc: Digital rain aesthetic
+  colors:
+    - [0.0, 0.5, 0.0, 0.0, dark-green]
+    - [0.0, 0.8, 0.0, 0.5, medium-green]
+    - [0.0, 1.0, 0.0, 1.0, bright-green]
+  dist: back
+  repeat: rotate(0.2)
+  speed: 1.2
+  ease: exp
+
+- name: cyberpunk
+  desc: High-tech urban future aesthetic
+  colors:
+    - [1.0, 0.0, 0.4, 0.0, hot-pink]
+    - [0.0, 1.0, 1.0, 0.5, cyan]
+    - [1.0, 0.92, 0.0, 1.0, yellow]
+  dist: alt
+  repeat: rotate(0.5)
+  speed: 1.2
+  ease: smooth
+
+- name: terminal
+  desc: Classic computer terminal look
+  colors:
+    - [0.0, 0.75, 0.0, 0.0, term-green]
+    - [0.0, 0.55, 0.0, 0.5, medium-green]
+    - [0.0, 0.35, 0.0, 1.0, dark-green]
+  dist: even
+  repeat: pulse(0.1)
+  speed: 0.8
+  ease: linear
+
+- name: hackerman
+  desc: Retro hacker aesthetic
+  colors:
+    - [0.0, 1.0, 0.0, 0.0, bright-green]
+    - [0.0, 0.0, 0.0, 0.5, black]
+    - [0.0, 0.5, 0.0, 1.0, dark-green]
+  dist: front
+  repeat: rotate(0.3)
+  speed: 1.5
+  ease: sine

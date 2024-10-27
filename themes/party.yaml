@@ -1,0 +1,50 @@
+- name: rave
+  desc: Intense party colors that pulse
+  colors:
+    - [1.0, 0.0, 1.0, 0.0, magenta]
+    - [0.0, 1.0, 0.0, 0.25, green]
+    - [1.0, 1.0, 0.0, 0.5, yellow]
+    - [0.0, 1.0, 1.0, 0.75, cyan]
+    - [1.0, 0.0, 0.0, 1.0, red]
+  dist: alt
+  repeat: rotate(1.0)
+  speed: 1.5
+  ease: sine
+
+- name: disco
+  desc: 70s disco-inspired colors
+  colors:
+    - [1.0, 0.0, 0.5, 0.0, hot-pink]
+    - [0.5, 0.0, 1.0, 0.3, purple]
+    - [0.0, 0.5, 1.0, 0.7, blue]
+    - [1.0, 0.8, 0.0, 1.0, gold]
+  dist: center
+  repeat: pulse(0.8)
+  speed: 1.2
+  ease: smooth
+
+- name: festival
+  desc: Vibrant festival color palette
+  colors:
+    - [1.0, 0.4, 0.0, 0.0, orange]
+    - [1.0, 0.0, 0.6, 0.25, pink]
+    - [0.6, 0.0, 1.0, 0.5, purple]
+    - [0.0, 0.8, 1.0, 0.75, blue]
+    - [0.0, 1.0, 0.4, 1.0, green]
+  dist: alt
+  repeat: rotate(0.6)
+  speed: 1.0
+  ease: smoother
+
+- name: carnival
+  desc: Bright carnival celebration colors
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [1.0, 0.6, 0.0, 0.25, orange]
+    - [1.0, 1.0, 0.0, 0.5, yellow]
+    - [0.0, 0.8, 0.0, 0.75, green]
+    - [0.4, 0.0, 0.8, 1.0, purple]
+  dist: even
+  repeat: mirror
+  speed: 1.1
+  ease: sine

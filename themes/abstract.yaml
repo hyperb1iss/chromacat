@@ -1,0 +1,81 @@
+- name: heat
+  desc: Warm colors transitioning from red to yellow
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [1.0, 0.5, 0.0, 0.5, orange]
+    - [1.0, 1.0, 0.0, 1.0, yellow]
+  dist: front
+  repeat: rotate(0.4)
+  speed: 1.0
+  ease: exp
+
+- name: ice
+  desc: Cool, frozen tones
+  colors:
+    - [1.0, 1.0, 1.0, 0.0, white]
+    - [0.8, 0.9, 1.0, 0.3, light-blue]
+    - [0.6, 0.8, 1.0, 0.7, blue]
+    - [0.4, 0.7, 1.0, 1.0, deep-blue]
+  dist: center
+  repeat: pulse(0.2)
+  speed: 0.5
+  ease: smooth
+
+- name: fire
+  desc: Hot, intense flames
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [1.0, 0.5, 0.0, 0.3, orange]
+    - [1.0, 0.8, 0.0, 0.7, yellow]
+    - [1.0, 0.3, 0.0, 1.0, dark-orange]
+  dist: back
+  repeat: rotate(0.6)
+  speed: 1.2
+  ease: exp
+
+- name: toxic
+  desc: Radioactive greens and acid colors
+  colors:
+    - [0.0, 1.0, 0.0, 0.0, green]
+    - [0.8, 1.0, 0.0, 0.5, yellow-green]
+    - [0.4, 0.8, 0.0, 1.0, dark-green]
+  dist: alt
+  repeat: pulse(0.8)
+  speed: 1.3
+  ease: sine
+
+- name: glitch
+  desc: Digital glitch artifact colors
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [0.0, 1.0, 1.0, 0.4, cyan]
+    - [1.0, 0.0, 1.0, 0.6, magenta]
+    - [0.0, 0.0, 0.0, 1.0, black]
+  dist: front
+  repeat: rotate(1.2)
+  speed: 2.0
+  ease: linear
+
+- name: plasma
+  desc: Electric plasma-like effect
+  colors:
+    - [1.0, 0.0, 1.0, 0.0, magenta]
+    - [0.5, 0.0, 1.0, 0.3, purple]
+    - [0.0, 0.0, 1.0, 0.7, blue]
+    - [0.0, 1.0, 1.0, 1.0, cyan]
+  dist: center
+  repeat: rotate(0.5)
+  speed: 1.1
+  ease: sine
+
+- name: lightning
+  desc: Electric discharge colors
+  colors:
+    - [1.0, 1.0, 1.0, 0.0, white]
+    - [0.0, 1.0, 1.0, 0.3, cyan]
+    - [0.0, 0.0, 1.0, 0.7, blue]
+    - [0.5, 0.0, 1.0, 1.0, purple]
+  dist: alt
+  repeat: pulse(1.5)
+  speed: 1.8
+  ease: exp

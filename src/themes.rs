@@ -1,544 +1,487 @@
+//! Theme system for ChromaCat
+//!
+//! Provides gradient theme definitions, loading, and color interpolation for terminal
+//! colorization effects. Themes are loaded from YAML files at compile time and provide
+//! various distribution patterns, repeat modes, and easing functions.
+
 use crate::error::{ChromaCatError, Result};
 use colorgrad::{Color, Gradient, GradientBuilder, LinearGradient};
-use std::str::FromStr;
+use lazy_static::lazy_static;
+use serde::de::{self, Deserializer, SeqAccess, Visitor};
+use serde::{Deserialize, Serialize};
+use serde_yaml::from_str;
+use std::collections::HashMap;
+use std::f32::consts::PI;
+use std::fmt;
 
-/// Available color gradient themes
-#[derive(Debug, Clone)]
-pub enum Theme {
-    // Classic Themes
-    Rainbow,
-    Grayscale,
-    Sepia,
-    Monochrome,
-
-    // Nature Themes
-    Ocean,
-    Forest,
-    Autumn,
-    Sunset,
-    Desert,
-    Arctic,
-    Tropical,
-
-    // Aesthetic Themes
-    Pastel,
-    Neon,
-    Retrowave,
-    Vaporwave,
-
-    // Tech Themes
-    Matrix,
-    Cyberpunk,
-    Terminal,
-    Hackerman,
-
-    // Space Themes
-    Nebula,
-    Galaxy,
-    Aurora,
-    Cosmos,
-
-    // Abstract Themes
-    Heat,
-    Ice,
-    Fire,
-    Toxic,
-
-    // Mood Themes
-    Calm,
-    Energy,
-    Dream,
-
-    // Party Themes
-    Rave,
-    Disco,
-    Festival,
-
-    // Color Theory Themes
-    Complementary,
-    Analogous,
-    Triadic,
-
-    // Special Effects
-    Hologram,
-    Glitch,
-    Plasma,
-    Lightning,
+/// Color stop with RGB values and optional position/name
+#[derive(Debug, Clone, Serialize)]
+pub struct ColorStop {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    #[serde(default)]
+    pub position: Option<f32>,
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
-impl Theme {
-    /// Returns the color stops for the theme
-    pub fn get_colors(&self) -> Vec<Color> {
-        match self {
-            // Classic Themes
-            Theme::Rainbow => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0),   // Red
-                Color::new(1.0, 0.5, 0.0, 1.0),   // Orange
-                Color::new(1.0, 1.0, 0.0, 1.0),   // Yellow
-                Color::new(0.0, 1.0, 0.0, 1.0),   // Green
-                Color::new(0.0, 0.0, 1.0, 1.0),   // Blue
-                Color::new(0.29, 0.0, 0.51, 1.0), // Indigo
-                Color::new(0.58, 0.0, 0.83, 1.0), // Violet
-            ],
-            Theme::Grayscale => vec![
-                Color::new(0.1, 0.1, 0.1, 1.0),
-                Color::new(0.5, 0.5, 0.5, 1.0),
-                Color::new(0.9, 0.9, 0.9, 1.0),
-            ],
-            Theme::Sepia => vec![
-                Color::new(0.85, 0.75, 0.60, 1.0),
-                Color::new(0.70, 0.60, 0.45, 1.0),
-                Color::new(0.55, 0.45, 0.30, 1.0),
-            ],
-            Theme::Monochrome => vec![
-                Color::new(0.0, 0.0, 0.8, 1.0),
-                Color::new(0.0, 0.0, 0.4, 1.0),
-                Color::new(0.0, 0.0, 0.1, 1.0),
-            ],
+// Custom deserializer implementation for ColorStop
+impl<'de> Deserialize<'de> for ColorStop {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ColorStopVisitor;
 
-            // Nature Themes
-            Theme::Ocean => vec![
-                Color::new(0.0, 0.47, 0.75, 1.0),  // Deep blue
-                Color::new(0.0, 0.71, 0.85, 1.0),  // Medium blue
-                Color::new(0.28, 0.79, 0.89, 1.0), // Light blue
-                Color::new(0.56, 0.88, 0.94, 1.0), // Sky blue
-            ],
-            Theme::Forest => vec![
-                Color::new(0.08, 0.32, 0.16, 1.0), // Dark green
-                Color::new(0.18, 0.54, 0.34, 1.0), // Forest green
-                Color::new(0.13, 0.54, 0.13, 1.0), // Green
-                Color::new(0.60, 0.80, 0.20, 1.0), // Yellow green
-            ],
-            Theme::Autumn => vec![
-                Color::new(0.65, 0.16, 0.16, 1.0), // Brown
-                Color::new(0.82, 0.41, 0.12, 1.0), // Chocolate
-                Color::new(1.0, 0.27, 0.0, 1.0),   // Red-orange
-                Color::new(1.0, 0.55, 0.0, 1.0),   // Dark orange
-            ],
-            Theme::Sunset => vec![
-                Color::new(0.98, 0.31, 0.42, 1.0), // Coral
-                Color::new(0.99, 0.62, 0.45, 1.0), // Peach
-                Color::new(0.97, 0.76, 0.44, 1.0), // Light orange
-                Color::new(0.56, 0.28, 0.58, 1.0), // Purple
-            ],
-            Theme::Desert => vec![
-                Color::new(0.94, 0.76, 0.56, 1.0), // Sand
-                Color::new(0.85, 0.60, 0.35, 1.0), // Tan
-                Color::new(0.76, 0.44, 0.24, 1.0), // Terra cotta
-                Color::new(0.67, 0.28, 0.13, 1.0), // Rust
-            ],
-            Theme::Arctic => vec![
-                Color::new(0.88, 0.96, 1.0, 1.0),  // Ice blue
-                Color::new(0.78, 0.92, 1.0, 1.0),  // Light blue
-                Color::new(0.68, 0.85, 0.95, 1.0), // Pale blue
-                Color::new(0.58, 0.78, 0.90, 1.0), // Sky blue
-            ],
-            Theme::Tropical => vec![
-                Color::new(1.0, 0.88, 0.37, 1.0),  // Yellow
-                Color::new(1.0, 0.48, 0.42, 1.0),  // Coral
-                Color::new(0.94, 0.23, 0.37, 1.0), // Hot pink
-                Color::new(0.13, 0.70, 0.67, 1.0), // Turquoise
-            ],
+        impl<'de> Visitor<'de> for ColorStopVisitor {
+            type Value = ColorStop;
 
-            // Aesthetic Themes
-            Theme::Pastel => vec![
-                Color::new(1.0, 0.71, 0.76, 1.0),  // Light pink
-                Color::new(1.0, 0.85, 0.73, 1.0),  // Peach
-                Color::new(1.0, 1.0, 0.88, 1.0),   // Light yellow
-                Color::new(0.69, 0.88, 0.90, 1.0), // Powder blue
-            ],
-            Theme::Neon => vec![
-                Color::new(1.0, 0.0, 1.0, 1.0), // Magenta
-                Color::new(0.0, 1.0, 1.0, 1.0), // Cyan
-                Color::new(1.0, 1.0, 0.0, 1.0), // Yellow
-                Color::new(0.0, 1.0, 0.0, 1.0), // Green
-            ],
-            Theme::Retrowave => vec![
-                Color::new(0.93, 0.0, 1.0, 1.0),  // Hot pink
-                Color::new(0.47, 0.0, 0.86, 1.0), // Purple
-                Color::new(0.0, 0.72, 1.0, 1.0),  // Cyan
-            ],
-            Theme::Vaporwave => vec![
-                Color::new(1.0, 0.0, 1.0, 1.0),   // Magenta
-                Color::new(0.0, 1.0, 1.0, 1.0),   // Cyan
-                Color::new(0.47, 0.0, 0.86, 1.0), // Purple
-                Color::new(1.0, 0.41, 0.71, 1.0), // Pink
-            ],
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a color stop array [r, g, b] or [r, g, b, position, name] or color stop object")
+            }
 
-            // Tech Themes
-            Theme::Matrix => vec![
-                Color::new(0.0, 0.5, 0.0, 1.0), // Dark green
-                Color::new(0.0, 0.8, 0.0, 1.0), // Medium green
-                Color::new(0.0, 1.0, 0.0, 1.0), // Bright green
-            ],
-            Theme::Cyberpunk => vec![
-                Color::new(1.0, 0.0, 0.4, 1.0),  // Hot pink
-                Color::new(0.0, 1.0, 1.0, 1.0),  // Cyan
-                Color::new(1.0, 0.92, 0.0, 1.0), // Yellow
-            ],
-            Theme::Terminal => vec![
-                Color::new(0.0, 0.75, 0.0, 1.0), // Green
-                Color::new(0.0, 0.55, 0.0, 1.0), // Medium green
-                Color::new(0.0, 0.35, 0.0, 1.0), // Dark green
-            ],
-            Theme::Hackerman => vec![
-                Color::new(0.0, 1.0, 0.0, 1.0), // Bright green
-                Color::new(0.0, 0.0, 0.0, 1.0), // Black
-                Color::new(0.0, 0.5, 0.0, 1.0), // Dark green
-            ],
+            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<ColorStop, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                // First three elements are always r,g,b
+                let r = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let g = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let b = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
 
-            // Space Themes
-            Theme::Nebula => vec![
-                Color::new(0.29, 0.0, 0.51, 1.0), // Deep purple
-                Color::new(0.86, 0.0, 1.0, 1.0),  // Bright purple
-                Color::new(0.0, 0.72, 1.0, 1.0),  // Bright blue
-                Color::new(1.0, 0.0, 0.5, 1.0),   // Pink
-            ],
-            Theme::Galaxy => vec![
-                Color::new(0.0, 0.0, 0.2, 1.0),   // Dark blue
-                Color::new(0.29, 0.0, 0.51, 1.0), // Purple
-                Color::new(0.86, 0.0, 1.0, 1.0),  // Bright purple
-                Color::new(1.0, 1.0, 1.0, 1.0),   // White
-            ],
-            Theme::Aurora => vec![
-                Color::new(0.0, 1.0, 0.5, 1.0), // Green
-                Color::new(0.0, 0.5, 1.0, 1.0), // Blue
-                Color::new(0.5, 0.0, 1.0, 1.0), // Purple
-                Color::new(1.0, 0.0, 0.5, 1.0), // Pink
-            ],
-            Theme::Cosmos => vec![
-                Color::new(0.0, 0.0, 0.0, 1.0),   // Black
-                Color::new(0.29, 0.0, 0.51, 1.0), // Deep purple
-                Color::new(0.0, 0.0, 1.0, 1.0),   // Blue
-                Color::new(1.0, 1.0, 1.0, 1.0),   // White
-            ],
+                // Try to read optional position and name
+                let position = seq.next_element()?;
+                let name = seq.next_element()?;
 
-            // Abstract Themes
-            Theme::Heat => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(1.0, 0.5, 0.0, 1.0), // Orange
-                Color::new(1.0, 1.0, 0.0, 1.0), // Yellow
-            ],
-            Theme::Ice => vec![
-                Color::new(1.0, 1.0, 1.0, 1.0), // White
-                Color::new(0.8, 0.9, 1.0, 1.0), // Light blue
-                Color::new(0.6, 0.8, 1.0, 1.0), // Blue
-                Color::new(0.4, 0.7, 1.0, 1.0), // Deep blue
-            ],
-            Theme::Fire => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(1.0, 0.5, 0.0, 1.0), // Orange
-                Color::new(1.0, 0.8, 0.0, 1.0), // Yellow
-                Color::new(1.0, 0.3, 0.0, 1.0), // Dark orange
-            ],
-            Theme::Toxic => vec![
-                Color::new(0.0, 1.0, 0.0, 1.0), // Green
-                Color::new(0.8, 1.0, 0.0, 1.0), // Yellow-green
-                Color::new(0.4, 0.8, 0.0, 1.0), // Dark green
-            ],
+                Ok(ColorStop {
+                    r,
+                    g,
+                    b,
+                    position,
+                    name,
+                })
+            }
 
-            // Mood Themes
-            Theme::Calm => vec![
-                Color::new(0.53, 0.81, 0.92, 1.0), // Light blue
-                Color::new(0.53, 0.81, 0.76, 1.0), // Turquoise
-                Color::new(0.53, 0.81, 0.61, 1.0), // Sea green
-            ],
-            Theme::Energy => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(1.0, 0.5, 0.0, 1.0), // Orange
-                Color::new(1.0, 1.0, 0.0, 1.0), // Yellow
-                Color::new(1.0, 0.0, 0.5, 1.0), // Pink
-            ],
-            Theme::Dream => vec![
-                Color::new(0.86, 0.0, 1.0, 1.0),   // Purple
-                Color::new(0.53, 0.81, 0.92, 1.0), // Light blue
-                Color::new(1.0, 0.71, 0.76, 1.0),  // Pink
-                // Continuing from Theme::Dream...
-                Color::new(0.86, 0.0, 0.5, 1.0), // Dark pink
-            ],
-
-            // Party Themes
-            Theme::Rave => vec![
-                Color::new(1.0, 0.0, 1.0, 1.0), // Magenta
-                Color::new(0.0, 1.0, 0.0, 1.0), // Green
-                Color::new(1.0, 1.0, 0.0, 1.0), // Yellow
-                Color::new(0.0, 1.0, 1.0, 1.0), // Cyan
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-            ],
-            Theme::Disco => vec![
-                Color::new(1.0, 0.0, 0.5, 1.0), // Hot pink
-                Color::new(0.5, 0.0, 1.0, 1.0), // Purple
-                Color::new(0.0, 0.5, 1.0, 1.0), // Blue
-                Color::new(1.0, 0.8, 0.0, 1.0), // Gold
-            ],
-            Theme::Festival => vec![
-                Color::new(1.0, 0.4, 0.0, 1.0), // Orange
-                Color::new(1.0, 0.0, 0.6, 1.0), // Pink
-                Color::new(0.6, 0.0, 1.0, 1.0), // Purple
-                Color::new(0.0, 0.8, 1.0, 1.0), // Blue
-                Color::new(0.0, 1.0, 0.4, 1.0), // Green
-            ],
-
-            // Color Theory Themes
-            Theme::Complementary => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(0.5, 0.0, 0.0, 1.0), // Dark red
-                Color::new(0.0, 1.0, 0.0, 1.0), // Green
-                Color::new(0.0, 0.5, 0.0, 1.0), // Dark green
-            ],
-            Theme::Analogous => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(1.0, 0.5, 0.0, 1.0), // Orange
-                Color::new(1.0, 0.0, 0.5, 1.0), // Pink
-            ],
-            Theme::Triadic => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(0.0, 1.0, 0.0, 1.0), // Green
-                Color::new(0.0, 0.0, 1.0, 1.0), // Blue
-            ],
-
-            // Special Effects
-            Theme::Hologram => vec![
-                Color::new(0.0, 1.0, 1.0, 1.0), // Cyan
-                Color::new(1.0, 0.0, 1.0, 1.0), // Magenta
-                Color::new(0.0, 0.8, 1.0, 1.0), // Light blue
-                Color::new(1.0, 0.0, 0.8, 1.0), // Pink
-            ],
-            Theme::Glitch => vec![
-                Color::new(1.0, 0.0, 0.0, 1.0), // Red
-                Color::new(0.0, 1.0, 1.0, 1.0), // Cyan
-                Color::new(1.0, 0.0, 1.0, 1.0), // Magenta
-                Color::new(0.0, 0.0, 0.0, 1.0), // Black
-            ],
-            Theme::Plasma => vec![
-                Color::new(1.0, 0.0, 1.0, 1.0), // Magenta
-                Color::new(0.5, 0.0, 1.0, 1.0), // Purple
-                Color::new(0.0, 0.0, 1.0, 1.0), // Blue
-                Color::new(0.0, 1.0, 1.0, 1.0), // Cyan
-            ],
-            Theme::Lightning => vec![
-                Color::new(1.0, 1.0, 1.0, 1.0), // White
-                Color::new(0.0, 1.0, 1.0, 1.0), // Cyan
-                Color::new(0.0, 0.0, 1.0, 1.0), // Blue
-                Color::new(0.5, 0.0, 1.0, 1.0), // Purple
-            ],
+            fn visit_map<M>(self, map: M) -> std::result::Result<ColorStop, M::Error>
+            where
+                M: de::MapAccess<'de>,
+            {
+                // Delegate to default derived implementation for structured format
+                Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+            }
         }
+
+        deserializer.deserialize_any(ColorStopVisitor)
+    }
+}
+
+/// How colors are distributed across the gradient
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Distribution {
+    Even,
+    Front,
+    Back,
+    Center,
+    Alt,
+}
+
+/// How the gradient repeats or cycles
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum Repeat {
+    Named(RepeatMode),
+    Function(String, f32), // (name, rate)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RepeatMode {
+    None,
+    Mirror,
+    Repeat,
+}
+
+// Custom deserializer for Repeat
+impl<'de> Deserialize<'de> for Repeat {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct RepeatVisitor;
+
+        impl<'de> Visitor<'de> for RepeatVisitor {
+            type Value = Repeat;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string repeat mode or function notation (pulse/rotate)")
+            }
+
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                // Handle function notation like "pulse(1.0)" or "rotate(0.5)"
+                if value.starts_with("pulse(") && value.ends_with(")") {
+                    let rate = value[6..value.len() - 1]
+                        .parse::<f32>()
+                        .map_err(|_| E::custom("invalid pulse rate"))?;
+                    Ok(Repeat::Function("pulse".to_string(), rate))
+                } else if value.starts_with("rotate(") && value.ends_with(")") {
+                    let rate = value[7..value.len() - 1]
+                        .parse::<f32>()
+                        .map_err(|_| E::custom("invalid rotation rate"))?;
+                    Ok(Repeat::Function("rotate".to_string(), rate))
+                } else {
+                    // Handle simple mode names
+                    match value {
+                        "none" => Ok(Repeat::Named(RepeatMode::None)),
+                        "mirror" => Ok(Repeat::Named(RepeatMode::Mirror)),
+                        "repeat" => Ok(Repeat::Named(RepeatMode::Repeat)),
+                        _ => Err(E::custom(format!("unknown repeat mode: {}", value))),
+                    }
+                }
+            }
+        }
+
+        deserializer.deserialize_str(RepeatVisitor)
+    }
+}
+
+/// Easing function for color transitions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Easing {
+    Linear,
+    Smooth,
+    Smoother,
+    Sine,
+    Exp,
+    Elastic,
+}
+
+/// Complete theme definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThemeDefinition {
+    pub name: String,
+    pub desc: String,
+    pub colors: Vec<ColorStop>,
+    #[serde(default = "default_distribution")]
+    pub dist: Distribution,
+    #[serde(default = "default_repeat")]
+    pub repeat: Repeat,
+    #[serde(default = "default_speed")]
+    pub speed: f32,
+    #[serde(default = "default_easing")]
+    pub ease: Easing,
+}
+
+fn default_distribution() -> Distribution {
+    Distribution::Even
+}
+
+fn default_repeat() -> Repeat {
+    Repeat::Named(RepeatMode::None)
+}
+
+fn default_speed() -> f32 {
+    1.0
+}
+
+fn default_easing() -> Easing {
+    Easing::Linear
+}
+
+// Include theme files at compile time
+const SPACE_THEMES: &str = include_str!("../themes/space.yaml");
+const TECH_THEMES: &str = include_str!("../themes/tech.yaml");
+const NATURE_THEMES: &str = include_str!("../themes/nature.yaml");
+const AESTHETIC_THEMES: &str = include_str!("../themes/aesthetic.yaml");
+const MOOD_THEMES: &str = include_str!("../themes/mood.yaml");
+const PARTY_THEMES: &str = include_str!("../themes/party.yaml");
+const ABSTRACT_THEMES: &str = include_str!("../themes/abstract.yaml");
+
+lazy_static! {
+    static ref THEME_REGISTRY: ThemeRegistry = ThemeRegistry::new();
+}
+
+#[derive(Debug)]
+pub struct ThemeRegistry {
+    themes: HashMap<String, ThemeDefinition>,
+    categories: HashMap<String, Vec<String>>,
+}
+
+impl ThemeRegistry {
+    fn new() -> Self {
+        let mut registry = Self {
+            themes: HashMap::new(),
+            categories: HashMap::new(),
+        };
+
+        // Add default rainbow theme
+        let rainbow_theme = ThemeDefinition {
+            name: "rainbow".to_string(),
+            desc: "Default rainbow gradient".to_string(),
+            colors: vec![
+                ColorStop {
+                    r: 1.0,
+                    g: 0.0,
+                    b: 0.0,
+                    position: Some(0.0),
+                    name: None,
+                },
+                ColorStop {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 0.0,
+                    position: Some(0.2),
+                    name: None,
+                },
+                ColorStop {
+                    r: 0.0,
+                    g: 1.0,
+                    b: 0.0,
+                    position: Some(0.4),
+                    name: None,
+                },
+                ColorStop {
+                    r: 0.0,
+                    g: 1.0,
+                    b: 1.0,
+                    position: Some(0.6),
+                    name: None,
+                },
+                ColorStop {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 1.0,
+                    position: Some(0.8),
+                    name: None,
+                },
+                ColorStop {
+                    r: 1.0,
+                    g: 0.0,
+                    b: 1.0,
+                    position: Some(1.0),
+                    name: None,
+                },
+            ],
+            dist: Distribution::Even,
+            repeat: Repeat::Named(RepeatMode::None),
+            speed: 1.0,
+            ease: Easing::Linear,
+        };
+
+        registry.themes.insert("rainbow".to_string(), rainbow_theme);
+
+        // Create default category
+        registry
+            .categories
+            .insert("default".to_string(), vec!["rainbow".to_string()]);
+
+        // Load all theme categories
+        registry.load_category("space", SPACE_THEMES);
+        registry.load_category("tech", TECH_THEMES);
+        registry.load_category("nature", NATURE_THEMES);
+        registry.load_category("aesthetic", AESTHETIC_THEMES);
+        registry.load_category("mood", MOOD_THEMES);
+        registry.load_category("party", PARTY_THEMES);
+        registry.load_category("abstract", ABSTRACT_THEMES);
+
+        registry
     }
 
-    /// Returns a description of the theme
-    pub fn description(&self) -> &'static str {
-        match self {
-            // Classic Themes
-            Theme::Rainbow => "Classic rainbow colors (red through violet)",
-            Theme::Grayscale => "Smooth transitions between black and white",
-            Theme::Sepia => "Vintage brownscale reminiscent of old photographs",
-            Theme::Monochrome => "Single color variations in intensity",
+    fn load_category(&mut self, category: &str, content: &str) {
+        match from_str::<Vec<ThemeDefinition>>(content) {
+            Ok(themes) => {
+                let mut category_themes = Vec::new();
 
-            // Nature Themes
-            Theme::Ocean => "Cool blue tones reminiscent of ocean depths",
-            Theme::Forest => "Natural green tones inspired by forests",
-            Theme::Autumn => "Warm fall colors (browns, oranges, reds)",
-            Theme::Sunset => "Warm evening sky colors with purples",
-            Theme::Desert => "Warm earth tones inspired by desert landscapes",
-            Theme::Arctic => "Cool, crisp colors of polar regions",
-            Theme::Tropical => "Vibrant colors inspired by tropical paradise",
+                for theme in themes {
+                    if let Err(e) = theme.validate() {
+                        eprintln!("Warning: Invalid theme '{}': {}", theme.name, e);
+                        continue;
+                    }
+                    category_themes.push(theme.name.clone());
+                    self.themes.insert(theme.name.clone(), theme);
+                }
 
-            // Aesthetic Themes
-            Theme::Pastel => "Soft, muted colors for a gentle appearance",
-            Theme::Neon => "Bright, vibrant colors that pop",
-            Theme::Retrowave => "80s-inspired synthwave aesthetic",
-            Theme::Vaporwave => "90s-inspired aesthetic with pink and cyan",
-
-            // Tech Themes
-            Theme::Matrix => "Digital green inspired by The Matrix",
-            Theme::Cyberpunk => "High-tech urban future aesthetic",
-            Theme::Terminal => "Classic computer terminal green",
-            Theme::Hackerman => "Retro hacker aesthetic with deep greens",
-
-            // Space Themes
-            Theme::Nebula => "Cosmic colors of stellar nurseries",
-            Theme::Galaxy => "Deep space with stellar highlights",
-            Theme::Aurora => "Northern lights inspired colors",
-            Theme::Cosmos => "Deep space with stars",
-
-            // Abstract Themes
-            Theme::Heat => "Warm colors transitioning from red through orange to yellow",
-            Theme::Ice => "Cool, frozen tones of glaciers and ice",
-            Theme::Fire => "Hot, intense flames and embers",
-            Theme::Toxic => "Radioactive greens and acid colors",
-
-            // Mood Themes
-            Theme::Calm => "Soothing blues and greens",
-            Theme::Energy => "Vibrant, energetic colors",
-            Theme::Dream => "Soft, dreamy pastels with purple",
-
-            // Party Themes
-            Theme::Rave => "Intense party colors that pulse",
-            Theme::Disco => "70s disco-inspired colors",
-            Theme::Festival => "Vibrant festival color palette",
-
-            // Color Theory Themes
-            Theme::Complementary => "Opposite colors on the color wheel",
-            Theme::Analogous => "Adjacent colors on the color wheel",
-            Theme::Triadic => "Three colors equally spaced on the color wheel",
-
-            // Special Effects
-            Theme::Hologram => "Futuristic holographic effect",
-            Theme::Glitch => "Digital glitch artifact colors",
-            Theme::Plasma => "Electric plasma-like effect",
-            Theme::Lightning => "Electric discharge colors",
+                self.categories
+                    .insert(category.to_string(), category_themes);
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to load {} themes: {}", category, e);
+            }
         }
     }
+}
 
-    /// Creates a gradient from the theme
-    pub fn create_gradient(&self) -> Result<Box<dyn Gradient + Send + Sync>> {
-        let colors = self.get_colors();
-
-        // Ensure we have at least two colors for gradient generation
-        if colors.len() < 2 {
+impl ThemeDefinition {
+    pub fn validate(&self) -> Result<()> {
+        if self.colors.len() < 2 {
             return Err(ChromaCatError::GradientError(
-                "Theme must have at least two colors".to_string(),
+                "Theme must have at least 2 colors".to_string(),
             ));
         }
 
-        // Create gradient with colors
-        let gradient = GradientBuilder::new()
-            .colors(&colors)
+        for color in &self.colors {
+            if color.r < 0.0
+                || color.r > 1.0
+                || color.g < 0.0
+                || color.g > 1.0
+                || color.b < 0.0
+                || color.b > 1.0
+            {
+                return Err(ChromaCatError::GradientError(
+                    "Color components must be between 0.0 and 1.0".to_string(),
+                ));
+            }
+
+            if let Some(p) = color.position {
+                if p < 0.0 || p > 1.0 {
+                    return Err(ChromaCatError::GradientError(
+                        "Color positions must be between 0.0 and 1.0".to_string(),
+                    ));
+                }
+            }
+        }
+
+        if self.speed <= 0.0 {
+            return Err(ChromaCatError::GradientError(
+                "Speed must be positive".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    pub fn create_gradient(&self) -> Result<Box<dyn Gradient + Send + Sync>> {
+        let mut colors = Vec::with_capacity(self.colors.len());
+        let mut positions = Vec::with_capacity(self.colors.len());
+
+        for color in &self.colors {
+            colors.push(Color::new(color.r, color.g, color.b, 1.0));
+            if let Some(p) = color.position {
+                positions.push(p);
+            }
+        }
+
+        let mut builder = GradientBuilder::new();
+        builder.colors(&colors);
+
+        if positions.len() == colors.len() {
+            builder.domain(&positions);
+        }
+
+        let gradient = builder
             .mode(colorgrad::BlendMode::Rgb)
-            .domain(&[0.0, 1.0])
             .build::<LinearGradient>()
             .map_err(|e| ChromaCatError::GradientError(e.to_string()))?;
 
         Ok(Box::new(gradient))
     }
 
-    /// Returns a list of all available themes
-    pub fn list_all() -> Vec<(String, &'static str)> {
-        vec![
-            // Classic Themes
-            ("rainbow".to_string(), Theme::Rainbow.description()),
-            ("grayscale".to_string(), Theme::Grayscale.description()),
-            ("sepia".to_string(), Theme::Sepia.description()),
-            ("monochrome".to_string(), Theme::Monochrome.description()),
-            // Nature Themes
-            ("ocean".to_string(), Theme::Ocean.description()),
-            ("forest".to_string(), Theme::Forest.description()),
-            ("autumn".to_string(), Theme::Autumn.description()),
-            ("sunset".to_string(), Theme::Sunset.description()),
-            ("desert".to_string(), Theme::Desert.description()),
-            ("arctic".to_string(), Theme::Arctic.description()),
-            ("tropical".to_string(), Theme::Tropical.description()),
-            // Aesthetic Themes
-            ("pastel".to_string(), Theme::Pastel.description()),
-            ("neon".to_string(), Theme::Neon.description()),
-            ("retrowave".to_string(), Theme::Retrowave.description()),
-            ("vaporwave".to_string(), Theme::Vaporwave.description()),
-            // Tech Themes
-            ("matrix".to_string(), Theme::Matrix.description()),
-            ("cyberpunk".to_string(), Theme::Cyberpunk.description()),
-            ("terminal".to_string(), Theme::Terminal.description()),
-            ("hackerman".to_string(), Theme::Hackerman.description()),
-            // Space Themes
-            ("nebula".to_string(), Theme::Nebula.description()),
-            ("galaxy".to_string(), Theme::Galaxy.description()),
-            ("aurora".to_string(), Theme::Aurora.description()),
-            ("cosmos".to_string(), Theme::Cosmos.description()),
-            // Abstract Themes
-            ("heat".to_string(), Theme::Heat.description()),
-            ("ice".to_string(), Theme::Ice.description()),
-            ("fire".to_string(), Theme::Fire.description()),
-            ("toxic".to_string(), Theme::Toxic.description()),
-            // Mood Themes
-            ("calm".to_string(), Theme::Calm.description()),
-            ("energy".to_string(), Theme::Energy.description()),
-            ("dream".to_string(), Theme::Dream.description()),
-            // Party Themes
-            ("rave".to_string(), Theme::Rave.description()),
-            ("disco".to_string(), Theme::Disco.description()),
-            ("festival".to_string(), Theme::Festival.description()),
-            // Color Theory Themes
-            (
-                "complementary".to_string(),
-                Theme::Complementary.description(),
-            ),
-            ("analogous".to_string(), Theme::Analogous.description()),
-            ("triadic".to_string(), Theme::Triadic.description()),
-            // Special Effects
-            ("hologram".to_string(), Theme::Hologram.description()),
-            ("glitch".to_string(), Theme::Glitch.description()),
-            ("plasma".to_string(), Theme::Plasma.description()),
-            ("lightning".to_string(), Theme::Lightning.description()),
-        ]
+    pub fn apply_distribution(&self, t: f32) -> f32 {
+        let t = t.clamp(0.0, 1.0);
+        match self.dist {
+            Distribution::Even => t,
+            Distribution::Front => t * t,
+            Distribution::Back => 1.0 - (1.0 - t) * (1.0 - t),
+            Distribution::Center => {
+                if t < 0.5 {
+                    2.0 * t * t
+                } else {
+                    1.0 - (-2.0 * t + 2.0) * (-2.0 * t + 2.0) / 2.0
+                }
+            }
+            Distribution::Alt => (t * PI).sin() * 0.5 + 0.5,
+        }
+    }
+
+    pub fn apply_repeat(&self, t: f32, time: f32) -> f32 {
+        match &self.repeat {
+            Repeat::Named(mode) => match mode {
+                RepeatMode::None => t.clamp(0.0, 1.0),
+                RepeatMode::Mirror => {
+                    let t = t % 2.0;
+                    if t > 1.0 {
+                        2.0 - t
+                    } else {
+                        t
+                    }
+                }
+                RepeatMode::Repeat => t.fract(),
+            },
+            Repeat::Function(name, rate) => match name.as_str() {
+                "rotate" => (t + time * rate).fract(),
+                "pulse" => {
+                    let phase = (time * rate * PI).sin();
+                    (t + phase) * 0.5
+                }
+                _ => t, // fallback
+            },
+        }
+    }
+
+    pub fn apply_easing(&self, t: f32) -> f32 {
+        match self.ease {
+            Easing::Linear => t,
+            Easing::Smooth => t * t * (3.0 - 2.0 * t),
+            Easing::Smoother => t * t * t * (t * (t * 6.0 - 15.0) + 10.0),
+            Easing::Sine => (t * PI - PI / 2.0).sin() * 0.5 + 0.5,
+            Easing::Exp => {
+                if t == 0.0 {
+                    0.0
+                } else if t == 1.0 {
+                    1.0
+                } else {
+                    (2.0_f32).powf(10.0 * t - 10.0)
+                }
+            }
+            Easing::Elastic => {
+                if t == 0.0 {
+                    0.0
+                } else if t == 1.0 {
+                    1.0
+                } else {
+                    let t = t - 1.0;
+                    -(2.0_f32.powf(10.0 * t) * (t * PI * 4.5).sin())
+                }
+            }
+        }
     }
 }
 
-impl FromStr for Theme {
-    type Err = ChromaCatError;
+// Public interface for accessing themes
+pub fn get_theme(name: &str) -> Result<&'static ThemeDefinition> {
+    THEME_REGISTRY
+        .themes
+        .get(name)
+        .ok_or_else(|| ChromaCatError::InvalidTheme(name.to_string()))
+}
 
-    fn from_str(s: &str) -> Result<Self> {
-        match s.to_lowercase().as_str() {
-            // Classic Themes
-            "rainbow" => Ok(Theme::Rainbow),
-            "grayscale" => Ok(Theme::Grayscale),
-            "sepia" => Ok(Theme::Sepia),
-            "monochrome" => Ok(Theme::Monochrome),
+pub fn list_category(category: &str) -> Option<&'static Vec<String>> {
+    THEME_REGISTRY.categories.get(category)
+}
 
-            // Nature Themes
-            "ocean" => Ok(Theme::Ocean),
-            "forest" => Ok(Theme::Forest),
-            "autumn" => Ok(Theme::Autumn),
-            "sunset" => Ok(Theme::Sunset),
-            "desert" => Ok(Theme::Desert),
-            "arctic" => Ok(Theme::Arctic),
-            "tropical" => Ok(Theme::Tropical),
+pub fn list_categories() -> Vec<&'static str> {
+    THEME_REGISTRY
+        .categories
+        .keys()
+        .map(|s| s.as_str())
+        .collect()
+}
 
-            // Aesthetic Themes
-            "pastel" => Ok(Theme::Pastel),
-            "neon" => Ok(Theme::Neon),
-            "retrowave" => Ok(Theme::Retrowave),
-            "vaporwave" => Ok(Theme::Vaporwave),
+pub fn all_themes() -> impl Iterator<Item = &'static ThemeDefinition> {
+    THEME_REGISTRY.themes.values()
+}
 
-            // Tech Themes
-            "matrix" => Ok(Theme::Matrix),
-            "cyberpunk" => Ok(Theme::Cyberpunk),
-            "terminal" => Ok(Theme::Terminal),
-            "hackerman" => Ok(Theme::Hackerman),
-
-            // Space Themes
-            "nebula" => Ok(Theme::Nebula),
-            "galaxy" => Ok(Theme::Galaxy),
-            "aurora" => Ok(Theme::Aurora),
-            "cosmos" => Ok(Theme::Cosmos),
-
-            // Abstract Themes
-            "heat" => Ok(Theme::Heat),
-            "ice" => Ok(Theme::Ice),
-            "fire" => Ok(Theme::Fire),
-            "toxic" => Ok(Theme::Toxic),
-
-            // Mood Themes
-            "calm" => Ok(Theme::Calm),
-            "energy" => Ok(Theme::Energy),
-            "dream" => Ok(Theme::Dream),
-
-            // Party Themes
-            "rave" => Ok(Theme::Rave),
-            "disco" => Ok(Theme::Disco),
-            "festival" => Ok(Theme::Festival),
-
-            // Color Theory Themes
-            "complementary" => Ok(Theme::Complementary),
-            "analogous" => Ok(Theme::Analogous),
-            "triadic" => Ok(Theme::Triadic),
-
-            // Special Effects
-            "hologram" => Ok(Theme::Hologram),
-            "glitch" => Ok(Theme::Glitch),
-            "plasma" => Ok(Theme::Plasma),
-            "lightning" => Ok(Theme::Lightning),
-
-            // Invalid theme
-            _ => Err(ChromaCatError::InvalidTheme(s.to_string())),
-        }
-    }
+pub fn theme_count() -> usize {
+    THEME_REGISTRY.themes.len()
 }

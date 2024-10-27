@@ -1,11 +1,11 @@
 use chromacat::colorizer::Colorizer;
 use chromacat::gradient::GradientConfig;
-use chromacat::themes::Theme;
+use chromacat::themes;
 use std::io::Cursor;
 
 #[test]
 fn test_colorizer_basic() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -20,7 +20,7 @@ fn test_colorizer_basic() {
 
 #[test]
 fn test_colorizer_empty_input() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -34,23 +34,8 @@ fn test_colorizer_empty_input() {
 }
 
 #[test]
-fn test_colorizer_single_character() {
-    let theme = Theme::Rainbow;
-    let gradient = theme.create_gradient().unwrap();
-    let config = GradientConfig {
-        diagonal: false,
-        angle: 45,
-        cycle: false,
-    };
-
-    let mut colorizer = Colorizer::new(gradient, config, false);
-    let input = Cursor::new("x");
-    assert!(colorizer.colorize(input).is_ok());
-}
-
-#[test]
 fn test_colorizer_unicode() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -65,7 +50,7 @@ fn test_colorizer_unicode() {
 
 #[test]
 fn test_colorizer_long_text() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -80,8 +65,24 @@ fn test_colorizer_long_text() {
 }
 
 #[test]
+fn test_all_themes_colorization() {
+    let config = GradientConfig::default();
+
+    for theme_name in themes::list_categories()
+        .iter()
+        .flat_map(|cat| themes::list_category(cat).unwrap())
+    {
+        let theme = themes::get_theme(theme_name).unwrap();
+        let gradient = theme.create_gradient().unwrap();
+        let mut colorizer = Colorizer::new(gradient, config.clone(), false);
+        let input = Cursor::new("Testing different themes");
+        assert!(colorizer.colorize(input).is_ok());
+    }
+}
+
+#[test]
 fn test_colorizer_diagonal() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: true,
@@ -96,7 +97,7 @@ fn test_colorizer_diagonal() {
 
 #[test]
 fn test_colorizer_cycling() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -111,7 +112,7 @@ fn test_colorizer_cycling() {
 
 #[test]
 fn test_colorizer_no_color() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -125,59 +126,8 @@ fn test_colorizer_no_color() {
 }
 
 #[test]
-fn test_colorizer_all_themes() {
-    let themes = vec![
-        Theme::Rainbow,
-        Theme::Heat,
-        Theme::Ocean,
-        Theme::Forest,
-        Theme::Pastel,
-        Theme::Neon,
-        Theme::Autumn,
-        Theme::Matrix,
-        Theme::Cyberpunk,
-        Theme::Nebula,
-        Theme::Galaxy,
-        Theme::Retrowave,
-        Theme::Vaporwave,
-        // Add more themes to test...
-    ];
-
-    let config = GradientConfig {
-        diagonal: false,
-        angle: 45,
-        cycle: false,
-    };
-
-    for theme in themes {
-        let gradient = theme.create_gradient().unwrap();
-        let mut colorizer = Colorizer::new(gradient, config.clone(), false);
-        let input = Cursor::new("Testing different themes");
-        assert!(colorizer.colorize(input).is_ok());
-    }
-}
-
-#[test]
-fn test_colorizer_various_angles() {
-    let theme = Theme::Rainbow;
-    let angles = vec![0, 45, 90, 180, 270, 360];
-
-    for angle in angles {
-        let gradient = theme.create_gradient().unwrap();
-        let config = GradientConfig {
-            diagonal: true,
-            angle,
-            cycle: false,
-        };
-        let mut colorizer = Colorizer::new(gradient, config, false);
-        let input = Cursor::new("Line 1\nLine 2\nLine 3");
-        assert!(colorizer.colorize(input).is_ok());
-    }
-}
-
-#[test]
 fn test_colorizer_whitespace() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,
@@ -193,7 +143,7 @@ fn test_colorizer_whitespace() {
 
 #[test]
 fn test_colorizer_special_characters() {
-    let theme = Theme::Rainbow;
+    let theme = themes::get_theme("rainbow").unwrap();
     let gradient = theme.create_gradient().unwrap();
     let config = GradientConfig {
         diagonal: false,

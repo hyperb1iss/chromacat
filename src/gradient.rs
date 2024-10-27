@@ -1,21 +1,32 @@
+//! Gradient generation and configuration for ChromaCat.
+//!
+//! This module handles color gradient creation and manipulation for text colorization.
+
 use crate::error::Result;
-use crate::themes::Theme;
+use crate::themes;
 use colorgrad::{Color, Gradient};
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 /// Configuration for gradient generation and application
 #[derive(Debug, Clone)]
 pub struct GradientConfig {
+    /// Whether to use diagonal gradient mode
     pub diagonal: bool,
+    /// Angle for diagonal gradient in degrees
     pub angle: i32,
+    /// Enable gradient cycling
     pub cycle: bool,
 }
 
 /// Manages gradient generation and color calculations
 pub struct GradientEngine {
+    /// The color gradient to use
     gradient: Box<dyn Gradient + Send + Sync>,
+    /// Configuration for gradient behavior
     config: GradientConfig,
+    /// Total number of lines in the text
     total_lines: usize,
+    /// Current line being processed
     current_line: usize,
 }
 
@@ -30,8 +41,9 @@ impl GradientEngine {
         }
     }
 
-    /// Creates a new GradientEngine from a theme
-    pub fn from_theme(theme: &Theme, config: GradientConfig) -> Result<Self> {
+    /// Creates a new GradientEngine from a theme name
+    pub fn from_theme(theme_name: &str, config: GradientConfig) -> Result<Self> {
+        let theme = themes::get_theme(theme_name)?;
         let gradient = theme.create_gradient()?;
         Ok(Self::new(gradient, config))
     }
@@ -54,33 +66,35 @@ impl GradientEngine {
             self.calculate_horizontal_position(char_index, line_length)
         };
 
-        Ok(self.gradient.at(t as f32))
+        Ok(self.gradient.at(t))
     }
 
-    fn calculate_horizontal_position(&self, char_index: usize, line_length: usize) -> f64 {
+    /// Calculates the gradient position for horizontal mode
+    fn calculate_horizontal_position(&self, char_index: usize, line_length: usize) -> f32 {
         if line_length <= 1 {
             return 0.0;
         }
 
-        let mut t = char_index as f64 / (line_length - 1) as f64;
+        let mut t = char_index as f32 / (line_length - 1) as f32;
         if self.config.cycle {
-            t = (t * PI * 2.0).sin() * 0.5 + 0.5;
+            t = (t * PI).sin() * 0.5 + 0.5;
         }
         t.clamp(0.0, 1.0)
     }
 
-    fn calculate_diagonal_position(&self, char_index: usize, line_length: usize) -> f64 {
+    /// Calculates the gradient position for diagonal mode
+    fn calculate_diagonal_position(&self, char_index: usize, line_length: usize) -> f32 {
         if self.total_lines <= 1 || line_length <= 1 {
             return 0.0;
         }
 
-        let angle_rad = (self.config.angle as f64) * PI / 180.0;
-        let x = char_index as f64 / (line_length - 1) as f64;
-        let y = self.current_line as f64 / (self.total_lines - 1) as f64;
+        let angle_rad = (self.config.angle as f32) * PI / 180.0;
+        let x = char_index as f32 / (line_length - 1) as f32;
+        let y = self.current_line as f32 / (self.total_lines - 1) as f32;
 
         let mut t = x * angle_rad.cos() + y * angle_rad.sin();
         if self.config.cycle {
-            t = (t * PI * 2.0).sin() * 0.5 + 0.5;
+            t = (t * PI).sin() * 0.5 + 0.5;
         }
 
         t.clamp(0.0, 1.0)

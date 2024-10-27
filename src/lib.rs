@@ -12,8 +12,7 @@ pub mod themes;
 
 pub use app::ChromaCat;
 pub use error::{ChromaCatError, Result};
-pub use themes::Theme;
-
+ 
 // Re-export commonly used types for convenience
 pub use pattern::{PatternConfig, PatternParams};
 pub use renderer::AnimationConfig;

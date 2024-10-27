@@ -7,11 +7,11 @@
 use crate::error::{ChromaCatError, Result};
 use crate::pattern::{CommonParams, PatternConfig, PatternParams};
 use crate::renderer::AnimationConfig;
-use crate::themes::Theme;
+use crate::themes;
+
 use clap::{Parser, ValueEnum};
 use std::f64::consts::TAU;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Duration;
 
 /// ChromaCat - A versatile command-line tool for applying animated color gradients to text
@@ -26,7 +26,7 @@ pub struct Cli {
     #[arg(short = 'p', long, value_enum, default_value = "horizontal")]
     pub pattern: PatternKind,
 
-    /// Select a built-in theme for the gradient
+    /// Select a theme for the gradient effect
     #[arg(short = 't', long, default_value = "rainbow")]
     pub theme: String,
 
@@ -163,9 +163,9 @@ impl Cli {
     /// Creates pattern configuration from CLI arguments
     pub fn create_pattern_config(&self) -> Result<PatternConfig> {
         let common = CommonParams {
-            frequency: self.frequency.clamp(0.1, 10.0),
-            amplitude: self.amplitude.clamp(0.1, 2.0),
-            speed: self.speed.clamp(0.0, 1.0),
+            frequency: self.frequency,
+            amplitude: self.amplitude,
+            speed: self.speed,
         };
 
         let params = match self.pattern {
@@ -301,159 +301,144 @@ impl Cli {
         }
     }
 
-    /// Creates a colored preview string for a theme
-    fn create_theme_preview(theme: &Theme) -> String {
-        let gradient = theme
-            .create_gradient()
-            .unwrap_or_else(|_| Theme::Rainbow.create_gradient().unwrap());
-
-        let mut preview = String::new();
-        // Create a gradient preview using background colors
-        for i in 0..30 {
-            let t = i as f32 / 30.0;
-            let color = gradient.at(t);
-            let r = (color.r * 255.0) as u8;
-            let g = (color.g * 255.0) as u8;
-            let b = (color.b * 255.0) as u8;
-            // Use space with background color instead of foreground colored block
-            preview.push_str(&format!("\x1b[48;2;{};{};{}m \x1b[0m", r, g, b));
-        }
-        preview
-    }
-
     /// Prints available themes and patterns
     pub fn print_available_options() {
-        // Simple, elegant header
-        println!("\n\x1b[1;38;5;213m✨ ChromaCat Theme Gallery ✨\x1b[0m");
+        println!("\n\x1b[1;38;5;213m✨ ChromaCat Theme Gallery ✨\x1b[0m\n");
 
-        // Print patterns section with styled header
-        println!("\n\x1b[1;38;5;39m🎮 Available Patterns\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(50));
+        // Print patterns section
+        println!("\x1b[1;38;5;39m🎮 Patterns\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
 
-        for pattern in [
+        let patterns = [
             ("horizontal", "Simple left-to-right gradient"),
             ("diagonal", "Gradient at specified angle"),
-            ("plasma", "Psychedelic plasma effect using sine waves"),
-            ("ripple", "Concentric circles emanating from center"),
-            ("wave", "Flowing wave distortion pattern"),
-            ("spiral", "Spiral pattern from center"),
-            ("checkerboard", "Alternating gradient colors in a grid"),
-            ("diamond", "Diamond-shaped gradient pattern"),
-            ("perlin", "Organic, cloud-like noise pattern"),
-        ] {
-            println!("  \x1b[1;38;5;75m{:<12}\x1b[0m │ {}", pattern.0, pattern.1);
-        }
-
-        println!("\n\x1b[1;38;5;213m🎨 Theme Collection\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(50));
-
-        let categories = [
-            ("Classic Themes", "🌈", 226),   // Yellow
-            ("Nature Themes", "🌿", 84),     // Green
-            ("Tech Themes", "💻", 39),       // Blue
-            ("Aesthetic Themes", "✨", 213), // Pink
-            ("Space Themes", "🌌", 99),      // Purple
-            ("Abstract Themes", "🎯", 203),  // Coral
-            ("Mood Themes", "🎭", 147),      // Lavender
-            ("Party Themes", "🎉", 214),     // Orange
-            ("Color Theory", "🎨", 159),     // Cyan
-            ("Special Effects", "⚡", 227),  // Light Yellow
+            ("plasma", "Psychedelic plasma effect"),
+            ("ripple", "Concentric ripple effect"),
+            ("wave", "Wave distortion pattern"),
+            ("spiral", "Spiral gradient pattern"),
+            ("checkerboard", "Checkerboard pattern"),
+            ("diamond", "Diamond pattern"),
+            ("perlin", "Perlin noise pattern"),
         ];
 
-        let themes = Theme::list_all();
+        for (name, desc) in patterns {
+            println!("  \x1b[1;38;5;75m{:<15}\x1b[0m {}", name, desc);
+        }
 
-        for (category, emoji, color) in categories {
-            // Print category header with custom styling
-            println!(
-                "\n\x1b[1;38;5;{}m{} {} {}\x1b[0m",
-                color, emoji, category, emoji
-            );
-            println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(40));
+        // Print theme categories
+        println!("\n\x1b[1;38;5;213m🎨 Themes\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
 
-            let category_themes: Vec<_> = themes
-                .iter()
-                .filter(|(name, _)| {
-                    matches!(
-                        (category, name.as_str()),
-                        (
-                            "Classic Themes",
-                            "rainbow" | "grayscale" | "sepia" | "monochrome"
-                        ) | (
-                            "Nature Themes",
-                            "ocean"
-                                | "forest"
-                                | "autumn"
-                                | "sunset"
-                                | "desert"
-                                | "arctic"
-                                | "tropical"
-                        ) | (
-                            "Tech Themes",
-                            "matrix" | "cyberpunk" | "terminal" | "hackerman"
-                        ) | (
-                            "Aesthetic Themes",
-                            "pastel" | "neon" | "retrowave" | "vaporwave"
-                        ) | ("Space Themes", "nebula" | "galaxy" | "aurora" | "cosmos")
-                            | ("Abstract Themes", "heat" | "ice" | "fire" | "toxic")
-                            | ("Mood Themes", "calm" | "energy" | "dream")
-                            | ("Party Themes", "rave" | "disco" | "festival")
-                            | ("Color Theory", "complementary" | "analogous" | "triadic")
-                            | (
-                                "Special Effects",
-                                "hologram" | "glitch" | "plasma" | "lightning"
-                            )
-                    )
-                })
-                .collect();
-
-            // Print themes in this category with color previews
-            for (name, description) in category_themes {
-                let theme = Theme::from_str(name).unwrap();
-                let preview = Self::create_theme_preview(&theme);
-                println!(
-                    "  \x1b[1;38;5;{}m{:<12}\x1b[0m {} \x1b[38;5;239m│\x1b[0m {}",
-                    color, name, preview, description
-                );
+        for category in themes::list_categories() {
+            println!("\n\x1b[1;38;5;147m{}\x1b[0m", category);
+            if let Some(theme_names) = themes::list_category(category) {
+                for name in theme_names {
+                    if let Ok(theme) = themes::get_theme(name) {
+                        let preview = Self::create_theme_preview(theme);
+                        println!(
+                            "  \x1b[1;38;5;75m{:<15}\x1b[0m {} \x1b[38;5;239m│\x1b[0m {}",
+                            name, preview, theme.desc
+                        );
+                    }
+                }
             }
         }
 
-        Self::print_styled_examples();
+        Self::print_usage_examples();
     }
 
-    /// Prints styled example usage
-    fn print_styled_examples() {
-        println!("\n\x1b[1;38;5;39m📚 Example Usage\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(50));
+    fn create_theme_preview(theme: &themes::ThemeDefinition) -> String {
+        if let Ok(gradient) = theme.create_gradient() {
+            let mut preview = String::new();
+            for i in 0..30 {
+                let t = i as f32 / 29.0;
+                let color = gradient.at(t);
+                let r = (color.r * 255.0) as u8;
+                let g = (color.g * 255.0) as u8;
+                let b = (color.b * 255.0) as u8;
+                preview.push_str(&format!("\x1b[48;2;{};{};{}m \x1b[0m", r, g, b));
+            }
+            preview
+        } else {
+            " ".repeat(30)
+        }
+    }
+
+    fn print_usage_examples() {
+        println!("\n\x1b[1;38;5;39m📚 Usage Examples\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
 
         let examples = [
+            ("Basic file colorization:", "chromacat input.txt"),
+            ("Using a specific theme:", "chromacat -t ocean input.txt"),
+            ("Animated output:", "chromacat -a --fps 60 input.txt"),
+            ("Pipe from another command:", "ls -la | chromacat -t neon"),
             (
-                "Basic usage with file input:",
-                "chromacat file1.txt file2.txt",
+                "Pattern with custom parameters:",
+                "chromacat -p wave --height 1.5 --count 3 input.txt",
+            ),
+            ("Multiple files with animation:", "chromacat -a *.txt"),
+            (
+                "Custom diagonal gradient:",
+                "chromacat -p diagonal --angle 45 --speed 0.8 input.txt",
             ),
             (
-                "Plasma effect with animation:",
+                "Interactive plasma effect:",
                 "chromacat -p plasma --complexity 3.0 --scale 1.5 -a input.txt",
-            ),
-            (
-                "Ocean theme with ripple effect:",
-                "chromacat -p ripple --wavelength 0.5 --damping 0.3 -t ocean *.txt",
-            ),
-            (
-                "Pipe from another command:",
-                "ls -l | chromacat -p wave --height 1.5 --count 3",
-            ),
-            (
-                "Infinite animation:",
-                "chromacat -p spiral --density 2.0 -a --duration 0 file.txt",
             ),
         ];
 
-        for (description, command) in examples {
-            println!("  \x1b[38;5;75m{}\x1b[0m", description);
+        for (desc, cmd) in examples {
+            println!("  \x1b[38;5;75m{}\x1b[0m", desc);
             println!(
-                "  \x1b[1;38;5;239m$\x1b[0m \x1b[38;5;222m{}\x1b[0m\n",
-                command
+                "    \x1b[1;38;5;239m$\x1b[0m \x1b[38;5;222m{}\x1b[0m\n",
+                cmd
             );
+        }
+
+        // Print pattern-specific parameters
+        println!("\n\x1b[1;38;5;39m🔧 Pattern Parameters\x1b[0m");
+        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
+
+        let parameter_docs = [
+            (
+                "Plasma Pattern",
+                vec![
+                    ("--complexity <1.0-10.0>", "Number of plasma layers"),
+                    ("--scale <0.1-5.0>", "Pattern scale factor"),
+                ],
+            ),
+            (
+                "Wave Pattern",
+                vec![
+                    ("--height <0.1-2.0>", "Wave amplitude"),
+                    ("--count <0.1-5.0>", "Number of waves"),
+                    ("--phase <0.0-2π>", "Wave phase shift"),
+                ],
+            ),
+            (
+                "Ripple Pattern",
+                vec![
+                    ("--center-x/y <0.0-1.0>", "Ripple center position"),
+                    ("--wavelength <0.1-5.0>", "Distance between ripples"),
+                    ("--damping <0.0-1.0>", "Ripple fade-out rate"),
+                ],
+            ),
+            (
+                "Spiral Pattern",
+                vec![
+                    ("--density <0.1-5.0>", "Spiral density"),
+                    ("--expansion <0.1-2.0>", "Spiral growth rate"),
+                    ("--counterclockwise", "Reverse spiral direction"),
+                ],
+            ),
+        ];
+
+        for (pattern, params) in parameter_docs {
+            println!("\n  \x1b[1;38;5;75m{}\x1b[0m", pattern);
+            for (param, desc) in params {
+                println!("    \x1b[38;5;222m{:<25}\x1b[0m {}", param, desc);
+            }
         }
     }
 
@@ -474,7 +459,7 @@ impl Cli {
             });
         }
 
-        // Validate input files
+        // Validate input files exist
         for path in &self.files {
             if !path.exists() {
                 return Err(ChromaCatError::InputError(format!(
@@ -484,9 +469,8 @@ impl Cli {
             }
         }
 
-        // Validate theme
-        Theme::from_str(&self.theme)
-            .map_err(|_| ChromaCatError::InvalidTheme(self.theme.clone()))?;
+        // Validate theme exists
+        themes::get_theme(&self.theme)?;
 
         // Validate common parameters
         self.validate_range("frequency", self.frequency, 0.1, 10.0)?;
@@ -507,26 +491,6 @@ impl Cli {
             });
         }
         Ok(())
-    }
-}
-
-impl Default for Cli {
-    fn default() -> Self {
-        Self {
-            files: Vec::new(),
-            pattern: PatternKind::Horizontal,
-            theme: "rainbow".to_string(),
-            animate: false,
-            fps: 30,
-            duration: 0,
-            no_color: false,
-            list_available: false,
-            smooth: false,
-            frequency: 1.0,
-            amplitude: 1.0,
-            speed: 1.0,
-            pattern_params: PatternParameters::default(),
-        }
     }
 }
 

@@ -2,9 +2,9 @@
 
 use chromacat::cli::{Cli, PatternKind, PatternParameters};
 use chromacat::ChromaCat;
+use std::env;
 use std::io::Write;
 use tempfile::NamedTempFile;
-use std::env;
 
 // Helper function to create a temporary file with content
 fn create_test_file(content: &str) -> NamedTempFile {
@@ -15,18 +15,19 @@ fn create_test_file(content: &str) -> NamedTempFile {
 
 fn setup_test_env() {
     env::set_var("RUST_TEST", "1");
+    // Ensure we're using the default theme for tests
+    env::set_var("NO_EXTERNAL_THEMES", "1");
 }
 
 #[test]
 fn test_chromacat_basic() {
     setup_test_env();
-    // Create a temporary file with test content
     let test_file = create_test_file("Hello, ChromaCat!");
 
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
         pattern: PatternKind::Horizontal,
-        theme: String::from("rainbow"),
+        theme: String::from("rainbow"), // Use default theme
         animate: false,
         fps: 30,
         duration: 0,

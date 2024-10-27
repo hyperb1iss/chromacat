@@ -1,0 +1,59 @@
+- name: ocean
+  desc: Cool blue tones of the sea
+  colors:
+    - [0.0, 0.47, 0.75, 0.0, deep-blue]
+    - [0.0, 0.71, 0.85, 0.3, medium-blue]
+    - [0.28, 0.79, 0.89, 0.7, light-blue]
+    - [0.56, 0.88, 0.94, 1.0, sky-blue]
+  dist: back
+  repeat: pulse(0.2)
+  speed: 0.6
+  ease: smooth
+
+- name: forest
+  desc: Natural green tones
+  colors:
+    - [0.08, 0.32, 0.16, 0.0, dark-green]
+    - [0.18, 0.54, 0.34, 0.3, forest-green]
+    - [0.13, 0.54, 0.13, 0.7, green]
+    - [0.60, 0.80, 0.20, 1.0, yellow-green]
+  dist: center
+  repeat: mirror
+  speed: 0.5
+  ease: smooth
+
+- name: autumn
+  desc: Warm fall colors
+  colors:
+    - [0.65, 0.16, 0.16, 0.0, brown]
+    - [0.82, 0.41, 0.12, 0.3, chocolate]
+    - [1.0, 0.27, 0.0, 0.7, red-orange]
+    - [1.0, 0.55, 0.0, 1.0, dark-orange]
+  dist: front
+  repeat: rotate(0.3)
+  speed: 0.7
+  ease: sine
+
+- name: sunset
+  desc: Evening sky colors
+  colors:
+    - [0.98, 0.31, 0.42, 0.0, coral]
+    - [0.99, 0.62, 0.45, 0.3, peach]
+    - [0.97, 0.76, 0.44, 0.7, light-orange]
+    - [0.56, 0.28, 0.58, 1.0, purple]
+  dist: back
+  repeat: pulse(0.15)
+  speed: 0.5
+  ease: smoother
+
+- name: desert
+  desc: Warm earth tones
+  colors:
+    - [0.94, 0.76, 0.56, 0.0, sand]
+    - [0.85, 0.60, 0.35, 0.3, tan]
+    - [0.76, 0.44, 0.24, 0.7, terra-cotta]
+    - [0.67, 0.28, 0.13, 1.0, rust]
+  dist: alt
+  repeat: mirror
+  speed: 0.4
+  ease: sine
