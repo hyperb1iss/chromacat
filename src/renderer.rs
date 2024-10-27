@@ -18,16 +18,18 @@ use crossterm::{
     execute, queue,
     style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{
-        self, disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+        self, disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
     },
 };
 use std::fmt::Write as FmtWrite;
 use std::io::{stdout, Write};
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 use std::{cmp::min, f64::consts::PI};
 use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
+use unicode_width::UnicodeWidthStr; // Add if needed for thread safety
 
 /// Configuration for animation rendering
 #[derive(Debug, Clone)]
@@ -95,6 +97,8 @@ pub struct Renderer {
     alternate_screen: bool,
     /// Scrolling state for animated viewing
     scroll_state: ScrollState,
+    /// Original unwrapped text for proper re-wrapping on resize
+    original_text: String, // **Added Field**
 }
 
 impl Renderer {
@@ -114,6 +118,7 @@ impl Renderer {
             colors_enabled,
             alternate_screen: false,
             scroll_state: ScrollState::default(),
+            original_text: String::new(), // **Initialize Field**
         })
     }
 
@@ -200,8 +205,10 @@ impl Renderer {
     pub fn render_static(&mut self, text: &str) -> Result<()> {
         let mut stdout = stdout().lock();
 
-        // Process text into lines and update colors
-        self.prepare_text_buffer(text)?;
+        // Clone text first, then use it
+        let text_copy = text.to_string();
+        self.original_text = text_copy.clone();
+        self.prepare_text_buffer(&text_copy)?;
         self.update_color_buffer()?;
 
         // Build entire output in memory first
@@ -255,10 +262,14 @@ impl Renderer {
             execute!(stdout, EnterAlternateScreen, Hide)?;
             self.alternate_screen = true;
 
-            self.prepare_text_buffer(text)?;
+            // Clone text first, then use it
+            let text_copy = text.to_string();
+            self.original_text = text_copy.clone();
+            self.prepare_text_buffer(&text_copy)?;
 
             self.scroll_state = ScrollState {
                 top_line: 0,
+                // Reserve 2 full lines for the status bar
                 viewport_height: self.term_size.1.saturating_sub(2),
                 total_lines: self.line_buffer.len(),
             };
@@ -272,7 +283,7 @@ impl Renderer {
             return Ok(());
         }
 
-        // Increase the animation speed
+        // Calculate progress based on elapsed time
         let progress = if self.config.infinite {
             elapsed.as_secs_f64() * 0.5
         } else {
@@ -339,18 +350,21 @@ impl Renderer {
             queue!(stdout, Print(line_output), Print("\x1b[K"))?;
         }
 
-        // Update status line only if necessary
+        // Clear the last two lines completely before drawing status
         queue!(
             stdout,
+            MoveTo(0, self.term_size.1 - 2),
+            Print("\x1b[K"), // Clear second to last line
             MoveTo(0, self.term_size.1 - 1),
+            Print("\x1b[K"),                 // Clear last line
+            MoveTo(0, self.term_size.1 - 1), // Move to last line
             SetForegroundColor(Color::White),
             Print(format!(
                 "Lines {}-{}/{} [↑/↓/PgUp/PgDn to scroll, q to quit]",
                 self.scroll_state.top_line + 1,
                 self.scroll_state.top_line + visible_lines,
                 self.scroll_state.total_lines
-            )),
-            Print("\x1b[K")
+            ))
         )?;
 
         // Restore cursor position and attributes
@@ -373,8 +387,8 @@ impl Renderer {
 
         let mut current_color = None;
 
-        // Clear screen and move to top
-        queue!(stdout, Print("\x1b[2J"), MoveTo(0, 0))?;
+        // Clear screen and reset cursor
+        queue!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
 
         // Render all visible lines
         for display_line in 0..visible_lines {
@@ -383,29 +397,42 @@ impl Renderer {
                 break;
             }
 
+            // Move to start of line
+            queue!(stdout, MoveTo(0, display_line as u16))?;
+
             if !self.colors_enabled {
-                queue!(stdout, Print(&self.line_buffer[line_idx]), Print("\n"))?;
+                queue!(stdout, Print(&self.line_buffer[line_idx]), Print("\x1b[K"))?;
                 continue;
             }
 
+            // Render colored line
+            let mut line_output = String::new();
             for (x, grapheme) in self.line_buffer[line_idx].graphemes(true).enumerate() {
                 if x >= self.color_buffer[line_idx].len() {
                     break;
                 }
                 let color = self.color_buffer[line_idx][x];
                 if current_color != Some(color) {
-                    queue!(stdout, SetForegroundColor(color))?;
+                    match color {
+                        Color::Rgb { r, g, b } => {
+                            line_output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
+                        }
+                        _ => {}
+                    }
                     current_color = Some(color);
                 }
-                queue!(stdout, Print(grapheme))?;
+                line_output.push_str(grapheme);
             }
-            queue!(stdout, Print("\n"))?;
+            queue!(stdout, Print(line_output), Print("\x1b[K"))?;
         }
 
-        // Render status line
+        // Clear and render status line
         queue!(
             stdout,
+            MoveTo(0, self.term_size.1 - 2),
+            Print("\x1b[K"), // Clear second to last line
             MoveTo(0, self.term_size.1 - 1),
+            Print("\x1b[K"), // Clear last line
             SetForegroundColor(Color::White),
             Print(format!(
                 "Lines {}-{}/{} [↑/↓/PgUp/PgDn to scroll, q to quit]",
@@ -420,9 +447,17 @@ impl Renderer {
 
     /// Prepares the text buffer by handling line wrapping and newlines
     fn prepare_text_buffer(&mut self, text: &str) -> Result<()> {
+        // Store the original unwrapped text
+        if self.original_text.is_empty() {
+            self.original_text = text.to_string();
+        }
+
         self.line_buffer.clear();
 
-        for input_line in text.split('\n') {
+        // Get the maximum width available for text
+        let max_width = self.term_size.0.max(1) as usize;
+
+        for input_line in self.original_text.split('\n') {
             if input_line.is_empty() {
                 self.line_buffer.push(String::new());
                 continue;
@@ -430,24 +465,34 @@ impl Renderer {
 
             let mut current_line = String::new();
             let mut current_width = 0;
+            let graphemes: Vec<_> = input_line.graphemes(true).collect();
 
-            for grapheme in input_line.graphemes(true) {
+            for grapheme in graphemes {
                 let width = grapheme.width();
 
-                if current_width + width > self.term_size.0 as usize && !current_line.is_empty() {
-                    self.line_buffer.push(current_line);
-                    current_line = String::new();
-                    current_width = 0;
+                // If adding this grapheme would exceed the line width
+                if current_width + width > max_width {
+                    // Push the current line if it's not empty
+                    if !current_line.is_empty() {
+                        self.line_buffer.push(current_line);
+                        current_line = String::new();
+                        current_width = 0;
+                    }
                 }
 
+                // Add the grapheme to the current line
                 current_line.push_str(grapheme);
                 current_width += width;
             }
 
+            // Push any remaining content
             if !current_line.is_empty() || input_line.is_empty() {
                 self.line_buffer.push(current_line);
             }
         }
+
+        // Update total lines count
+        self.scroll_state.total_lines = self.line_buffer.len();
 
         Ok(())
     }
@@ -527,17 +572,75 @@ impl Renderer {
         Ok(())
     }
 
+    // Add this new method to handle terminal resizes
+    pub fn handle_resize(&mut self, new_width: u16, new_height: u16) -> Result<()> {
+        // Store old dimensions for comparison
+        let old_width = self.term_size.0;
+
+        // Update terminal dimensions
+        self.term_size = (new_width, new_height);
+
+        // Update viewport height while preserving scroll position
+        self.scroll_state.viewport_height = new_height.saturating_sub(2);
+
+        // Only rewrap text if width changed
+        if old_width != new_width {
+            // Clone the original text before using it
+            let text_copy = self.original_text.clone();
+            self.line_buffer.clear();
+            self.prepare_text_buffer(&text_copy)?;
+
+            // Update total lines count after rewrapping
+            self.scroll_state.total_lines = self.line_buffer.len();
+
+            // Recreate the pattern engine with new dimensions
+            self.engine = self
+                .engine
+                .recreate(new_width as usize, new_height as usize);
+
+            // Calculate maximum line length after rewrapping
+            let max_line_length = self
+                .line_buffer
+                .iter()
+                .map(|line| line.graphemes(true).count())
+                .max()
+                .unwrap_or(0)
+                .max(new_width as usize);
+
+            // Resize color buffer for new dimensions
+            self.color_buffer = vec![vec![Color::White; max_line_length]; self.line_buffer.len()];
+
+            // Update the entire color buffer with new pattern values
+            self.update_color_buffer()?;
+        }
+
+        // Adjust scroll position if viewport got smaller or content was rewrapped
+        let max_scroll = self
+            .scroll_state
+            .total_lines
+            .saturating_sub(self.scroll_state.viewport_height as usize);
+        self.scroll_state.top_line = self.scroll_state.top_line.min(max_scroll);
+
+        // Clear screen and redraw everything
+        let mut stdout = stdout().lock();
+        queue!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+
+        // Redraw the screen
+        self.draw_full_screen(&mut stdout)?;
+        stdout.flush()?;
+
+        Ok(())
+    }
+
     pub fn run(&mut self) -> Result<()> {
         let frame_duration = self.frame_duration();
 
         loop {
             let start = Instant::now();
 
-            // Handle input events
-            // self.handle_input()?
-
-            // Render frame
-            self.render_frame("Your text here", start.elapsed())?;
+            // Clone the original text before passing it to render_frame
+            let text_copy = self.original_text.clone();
+            self.render_frame(&text_copy, start.elapsed())?;
 
             let elapsed = start.elapsed();
             if elapsed < frame_duration {

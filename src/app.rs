@@ -214,8 +214,9 @@ impl ChromaCat {
                         }
                     }
                     Event::Resize(width, height) => {
-                        // Update terminal size if needed
-                        // For now, we just continue
+                        if let Err(e) = renderer.handle_resize(width, height) {
+                            eprintln!("Resize error: {}", e);
+                        }
                         continue 'main;
                     }
                     _ => continue 'main,

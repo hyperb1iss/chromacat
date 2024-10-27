@@ -687,6 +687,25 @@ impl PatternEngine {
             prev_value + (next_value - prev_value) * alpha
         }
     }
+
+    // Replace the take_gradient method with this
+    pub fn recreate(&self, new_width: usize, new_height: usize) -> Self {
+        Self {
+            config: self.config.clone(),
+            gradient: Arc::clone(&self.gradient),
+            time: self.time,
+            width: new_width,
+            height: new_height,
+            sin_table: Arc::clone(&self.sin_table),
+            cos_table: Arc::clone(&self.cos_table),
+            perm_table: Arc::clone(&self.perm_table),
+        }
+    }
+
+    /// Returns a reference to the pattern config
+    pub fn config(&self) -> &PatternConfig {
+        &self.config
+    }
 }
 
 impl Clone for PatternEngine {
