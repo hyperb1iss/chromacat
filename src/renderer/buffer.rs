@@ -102,36 +102,21 @@ impl RenderBuffer {
     /// # Returns
     /// Ok(()) if successful, Error otherwise
     pub fn update_colors(&mut self, engine: &PatternEngine) -> Result<(), RendererError> {
-        self.update_colors_range(engine, 0, self.line_buffer.len())
-    }
-
-    /// Updates color information for a range of lines
-    ///
-    /// # Arguments
-    /// * `engine` - Pattern engine for color generation
-    /// * `start` - Starting line index
-    /// * `end` - Ending line index (exclusive)
-    ///
-    /// # Returns
-    /// Ok(()) if successful, Error otherwise
-    pub fn update_colors_range(
-        &mut self,
-        engine: &PatternEngine,
-        start: usize,
-        end: usize,
-    ) -> Result<(), RendererError> {
-        let end = end.min(self.line_buffer.len());
         let max_width = self.color_buffer.first().map_or(0, |row| row.len());
+        let viewport_height = self.term_size.1 as usize;
 
-        for y in start..end {
-            let line = &self.line_buffer[y];
+        // Get the visible range from the scroll state
+        for (y, line) in self.line_buffer.iter().enumerate() {
             for (x, _) in line.graphemes(true).enumerate() {
                 if x >= max_width {
                     break;
                 }
 
-                // Calculate pattern value using viewport-relative position
-                let pattern_value = engine.get_value_at(x, y)?;
+                // Calculate viewport-relative y position
+                let viewport_y = y % viewport_height;
+
+                // Use only viewport coordinates for pattern generation
+                let pattern_value = engine.get_value_at(x, viewport_y)?;
                 let gradient_color = engine.gradient().at(pattern_value as f32);
 
                 self.color_buffer[y][x] = Color::Rgb {
@@ -153,14 +138,15 @@ impl RenderBuffer {
     ) -> Result<(), RendererError> {
         let max_width = self.color_buffer.first().map_or(0, |row| row.len());
 
-        // Calculate colors for each line without advancing the pattern
+        // In static mode, use y=0 for each line to create flowing effect
         for (y, line) in self.line_buffer.iter().enumerate() {
             for (x, _) in line.graphemes(true).enumerate() {
                 if x >= max_width {
                     break;
                 }
 
-                let pattern_value = engine.get_value_at(x, y)?;
+                // Always use y=0 for pattern generation in static mode
+                let pattern_value = engine.get_value_at(x, 0)?;
                 let gradient_color = engine.gradient().at(pattern_value as f32);
 
                 self.color_buffer[y][x] = Color::Rgb {
@@ -169,10 +155,14 @@ impl RenderBuffer {
                     b: (gradient_color.b * 255.0) as u8,
                 };
             }
+
+            // Advance pattern slightly for next line
+            engine.update(0.1);
         }
 
         Ok(())
     }
+
     /// Resizes the buffer for new terminal dimensions
     ///
     /// # Arguments

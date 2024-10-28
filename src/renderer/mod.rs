@@ -192,8 +192,8 @@ impl Renderer {
     }
 
     fn update_visible_region(&mut self) -> Result<(), RendererError> {
-        let (start, end) = self.scroll.get_visible_range();
-        self.buffer.update_colors_range(&self.engine, start, end)
+        // Update the entire buffer in animation mode
+        self.buffer.update_colors(&self.engine)
     }
 }
 
