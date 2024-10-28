@@ -1,3 +1,4 @@
+use crate::renderer::RendererError;
 use std::fmt;
 use std::io;
 
@@ -27,6 +28,8 @@ pub enum ChromaCatError {
     InputError(String),
     /// Parameter parsing error
     ParseError(String),
+    /// Rendering error
+    RenderError(String),
     /// General error with message
     Other(String),
 }
@@ -37,16 +40,34 @@ impl fmt::Display for ChromaCatError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IoError(err) => write!(f, "I/O error: {}", err),
-            Self::InvalidParameter { name, value, min, max } => {
-                write!(f, "Invalid {} value {}: must be between {} and {}", name, value, min, max)
+            Self::InvalidParameter {
+                name,
+                value,
+                min,
+                max,
+            } => {
+                write!(
+                    f,
+                    "Invalid {} value {}: must be between {} and {}",
+                    name, value, min, max
+                )
             }
             Self::InvalidTheme(msg) => write!(f, "Invalid theme: {}", msg),
             Self::GradientError(msg) => write!(f, "Gradient error: {}", msg),
-            Self::PatternError { pattern, param, message } => {
-                write!(f, "Pattern '{}' parameter '{}' error: {}", pattern, param, message)
+            Self::PatternError {
+                pattern,
+                param,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Pattern '{}' parameter '{}' error: {}",
+                    pattern, param, message
+                )
             }
             Self::InputError(msg) => write!(f, "Input error: {}", msg),
             Self::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            Self::RenderError(msg) => write!(f, "Render error: {}", msg),
             Self::Other(msg) => write!(f, "{}", msg),
         }
     }
@@ -77,6 +98,24 @@ impl From<(String, String, String)> for ChromaCatError {
             pattern,
             param,
             message,
+        }
+    }
+}
+
+// Add conversion from RendererError
+impl From<RendererError> for ChromaCatError {
+    fn from(err: RendererError) -> Self {
+        match err {
+            RendererError::IoError(e) => Self::IoError(e),
+            RendererError::TerminalError(msg) => Self::RenderError(msg),
+            RendererError::BufferError(msg) => Self::RenderError(msg),
+            RendererError::InvalidConfig(msg) => Self::RenderError(msg),
+            RendererError::PatternError(msg) => Self::PatternError {
+                pattern: "render".to_string(),
+                param: "pattern".to_string(),
+                message: msg,
+            },
+            RendererError::Other(msg) => Self::RenderError(msg),
         }
     }
 }
