@@ -155,11 +155,8 @@ impl RenderBuffer {
     ) -> Result<(), RendererError> {
         let max_width = self.color_buffer.get(0).map_or(0, |row| row.len());
 
-        // Calculate colors for each line, advancing the pattern
+        // Calculate colors for each line without advancing the pattern
         for (y, line) in self.line_buffer.iter().enumerate() {
-            // Advance pattern by a small amount for each line
-            engine.update(0.1); // Small time increment per line
-
             for (x, _) in line.graphemes(true).enumerate() {
                 if x >= max_width {
                     break;

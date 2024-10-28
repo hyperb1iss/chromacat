@@ -66,9 +66,7 @@ impl PatternEngine {
 
     /// Calculates the pattern value at the specified coordinates
     pub fn get_value_at(&self, x: usize, y: usize) -> Result<f64> {
-        // Scale y position to maintain consistent pattern speed regardless of position
-        let scaled_y = y % self.height;
-        let value = self.patterns.generate(x, scaled_y, &self.config.params);
+        let value = self.patterns.generate(x, y, &self.config.params);
         Ok(value)
     }
 

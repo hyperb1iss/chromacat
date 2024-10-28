@@ -89,7 +89,7 @@ impl Renderer {
         self.terminal.setup()?;
         self.buffer.prepare_text(text)?;
 
-        // Use static color update mode which advances pattern per line
+        // Use static color update mode
         self.buffer.update_colors_static(&mut self.engine)?;
 
         // Render the entire buffer at once
