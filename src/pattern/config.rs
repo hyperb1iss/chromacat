@@ -55,7 +55,7 @@ pub enum PatternParams {
 
 impl Default for PatternParams {
     fn default() -> Self {
-        Self::Horizontal(HorizontalParams::default())
+        Self::Diagonal(DiagonalParams::default())
     }
 }
 

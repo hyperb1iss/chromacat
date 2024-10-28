@@ -45,7 +45,7 @@ pub struct Cli {
         short = 'p',
         long,
         value_enum,
-        default_value = "horizontal",
+        default_value = "diagonal",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "TYPE",
         help = CliFormat::highlight_description("Select pattern type for the color gradient")
@@ -268,7 +268,12 @@ impl std::fmt::Display for PatternKind {
     }
 }
 
-// Add this at the module level, before any impl blocks
+impl Default for PatternKind {
+    fn default() -> Self {
+        Self::Diagonal
+    }
+}
+
 trait PadToWidth {
     fn pad_to_width(&self, width: usize) -> String;
 }
@@ -587,7 +592,6 @@ impl Cli {
         Ok(())
     }
 
-    // Add a new method for pattern help
     pub fn print_pattern_help() {
         // Title and introduction
         println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Pattern Reference ✨"));
