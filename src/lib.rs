@@ -11,6 +11,7 @@ pub mod error;
 pub mod gradient;
 pub mod input;
 pub mod renderer;
+pub mod streaming;
 pub mod themes;
 
 pub use app::ChromaCat;
@@ -19,3 +20,4 @@ pub use error::{ChromaCatError, Result};
 // Re-export commonly used types for convenience
 pub use pattern::{PatternConfig, PatternParams};
 pub use renderer::{AnimationConfig, Renderer};
+pub use streaming::StreamingInput;

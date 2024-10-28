@@ -9,6 +9,7 @@ use crate::error::{ChromaCatError, Result};
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
 use crate::renderer::Renderer;
+use crate::streaming::StreamingInput;
 use crate::themes;
 
 use crossterm::cursor::{Hide, Show};
@@ -108,8 +109,9 @@ impl ChromaCat {
             // Use fixed size for tests
             self.term_size = (80, 24);
         } else {
-            self.term_size = crossterm::terminal::size()
-                .map_err(|e| ChromaCatError::Other(format!("Failed to get terminal size: {}", e)))?;
+            self.term_size = crossterm::terminal::size().map_err(|e| {
+                ChromaCatError::Other(format!("Failed to get terminal size: {}", e))
+            })?;
         }
 
         // Skip terminal setup in test environment
@@ -178,17 +180,55 @@ impl ChromaCat {
 
     /// Processes input from stdin
     fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
-        let mut reader = InputReader::from_stdin()?;
-        let mut buffer = String::new();
-        reader.read_to_string(&mut buffer)?;
+        // Check if stdin is a terminal or a pipe
+        if atty::is(atty::Stream::Stdin) {
+            debug!("Processing stdin in terminal mode");
+            // Terminal input - use normal processing
+            let mut reader = InputReader::from_stdin()?;
+            let mut buffer = String::new();
+            reader.read_to_string(&mut buffer)?;
 
-        if self.cli.animate {
-            self.run_animation(renderer, &buffer)?;
+            if self.cli.animate {
+                self.run_animation(renderer, &buffer)?;
+            } else {
+                renderer.render_static(&buffer)?;
+            }
         } else {
-            renderer.render_static(&buffer)?;
+            debug!("Processing stdin in streaming mode");
+            // Streaming input - use streaming processor
+            self.process_streaming()?;
         }
 
         Ok(())
+    }
+
+    /// Processes streaming input (e.g., from pipes)
+    fn process_streaming(&self) -> Result<()> {
+        info!("Starting streaming input processing");
+        let pattern_config = self.cli.create_pattern_config()?;
+
+        // Create streaming processor
+        let mut processor = StreamingInput::new(pattern_config, &self.cli.theme)?;
+
+        // Set color state
+        processor.set_colors_enabled(!self.cli.no_color);
+
+        // Set custom buffer size if specified
+        if let Some(buffer_size) = self.cli.buffer_size {
+            processor.set_buffer_capacity(buffer_size);
+        }
+
+        // Process stdin
+        let result = processor.process_stdin();
+
+        // Log processing statistics
+        let (lines, bytes, rate) = processor.stats();
+        info!(
+            "Streaming complete: processed {} lines ({} bytes) at {:.2} lines/sec",
+            lines, bytes, rate
+        );
+
+        result
     }
 
     /// Runs the animation loop

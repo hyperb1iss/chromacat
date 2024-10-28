@@ -42,6 +42,7 @@ fn test_chromacat_basic() {
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
+        buffer_size: None, // Add the new field
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -77,6 +78,7 @@ fn test_chromacat_invalid_angle() {
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
+        buffer_size: None, // Add the new field
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -95,7 +97,7 @@ fn test_chromacat_pattern_params() {
                 "complexity=3.0",
                 "scale=1.5",
                 "frequency=1.0",
-                "blend_mode=add", // Changed from blend=add to blend_mode=add
+                "blend_mode=add",
             ],
         ),
         (
@@ -142,6 +144,7 @@ fn test_chromacat_pattern_params() {
             pattern_help: false,
             no_aspect_correction: false,
             aspect_ratio: 0.5,
+            buffer_size: None, // Add the new field
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -178,11 +181,46 @@ fn test_chromacat_animation_settings() {
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
+        buffer_size: None, // Add the new field
     };
 
     let mut cat = ChromaCat::new(cli);
     match cat.run() {
         Ok(_) => (),
         Err(e) => panic!("Animation test failed with error: {:?}", e),
+    }
+}
+
+#[test]
+fn test_streaming_mode() {
+    setup_test_env();
+    let test_input = "Test streaming input\n";
+    let test_file = create_test_file(test_input);
+
+    let cli = Cli {
+        files: vec![test_file.path().to_path_buf()],
+        pattern: PatternKind::Horizontal,
+        theme: String::from("rainbow"),
+        animate: false,
+        fps: 30,
+        duration: 0,
+        no_color: true,
+        list_available: false,
+        smooth: false,
+        frequency: 1.0,
+        amplitude: 1.0,
+        speed: 1.0,
+        pattern_params: PatternParameters::default(),
+        theme_file: None,
+        pattern_help: false,
+        no_aspect_correction: false,
+        aspect_ratio: 0.5,
+        buffer_size: Some(4096), // Test with custom buffer size
+    };
+
+    let mut cat = ChromaCat::new(cli);
+    match cat.run() {
+        Ok(_) => (),
+        Err(e) => panic!("Streaming test failed with error: {:?}", e),
     }
 }

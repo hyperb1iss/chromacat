@@ -174,6 +174,14 @@ pub struct Cli {
         help = CliFormat::highlight_description("Set terminal character aspect ratio (width/height, default: 0.5)")
     )]
     pub aspect_ratio: f64,
+
+    #[arg(
+        long = "buffer-size",
+        value_name = "BYTES",
+        help_heading = CliFormat::HEADING_CORE,
+        help = CliFormat::highlight_description("Set input buffer size for streaming mode (default: 8192)")
+    )]
+    pub buffer_size: Option<usize>,
 }
 
 /// Pattern-specific parameters grouped by pattern type
