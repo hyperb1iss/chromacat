@@ -1,6 +1,6 @@
 use colorgrad::Gradient;
 use std::sync::Arc;
-use std::f64::consts::PI;
+// use std::f64::consts::PI;
 
 use crate::error::Result;
 use crate::pattern::config::PatternConfig;
@@ -41,13 +41,10 @@ impl PatternEngine {
         }
     }
 
-    /// Updates the animation time
-    pub fn update(&mut self, delta: f64) {
-        let scaled_delta = delta * self.config.common.speed;
-        self.time = (self.time + scaled_delta) % (2.0 * PI);
-        if self.time < 0.0 {
-            self.time += 2.0 * PI;
-        }
+    /// Updates the animation time based on delta seconds
+    pub fn update(&mut self, delta_seconds: f64) {
+        let scaled_delta = delta_seconds * self.config.common.speed;
+        self.time += scaled_delta; // Remove the modulo operation
         // Create new pattern generator with updated time
         self.patterns = Patterns::new(self.width, self.height, self.time, 0);
     }
@@ -88,11 +85,7 @@ impl PatternEngine {
 
     /// Sets the animation time directly
     pub fn set_time(&mut self, time: f64) {
-        // Normalize time to [0, 2π) range
-        self.time = time % (2.0 * PI);
-        if self.time < 0.0 {
-            self.time += 2.0 * PI;
-        }
+        self.time = time; // Remove normalization
         // Update patterns with new time
         self.patterns = Patterns::new(self.width, self.height, self.time, 0);
     }

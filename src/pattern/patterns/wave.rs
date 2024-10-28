@@ -2,10 +2,11 @@ use std::f64::consts::PI;
 use std::any::Any;
 use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use std::f64::consts::TAU;
 
 define_param!(num Wave, AmplitudeParam, "amplitude", "Wave height", 0.1, 2.0, 1.0);
 define_param!(num Wave, FrequencyParam, "frequency", "Number of waves", 0.1, 5.0, 1.0);
-define_param!(num Wave, PhaseParam, "phase", "Phase shift", 0.0, 6.28318530718, 0.0);
+define_param!(num Wave, PhaseParam, "phase", "Phase shift", 0.0, TAU, 0.0);
 define_param!(num Wave, OffsetParam, "offset", "Vertical offset", 0.0, 1.0, 0.5);
 define_param!(num Wave, BaseFreqParam, "base_freq", "Animation speed multiplier", 0.1, 10.0, 1.0);
 

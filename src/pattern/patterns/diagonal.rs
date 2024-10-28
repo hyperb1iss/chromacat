@@ -111,27 +111,21 @@ impl super::Patterns {
         }
 
         let x_norm = x as f64 / (self.width - 1) as f64;
-        let y_norm = (y % self.height) as f64 / (self.height - 1) as f64;
+        let y_norm = y as f64 / (self.height - 1) as f64;
 
-        let x_scaled = x_norm * 2.0 - 1.0;
-        let y_scaled = y_norm * 2.0 - 1.0;
+        // Convert angle to radians
+        let angle = params.angle as f64 * PI / 180.0;
+        let cos_angle = self.utils.fast_cos(angle);
+        let sin_angle = self.utils.fast_sin(angle);
 
-        let time = self.time * PI * 2.0;
-        let wave_offset = self.utils.fast_sin(time * 0.5 + y_norm * 8.0) * 0.2;
-
-        let base_angle = params.angle as f64;
-        let animated_angle = (base_angle + self.utils.fast_sin(time * 0.3) * 15.0) * PI / 180.0;
-
-        let cos_angle = self.utils.fast_cos(animated_angle);
-        let sin_angle = self.utils.fast_sin(animated_angle);
-
-        let rotated = x_scaled * cos_angle + y_scaled * sin_angle + wave_offset;
-        let perpendicular = -x_scaled * sin_angle + y_scaled * cos_angle;
-        let wave_distortion = self.utils.fast_sin(perpendicular * 4.0 * params.frequency + time) * 0.1;
-
-        let result = (rotated + wave_distortion + 1.0) * 0.5;
-        let pulse = (self.utils.fast_sin(time * 0.7) * 0.1 + 1.0) * result;
-
-        pulse.clamp(0.0, 1.0)
+        // Simple diagonal flow
+        let value = (x_norm * cos_angle + y_norm * sin_angle + self.time * params.frequency) % 1.0;
+        
+        // Ensure value stays in [0, 1] range
+        if value < 0.0 {
+            value + 1.0
+        } else {
+            value
+        }
     }
 }

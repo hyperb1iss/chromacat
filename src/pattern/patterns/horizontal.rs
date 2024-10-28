@@ -6,7 +6,7 @@ use crate::define_param;
 define_param!(bool Horizontal, InvertParam, "invert", "Invert gradient direction", false);
 
 /// Parameters for configuring horizontal gradient pattern
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HorizontalParams {
     /// Invert the gradient direction (false = left to right, true = right to left)
     pub invert: bool,
@@ -14,14 +14,6 @@ pub struct HorizontalParams {
 
 impl HorizontalParams {
     const INVERT_PARAM: HorizontalInvertParam = HorizontalInvertParam;
-}
-
-impl Default for HorizontalParams {
-    fn default() -> Self {
-        Self {
-            invert: false,
-        }
-    }
 }
 
 // Use the validate macro to implement validation
@@ -92,7 +84,15 @@ impl super::Patterns {
         if self.width <= 1 {
             return 0.0;
         }
-        let value = x as f64 / (self.width - 1) as f64;
+
+        // Simple continuous flow from left to right
+        let mut value = (x as f64 / (self.width - 1) as f64 + self.time * 0.5) % 1.0;
+        
+        // Ensure value stays in [0, 1] range after modulo
+        if value < 0.0 {
+            value += 1.0;
+        }
+
         if params.invert {
             1.0 - value
         } else {

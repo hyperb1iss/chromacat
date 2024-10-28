@@ -77,9 +77,8 @@ fn test_animated_rendering() {
     let test = RendererTest::new();
     let mut renderer = test.create_renderer().unwrap();
 
-    assert!(renderer
-        .render_frame("Test", Duration::from_millis(100))
-        .is_ok());
+    // Pass delta time in seconds instead of Duration
+    assert!(renderer.render_frame("Test", 0.016).is_ok()); // ~60fps
 }
 
 #[test]
@@ -142,17 +141,18 @@ fn test_animation_progress() {
     let test = RendererTest::new();
     let mut renderer = test.create_renderer().unwrap();
 
+    // Test different points in time (in seconds)
     let progress_points = [
-        Duration::from_millis(0),   // Start
-        Duration::from_millis(500), // Middle
-        Duration::from_millis(999), // Just before end
+        0.0,    // Start
+        0.5,    // Middle
+        0.999,  // Just before end
     ];
 
-    for duration in progress_points {
+    for seconds in progress_points {
         assert!(
-            renderer.render_frame("Animation Test", duration).is_ok(),
-            "Failed to render at {:?}",
-            duration
+            renderer.render_frame("Animation Test", seconds).is_ok(),
+            "Failed to render at {} seconds",
+            seconds
         );
     }
 }
@@ -208,14 +208,13 @@ fn test_animation_performance() {
     let mut renderer = test.create_renderer().unwrap();
 
     let frame_count = 10; // Reduced frame count for testing
-    let frame_interval = Duration::from_millis(16); // ~60 FPS timing
+    let delta_seconds = 0.016; // ~60 FPS timing
 
     let start = std::time::Instant::now();
 
     // Render frames with small, fixed time increments
-    for i in 0..frame_count {
-        let frame_time = frame_interval * i as u32;
-        renderer.render_frame("Animation test", frame_time).unwrap();
+    for _ in 0..frame_count {
+        renderer.render_frame("Animation test", delta_seconds).unwrap();
     }
 
     let duration = start.elapsed();

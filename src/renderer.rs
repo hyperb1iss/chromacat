@@ -88,6 +88,8 @@ pub struct Renderer {
     scroll_state: ScrollState,
     /// Original unwrapped text for proper re-wrapping on resize
     original_text: String,
+    /// Last frame time
+    last_frame: Instant,
 }
 
 impl Renderer {
@@ -110,6 +112,7 @@ impl Renderer {
             alternate_screen: false,
             scroll_state: ScrollState::default(),
             original_text: String::new(), // **Initialize Field**
+            last_frame: Instant::now(), // Add this field to track the last frame's time
         })
     }
 
@@ -246,7 +249,7 @@ impl Renderer {
     }
 
     /// Renders a single animation frame
-    pub fn render_frame(&mut self, text: &str, elapsed: Duration) -> Result<()> {
+    pub fn render_frame(&mut self, text: &str, delta_seconds: f64) -> Result<()> {
         let mut stdout = stdout().lock();
 
         // First-time initialization
@@ -275,15 +278,8 @@ impl Renderer {
             return Ok(());
         }
 
-        // Calculate progress based on elapsed time
-        let progress = if self.config.infinite {
-            elapsed.as_secs_f64() * 0.5
-        } else {
-            // Clamp progress to 1.0 to prevent overflow
-            (elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()).min(1.0)
-        };
-
-        self.engine.update(progress);
+        // Update the engine with the delta time
+        self.engine.update(delta_seconds);
 
         // Update colors for visible region
         let visible_lines = min(
@@ -298,7 +294,7 @@ impl Renderer {
             self.line_buffer.len(),
         );
 
-        self.update_color_buffer_range(self.scroll_state.top_line, end_line, progress)?;
+        self.update_color_buffer_range(self.scroll_state.top_line, end_line, 0.0)?; // Removed delta_seconds from here
 
         // **Start of changes: Optimize Rendering to Update Only Necessary Lines**
 
@@ -357,23 +353,7 @@ impl Renderer {
             Print("─".repeat(self.term_size.0 as usize))
         )?;
 
-        // Calculate progress for infinite mode
-        let progress = if self.config.infinite {
-            (elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()) % 1.0
-        } else {
-            elapsed.as_secs_f64() / self.cycle_duration().as_secs_f64()
-        };
-
-        // Create progress indicator
-        let progress_width = 20;
-        let filled = (progress * progress_width as f64) as usize;
-        let progress_bar = format!(
-            "{}{}",
-            "█".repeat(filled),
-            "▒".repeat(progress_width - filled)
-        );
-
-        // Create status line with multiple segments
+        // Create status line with multiple segments (without progress bar)
         queue!(
             stdout,
             MoveTo(0, self.term_size.1 - 1),
@@ -407,19 +387,6 @@ impl Renderer {
                 b: 200
             }),
             Print(self.scroll_state.total_lines),
-            SetForegroundColor(Color::Rgb {
-                r: 100,
-                g: 100,
-                b: 100
-            }),
-            Print(" ┃ "),
-            // Progress bar section
-            SetForegroundColor(Color::Rgb {
-                r: 80,
-                g: 180,
-                b: 255
-            }),
-            Print(&progress_bar),
             SetForegroundColor(Color::Rgb {
                 r: 100,
                 g: 100,
@@ -734,20 +701,26 @@ impl Renderer {
         Ok(())
     }
 
+    /// Runs the rendering loop
     pub fn run(&mut self) -> Result<()> {
         let frame_duration = self.frame_duration();
+        self.last_frame = Instant::now(); // Initialize last_frame
 
         loop {
-            let start = Instant::now();
+            let now = Instant::now();
+            let delta_time = now.duration_since(self.last_frame).as_secs_f64();
+            self.last_frame = now;
 
             // Clone the original text before passing it to render_frame
             let text_copy = self.original_text.clone();
-            self.render_frame(&text_copy, start.elapsed())?;
+            self.render_frame(&text_copy, delta_time)?;
 
-            let elapsed = start.elapsed();
-            // Calculate sleep duration safely
-            if elapsed < frame_duration {
-                thread::sleep(frame_duration - elapsed);
+            // Calculate how long the frame took to render
+            let frame_elapsed = Instant::now().duration_since(now);
+            
+            // Calculate remaining time to sleep to maintain frame rate
+            if frame_elapsed < frame_duration {
+                thread::sleep(frame_duration - frame_elapsed);
             }
         }
     }

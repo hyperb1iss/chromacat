@@ -193,7 +193,6 @@ impl ChromaCat {
 
     /// Runs the animation loop
     fn run_animation(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
-        let start_time = Instant::now();
         let frame_duration = renderer.frame_duration();
         let mut last_frame = Instant::now();
         let paused = false;
@@ -201,7 +200,7 @@ impl ChromaCat {
         // Skip terminal setup and animation loop in test environment
         if Self::is_test() {
             // Just render one frame for testing
-            renderer.render_frame(content, Duration::from_millis(100))?;
+            renderer.render_frame(content, 0.016)?; // Pass delta time in seconds (roughly 60fps)
             return Ok(());
         }
 
@@ -238,10 +237,11 @@ impl ChromaCat {
 
             // Update and render frame
             if !paused && now.duration_since(last_frame) >= frame_duration {
-                let elapsed = now.duration_since(start_time);
+                // Calculate delta time in seconds
+                let delta_seconds = now.duration_since(last_frame).as_secs_f64();
 
                 // Render frame, handle potential errors
-                if let Err(e) = renderer.render_frame(content, elapsed) {
+                if let Err(e) = renderer.render_frame(content, delta_seconds) {
                     eprintln!("Render error: {}", e);
                     // Optionally break or continue based on error severity
                     continue 'main;
