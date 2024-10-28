@@ -1,0 +1,127 @@
+- name: pride
+  desc: Traditional rainbow pride flag colors
+  colors:
+    - [0.93, 0.0, 0.0, 0.0, red]
+    - [1.0, 0.6, 0.0, 0.2, orange]
+    - [1.0, 1.0, 0.0, 0.4, yellow]
+    - [0.0, 0.8, 0.0, 0.6, green]
+    - [0.0, 0.0, 1.0, 0.8, blue]
+    - [0.5, 0.0, 0.5, 1.0, purple]
+  dist: even
+  repeat: mirror
+  speed: 0.8
+  ease: smooth
+
+- name: trans
+  desc: Transgender pride flag colors
+  colors:
+    - [0.31, 0.67, 0.98, 0.0, light-blue]    # More saturated blue
+    - [0.98, 0.47, 0.76, 0.25, pink]         # Brighter pink
+    - [1.0, 1.0, 1.0, 0.5, white]
+    - [0.98, 0.47, 0.76, 0.75, pink]         # Brighter pink
+    - [0.31, 0.67, 0.98, 1.0, light-blue]    # More saturated blue
+  dist: even
+  repeat: pulse(0.2)
+  speed: 0.7
+  ease: smooth
+
+- name: bi
+  desc: Bisexual pride flag colors
+  colors:
+    - [0.85, 0.0, 0.5, 0.0, magenta]
+    - [0.7, 0.0, 0.7, 0.5, purple]
+    - [0.0, 0.0, 0.8, 1.0, blue]
+  dist: even
+  repeat: mirror
+  speed: 0.6
+  ease: sine
+
+- name: pan
+  desc: Pansexual pride flag colors
+  colors:
+    - [1.0, 0.15, 0.4, 0.0, pink]
+    - [1.0, 0.95, 0.0, 0.5, yellow]
+    - [0.0, 0.6, 1.0, 1.0, blue]
+  dist: even
+  repeat: pulse(0.3)
+  speed: 0.7
+  ease: smooth
+
+- name: nonbinary
+  desc: Non-binary pride flag colors
+  colors:
+    - [1.0, 0.95, 0.0, 0.0, yellow]
+    - [1.0, 1.0, 1.0, 0.33, white]
+    - [0.6, 0.35, 0.8, 0.67, purple]
+    - [0.0, 0.0, 0.0, 1.0, black]
+  dist: even
+  repeat: mirror
+  speed: 0.6
+  ease: smooth
+
+- name: ace
+  desc: Asexual pride flag colors
+  colors:
+    - [0.0, 0.0, 0.0, 0.0, black]
+    - [0.5, 0.5, 0.5, 0.33, gray]
+    - [1.0, 1.0, 1.0, 0.67, white]
+    - [0.5, 0.0, 0.5, 1.0, purple]
+  dist: even
+  repeat: pulse(0.2)
+  speed: 0.5
+  ease: smooth
+
+- name: genderqueer
+  desc: Genderqueer pride flag colors
+  colors:
+    - [0.7, 0.0, 0.7, 0.0, purple]
+    - [1.0, 1.0, 1.0, 0.5, white]
+    - [0.0, 0.6, 0.0, 1.0, green]
+  dist: even
+  repeat: mirror
+  speed: 0.7
+  ease: smooth
+
+- name: agender
+  desc: Agender pride flag colors
+  colors:
+    - [0.0, 0.0, 0.0, 0.0, black]
+    - [0.5, 0.5, 0.5, 0.25, gray]
+    - [1.0, 1.0, 1.0, 0.5, white]
+    - [0.6, 1.0, 0.6, 0.75, light-green]
+    - [1.0, 1.0, 1.0, 1.0, white]
+  dist: even
+  repeat: pulse(0.25)
+  speed: 0.6
+  ease: smooth
+
+- name: lesbian
+  desc: Lesbian pride flag colors
+  colors:
+    - [0.89, 0.26, 0.20, 0.0, dark-orange]     # Dark orange/red
+    - [0.98, 0.61, 0.45, 0.2, light-orange]    # Light orange
+    - [1.0, 1.0, 1.0, 0.4, white]              # White
+    - [0.91, 0.57, 0.74, 0.6, pink]            # Pink
+    - [0.74, 0.15, 0.39, 0.8, dark-pink]       # Dark pink/magenta
+  dist: even
+  repeat: mirror
+  speed: 0.6
+  ease: smooth
+
+- name: progress
+  desc: Progress pride flag with inclusive colors
+  colors:
+    - [0.31, 0.67, 0.98, 0.0, trans-blue]      # Trans flag blue
+    - [0.98, 0.47, 0.76, 0.1, trans-pink]      # Trans flag pink
+    - [0.55, 0.27, 0.07, 0.2, brown]           # Brown stripe
+    - [0.0, 0.0, 0.0, 0.3, black]              # Black stripe
+    - [0.93, 0.0, 0.0, 0.5, red]               # Traditional pride red
+    - [1.0, 0.6, 0.0, 0.6, orange]             # Traditional pride orange
+    - [1.0, 1.0, 0.0, 0.7, yellow]             # Traditional pride yellow
+    - [0.0, 0.8, 0.0, 0.8, green]              # Traditional pride green
+    - [0.0, 0.0, 1.0, 0.9, blue]               # Traditional pride blue
+    - [0.5, 0.0, 0.5, 1.0, purple]             # Traditional pride purple
+  dist: even
+  repeat: pulse(0.15)
+  speed: 0.5
+  ease: smooth
