@@ -4,7 +4,7 @@ use crate::pattern::patterns::{
 };
 
 /// Common parameters that apply to all pattern types
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CommonParams {
     /// Base frequency of the pattern (0.1-10.0)
     pub frequency: f64,
@@ -12,6 +12,22 @@ pub struct CommonParams {
     pub amplitude: f64,
     /// Animation speed multiplier (0.0-1.0)
     pub speed: f64,
+    /// Correct aspect ratio
+    pub correct_aspect: bool,
+    /// Aspect ratio (width/height)
+    pub aspect_ratio: f64,
+}
+
+impl Default for CommonParams {
+    fn default() -> Self {
+        Self {
+            frequency: 1.0,
+            amplitude: 1.0,
+            speed: 1.0,
+            correct_aspect: true,
+            aspect_ratio: 0.5,
+        }
+    }
 }
 
 /// Available pattern types with their specific parameters

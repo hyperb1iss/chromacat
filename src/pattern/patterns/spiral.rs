@@ -138,21 +138,11 @@ impl PatternParam for SpiralParams {
 
 impl super::Patterns {
     /// Generates a spiral pattern rotating from the center
-    pub fn spiral(&self, x: usize, y: usize, params: SpiralParams) -> f64 {
-        let center_x = self.width as f64 / 2.0;
-        let center_y = self.height as f64 / 2.0;
-        let dx = x as f64 - center_x;
-        let dy = y as f64 - center_y;
+    pub fn spiral(&self, x_norm: f64, y_norm: f64, params: SpiralParams) -> f64 {
+        // Calculate angle and distance from center
+        let angle = y_norm.atan2(x_norm);
+        let distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
 
-        // Calculate base angle and apply direction
-        let mut angle = dy.atan2(dx);
-        if !params.clockwise {
-            angle = -angle;
-        }
-
-        // Calculate normalized distance from center
-        let distance = (dx * dx + dy * dy).sqrt() / (self.width.min(self.height) as f64 / 2.0);
-        
         // Make time factor more significant
         let time_factor = self.time * params.frequency * PI * 2.0;
 

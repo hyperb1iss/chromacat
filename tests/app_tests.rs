@@ -40,6 +40,8 @@ fn test_chromacat_basic() {
         pattern_params: PatternParameters { params: vec![] },
         theme_file: None,
         pattern_help: false,
+        no_aspect_correction: false,
+        aspect_ratio: 0.5,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -73,6 +75,8 @@ fn test_chromacat_invalid_angle() {
         pattern_params,
         theme_file: None,
         pattern_help: false,
+        no_aspect_correction: false,
+        aspect_ratio: 0.5,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -136,6 +140,8 @@ fn test_chromacat_pattern_params() {
             pattern_params,
             theme_file: None,
             pattern_help: false,
+            no_aspect_correction: false,
+            aspect_ratio: 0.5,
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -170,6 +176,8 @@ fn test_chromacat_animation_settings() {
         pattern_params: PatternParameters::default(),
         theme_file: None,
         pattern_help: false,
+        no_aspect_correction: false,
+        aspect_ratio: 0.5,
     };
 
     let mut cat = ChromaCat::new(cli);

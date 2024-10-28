@@ -127,10 +127,7 @@ impl PatternParam for PerlinParams {
 
 impl super::Patterns {
     /// Generates a Perlin noise pattern with multiple octaves
-    pub fn perlin(&self, x: usize, y: usize, params: PerlinParams) -> f64 {
-        let x_norm = x as f64 / self.width as f64;
-        let y_norm = y as f64 / self.height as f64;
-
+    pub fn perlin(&self, x_norm: f64, y_norm: f64, params: PerlinParams) -> f64 {
         let mut total = 0.0;
         let mut frequency = params.scale;
         let mut amplitude = 1.0;
@@ -138,8 +135,8 @@ impl super::Patterns {
 
         for _ in 0..params.octaves {
             total += self.perlin_noise(
-                x_norm * frequency + self.time,
-                y_norm * frequency + self.time,
+                (x_norm + 0.5) * frequency + self.time,
+                (y_norm + 0.5) * frequency + self.time,
             ) * amplitude;
 
             max_value += amplitude;

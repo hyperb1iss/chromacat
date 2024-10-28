@@ -144,23 +144,20 @@ impl PatternParam for CheckerboardParams {
 
 impl super::Patterns {
     /// Generates a checkerboard pattern with rotation and blur
-    pub fn checkerboard(&self, x: usize, y: usize, params: CheckerboardParams) -> f64 {
-        let x_norm = x as f64 / self.width as f64;
-        let y_norm = y as f64 / self.height as f64;
-
-        // Center and scale coordinates
-        let x_centered = (x_norm - 0.5) * params.scale;
-        let y_centered = (y_norm - 0.5) * params.scale;
+    pub fn checkerboard(&self, x_norm: f64, y_norm: f64, params: CheckerboardParams) -> f64 {
+        // Scale coordinates
+        let x_scaled = x_norm * params.scale;
+        let y_scaled = y_norm * params.scale;
 
         // Add time-based rotation
-        let time_rotation = self.time * 45.0; // Rotate 45 degrees per time unit
+        let time_rotation = self.time * 45.0;
         let total_rotation = (params.rotation + time_rotation) * PI / 180.0;
         
         // Rotate coordinates
         let cos_rot = self.utils.fast_cos(total_rotation);
         let sin_rot = self.utils.fast_sin(total_rotation);
-        let x_rot = x_centered * cos_rot - y_centered * sin_rot;
-        let y_rot = x_centered * sin_rot + y_centered * cos_rot;
+        let x_rot = x_scaled * cos_rot - y_scaled * sin_rot;
+        let y_rot = x_scaled * sin_rot + y_scaled * cos_rot;
 
         // Add time-based scale oscillation
         let scale_oscillation = self.utils.fast_sin(self.time * PI) * 0.2 + 1.0;
@@ -188,7 +185,6 @@ impl super::Patterns {
             if (0.5 - blur_scale..=0.5 + blur_scale).contains(&y_fract) { 1.0 } else { 0.0 }
         );
 
-        // Return the expression directly
         if base_value {
             (1.0 - x_blend) * (1.0 - y_blend) + x_blend * y_blend
         } else {

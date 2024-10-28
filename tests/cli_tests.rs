@@ -302,3 +302,18 @@ fn test_mixed_param_formats() {
         "Failed to handle mixed parameter formats correctly"
     );
 }
+
+#[test]
+fn test_aspect_ratio_settings() {
+    let args = vec!["chromacat", "--no-aspect-correction", "--aspect-ratio", "0.7"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    assert!(cli.no_aspect_correction);
+    assert_eq!(cli.aspect_ratio, 0.7);
+}
+
+#[test]
+fn test_invalid_aspect_ratio() {
+    let args = vec!["chromacat", "--aspect-ratio", "2.5"]; // Too large
+    let cli = Cli::try_parse_from(args).unwrap();
+    assert!(cli.validate().is_err());
+}

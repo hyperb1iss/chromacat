@@ -149,21 +149,13 @@ impl PatternParam for DiamondParams {
 
 impl super::Patterns {
     /// Generates a diamond-shaped pattern
-    pub fn diamond(&self, x: usize, y: usize, params: DiamondParams) -> f64 {
-        let x_norm = x as f64 / self.width as f64;
-        let y_norm = y as f64 / self.height as f64;
-
-        // Center coordinates and scale to maintain aspect ratio
-        let aspect = self.width as f64 / self.height as f64;
-        let x_centered = (x_norm - 0.5) * aspect;
-        let y_centered = y_norm - 0.5;
-
+    pub fn diamond(&self, x_norm: f64, y_norm: f64, params: DiamondParams) -> f64 {
         // Rotate coordinates
         let rot_rad = params.rotation * PI / 180.0;
         let cos_rot = self.utils.fast_cos(rot_rad);
         let sin_rot = self.utils.fast_sin(rot_rad);
-        let x_rot = x_centered * cos_rot - y_centered * sin_rot;
-        let y_rot = x_centered * sin_rot + y_centered * cos_rot;
+        let x_rot = x_norm * cos_rot - y_norm * sin_rot;
+        let y_rot = x_norm * sin_rot + y_norm * cos_rot;
 
         // Calculate animation based on mode
         let time = self.time * PI * params.speed;

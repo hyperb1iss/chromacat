@@ -31,13 +31,17 @@ impl PatternEngine {
         width: usize,
         height: usize,
     ) -> Self {
+        let mut patterns = Patterns::new(width, height, 0.0, 0);
+        patterns.set_aspect_correction(config.common.correct_aspect);
+        patterns.set_char_aspect_ratio(config.common.aspect_ratio);
+
         Self {
             config,
             gradient: Arc::new(gradient),
             time: 0.0,
             width,
             height,
-            patterns: Patterns::new(width, height, 0.0, 0),
+            patterns,
         }
     }
 
@@ -62,7 +66,9 @@ impl PatternEngine {
 
     /// Calculates the pattern value at the specified coordinates
     pub fn get_value_at(&self, x: usize, y: usize) -> Result<f64> {
-        let value = self.patterns.generate(x, y, &self.config.params);
+        // Scale y position to maintain consistent pattern speed regardless of position
+        let scaled_y = y % self.height;
+        let value = self.patterns.generate(x, scaled_y, &self.config.params);
         Ok(value)
     }
 

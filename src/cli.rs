@@ -158,6 +158,22 @@ pub struct Cli {
         help = CliFormat::highlight_description("Show detailed help for pattern parameters")
     )]
     pub pattern_help: bool,
+
+    #[arg(
+        long = "no-aspect-correction",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Disable terminal character aspect ratio correction")
+    )]
+    pub no_aspect_correction: bool,
+
+    #[arg(
+        long = "aspect-ratio",
+        value_name = "RATIO",
+        default_value = "0.5",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Set terminal character aspect ratio (width/height, default: 0.5)")
+    )]
+    pub aspect_ratio: f64,
 }
 
 /// Pattern-specific parameters grouped by pattern type
@@ -276,6 +292,8 @@ impl Cli {
             frequency: self.frequency,
             amplitude: self.amplitude,
             speed: self.speed,
+            correct_aspect: !self.no_aspect_correction,
+            aspect_ratio: self.aspect_ratio,
         };
 
         // Get default parameters for the selected pattern
@@ -542,6 +560,9 @@ impl Cli {
             }
         }
 
+        // Validate aspect ratio
+        self.validate_range("aspect-ratio", self.aspect_ratio, 0.1, 2.0)?;
+
         Ok(())
     }
 
@@ -593,9 +614,9 @@ impl Cli {
                 println!("  {}  {}  {}",
                     CliFormat::param(&"Parameter".pad_to_width(20)),
                     CliFormat::param_value(&"Value Range".pad_to_width(20)),
-                    CliFormat::param(&"Description")
+                    CliFormat::param("Description")
                 );
-                println!("{}", CliFormat::separator(&"��".repeat(85)));
+                println!("{}", CliFormat::separator(&"".repeat(85)));
 
                 for param in params.sub_params() {
                     let range = match param.param_type() {

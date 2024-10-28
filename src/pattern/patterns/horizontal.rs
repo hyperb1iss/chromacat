@@ -80,13 +80,9 @@ impl PatternParam for HorizontalParams {
 
 impl super::Patterns {
     /// Generates a simple horizontal gradient pattern
-    pub fn horizontal(&self, x: usize, params: HorizontalParams) -> f64 {
-        if self.width <= 1 {
-            return 0.0;
-        }
-
+    pub fn horizontal(&self, x_pos: f64, params: HorizontalParams) -> f64 {
         // Simple continuous flow from left to right
-        let mut value = (x as f64 / (self.width - 1) as f64 + self.time * 0.5) % 1.0;
+        let mut value = (x_pos + self.time * 0.5) % 1.0;
         
         // Ensure value stays in [0, 1] range after modulo
         if value < 0.0 {

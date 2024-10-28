@@ -138,9 +138,9 @@ impl PatternParam for RippleParams {
 
 impl super::Patterns {
     /// Generates a ripple pattern emanating from a center point
-    pub fn ripple(&self, x: usize, y: usize, params: RippleParams) -> f64 {
-        let dx = x as f64 / self.width as f64 - params.center_x;
-        let dy = y as f64 / self.height as f64 - params.center_y;
+    pub fn ripple(&self, x_norm: f64, y_norm: f64, params: RippleParams) -> f64 {
+        let dx = (x_norm + 0.5) - params.center_x;
+        let dy = (y_norm + 0.5) - params.center_y;
         let distance = (dx * dx + dy * dy).sqrt();
 
         // Make time factor more significant

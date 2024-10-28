@@ -134,25 +134,29 @@ impl PatternParam for WaveParams {
 
 impl super::Patterns {
     /// Generates a wave pattern with configurable properties
-    pub fn wave(&self, x: usize, y: usize, params: WaveParams) -> f64 {
-        let x_norm = x as f64 / (self.width.max(1) - 1) as f64;
-        let y_norm = y as f64 / (self.height.max(1) - 1) as f64;
+    pub fn wave(&self, x_norm: f64, y_norm: f64, params: WaveParams) -> f64 {
+        // Make animation more pronounced
+        let time_factor = self.time * params.frequency;
         
-        // Make animation more pronounced by using time directly in the wave calculation
-        let time_factor = self.time * params.frequency * params.base_freq;
-        
-        // Primary wave with time-based phase shift
-        let wave_angle = x_norm * params.frequency * PI * 4.0 + params.phase + time_factor * PI * 2.0;
+        // Primary wave with time-based phase shift and movement
+        let wave_angle = (x_norm + 0.5) * params.frequency * PI * 2.0 + params.phase + time_factor;
         let primary_wave = self.utils.fast_sin(wave_angle) * params.amplitude;
 
-        // Secondary wave for more complex animation
-        let secondary_angle = y_norm * params.frequency * PI * 2.0 + time_factor * PI;
-        let secondary_wave = self.utils.fast_sin(secondary_angle) * params.amplitude * 0.2;
+        // Secondary wave for vertical movement
+        let secondary_angle = (y_norm + 0.5) * params.frequency * PI + time_factor * 0.7;
+        let secondary_wave = self.utils.fast_sin(secondary_angle) * params.amplitude * 0.3;
 
-        // Combine waves with time-based modulation
-        let combined = primary_wave + secondary_wave;
-        let modulation = self.utils.fast_sin(time_factor * PI) * 0.1;
+        // Add a traveling wave component
+        let travel_wave = self.utils.fast_sin((x_norm + y_norm + time_factor * 0.5) * PI * 2.0) * 0.2;
 
-        (params.offset + combined + modulation).clamp(0.0, 1.0)
+        // Add distance-based modulation
+        let dist = ((x_norm * x_norm + y_norm * y_norm).sqrt() * 4.0 + time_factor) * PI;
+        let dist_mod = self.utils.fast_sin(dist) * 0.15;
+
+        // Combine all components
+        let combined = primary_wave + secondary_wave + travel_wave + dist_mod;
+        
+        // Apply base offset
+        (params.offset + combined).clamp(0.0, 1.0)
     }
 }

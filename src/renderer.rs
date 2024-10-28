@@ -616,9 +616,6 @@ impl Renderer {
         let end = min(end, self.line_buffer.len());
         let max_width = self.color_buffer[0].len();
 
-        // Remove this line since it's not being used
-        // let total_height = self.line_buffer.len();
-
         for y in start..end {
             let line = &self.line_buffer[y];
             for (x, _) in line.graphemes(true).enumerate() {
@@ -626,9 +623,10 @@ impl Renderer {
                     break;
                 }
 
-                // Use the actual y position relative to total content height
-                // This ensures pattern continuity across the entire content
-                let pattern_value = self.engine.get_value_at(x, y)?;
+                // Calculate pattern value using viewport-relative position
+                // This ensures consistent animation speed regardless of scroll position
+                let viewport_y = y % self.term_size.1 as usize;
+                let pattern_value = self.engine.get_value_at(x, viewport_y)?;
                 let gradient_color = self.engine.gradient().at(pattern_value as f32);
 
                 self.color_buffer[y][x] = Color::Rgb {

@@ -105,21 +105,14 @@ impl PatternParam for DiagonalParams {
 
 impl super::Patterns {
     /// Generates an animated diagonal gradient pattern
-    pub fn diagonal(&self, x: usize, y: usize, params: DiagonalParams) -> f64 {
-        if self.width <= 1 || self.height <= 1 {
-            return 0.0;
-        }
-
-        let x_norm = x as f64 / (self.width - 1) as f64;
-        let y_norm = y as f64 / (self.height - 1) as f64;
-
+    pub fn diagonal(&self, x_norm: f64, y_norm: f64, params: DiagonalParams) -> f64 {
         // Convert angle to radians
         let angle = params.angle as f64 * PI / 180.0;
         let cos_angle = self.utils.fast_cos(angle);
         let sin_angle = self.utils.fast_sin(angle);
 
         // Simple diagonal flow
-        let value = (x_norm * cos_angle + y_norm * sin_angle + self.time * params.frequency) % 1.0;
+        let value = ((x_norm + 0.5) * cos_angle + (y_norm + 0.5) * sin_angle + self.time * params.frequency) % 1.0;
         
         // Ensure value stays in [0, 1] range
         if value < 0.0 {

@@ -14,6 +14,8 @@ fn test_time_consistency() {
             frequency: 1.0,
             amplitude: 1.0,
             speed: 1.0,
+            correct_aspect: true,
+            aspect_ratio: 0.5,
         },
         params: PatternParams::Plasma(PlasmaParams::default()),
     };
@@ -72,6 +74,8 @@ fn test_consistent_animation_speed() {
             frequency: 1.0,
             amplitude: 1.0,
             speed: 1.0,
+            correct_aspect: true,
+            aspect_ratio: 0.5,
         },
         params: PatternParams::Plasma(PlasmaParams::default()),
     };
@@ -143,4 +147,3 @@ fn test_consistent_animation_speed() {
         assert!(has_change, "Pattern values should change during animation");
     }
 }
-

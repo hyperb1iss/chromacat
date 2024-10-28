@@ -153,10 +153,12 @@ impl PatternParam for PlasmaParams {
 
 impl super::Patterns {
     /// Generates a plasma effect pattern
-    pub fn plasma(&self, x: usize, y: usize, params: PlasmaParams) -> f64 {
+    pub fn plasma(&self, x_norm: f64, y_norm: f64, params: PlasmaParams) -> f64 {
         let time = self.time * PI;
-        let x_norm = x as f64 / self.width as f64;
-        let y_norm = y as f64 / self.height as f64;
+
+        // Convert back to 0-1 range for plasma calculations
+        let x_pos = x_norm + 0.5;
+        let y_pos = y_norm + 0.5;
 
         let cx = 0.5 + 0.4 * self.utils.fast_sin(time * 0.4);
         let cy = 0.5 + 0.4 * self.utils.fast_cos(time * 0.43);
@@ -165,24 +167,24 @@ impl super::Patterns {
         let mut sum = 0.0;
         let mut divisor = 0.0;
 
-        let dx1 = x_norm - cx;
-        let dy1 = y_norm - cy;
+        let dx1 = x_pos - cx;
+        let dy1 = y_pos - cy;
         let dist1 = (dx1 * dx1 + dy1 * dy1).sqrt();
         sum += self.utils.fast_sin(dist1 * 8.0 * base_freq + time * 0.6) * 1.2;
         divisor += 1.2;
 
-        sum += self.utils.fast_sin(x_norm * 5.0 * base_freq + time * 0.4) * 0.8;
-        sum += self.utils.fast_sin(y_norm * 5.0 * base_freq + time * 0.47) * 0.8;
+        sum += self.utils.fast_sin(x_pos * 5.0 * base_freq + time * 0.4) * 0.8;
+        sum += self.utils.fast_sin(y_pos * 5.0 * base_freq + time * 0.47) * 0.8;
         divisor += 1.6;
 
         let angle = time * 0.2;
-        let rx = x_norm * self.utils.fast_cos(angle) - y_norm * self.utils.fast_sin(angle);
-        let ry = x_norm * self.utils.fast_sin(angle) + y_norm * self.utils.fast_cos(angle);
+        let rx = x_pos * self.utils.fast_cos(angle) - y_pos * self.utils.fast_sin(angle);
+        let ry = x_pos * self.utils.fast_sin(angle) + y_pos * self.utils.fast_cos(angle);
         sum += self.utils.fast_sin((rx + ry) * 4.0 * base_freq) * 1.0;
         divisor += 1.0;
 
-        let dx2 = x_norm - 0.5;
-        let dy2 = y_norm - 0.5;
+        let dx2 = x_pos - 0.5;
+        let dy2 = y_pos - 0.5;
         let angle2 = dy2.atan2(dx2) + time * 0.3;
         let dist2 = (dx2 * dx2 + dy2 * dy2).sqrt() * 6.0;
         sum += self.utils.fast_sin(dist2 + angle2 * 2.0) * 0.8;
@@ -195,8 +197,8 @@ impl super::Patterns {
             let cx = 0.5 + 0.3 * self.utils.fast_sin(time * speed);
             let cy = 0.5 + 0.3 * self.utils.fast_cos(time * speed + PI * 0.3);
 
-            let dx = x_norm - cx;
-            let dy = y_norm - cy;
+            let dx = x_pos - cx;
+            let dy = y_pos - cy;
             let dist = (dx * dx + dy * dy).sqrt();
 
             let freq = (3.0 + fi) * base_freq;

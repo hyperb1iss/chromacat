@@ -1,6 +1,6 @@
 use colorgrad::{Color, Gradient, GradientBuilder, LinearGradient};
 use chromacat::pattern::{
-    PatternConfig, PatternEngine, PatternParams,
+    PatternConfig, PatternEngine, PatternParams, CommonParams,
     CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
     PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
 };
@@ -14,6 +14,19 @@ fn create_test_gradient() -> Box<dyn Gradient + Send + Sync> {
         .build::<LinearGradient>()
         .unwrap();
     Box::new(gradient)
+}
+
+fn create_test_config() -> PatternConfig {
+    PatternConfig {
+        common: CommonParams {
+            frequency: 1.0,
+            amplitude: 1.0,
+            speed: 1.0,
+            correct_aspect: true,
+            aspect_ratio: 0.5,
+        },
+        params: PatternParams::Horizontal(HorizontalParams::default()),
+    }
 }
 
 #[test]
@@ -31,7 +44,8 @@ fn test_pattern_value_ranges() {
     ];
 
     for pattern in patterns {
-        let config = PatternConfig::new(pattern.clone());
+        let mut config = create_test_config();
+        config.params = pattern.clone();
         let engine = PatternEngine::new(create_test_gradient(), config, 100, 100);
 
         // Test multiple points
@@ -62,9 +76,10 @@ fn test_pattern_animation() {
 
     for pattern in animated_patterns {
         eprintln!("\nDEBUG: Testing animation for pattern: {:?}", pattern);
-        let mut config = PatternConfig::new(pattern.clone());
-        // Set speed to ensure animation occurs
-        config.common.speed = 1.0;
+        let mut config = create_test_config();
+        config.params = pattern.clone();
+        // Ensure animation speed is high enough to see changes
+        config.common.speed = 2.0;  // Increase speed
         let mut engine = PatternEngine::new(create_test_gradient(), config, 100, 100);
 
         // Test that animation updates produce different values
@@ -73,7 +88,7 @@ fn test_pattern_animation() {
         eprintln!("DEBUG: Current time: {}", engine.time());
         
         // Use a larger time delta to ensure visible change
-        engine.update(1.0);
+        engine.update(2.0);  // Increase time delta
         eprintln!("DEBUG: Updated time to: {}", engine.time());
         
         let after_update = engine.get_value_at(50, 50).unwrap();
