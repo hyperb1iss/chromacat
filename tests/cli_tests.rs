@@ -7,7 +7,7 @@ fn test_basic_cli() {
     let args = vec!["chromacat", "input.txt"];
     let cli = Cli::try_parse_from(args).unwrap();
     assert_eq!(cli.files, vec![PathBuf::from("input.txt")]);
-    assert_eq!(cli.pattern, PatternKind::Horizontal);
+    assert_eq!(cli.pattern, PatternKind::Diagonal);
     assert_eq!(cli.theme, "rainbow");
     assert!(!cli.animate);
 }

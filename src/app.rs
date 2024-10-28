@@ -154,6 +154,25 @@ impl ChromaCat {
 
     /// Processes input from files or stdin
     fn process_input(&self, renderer: &mut Renderer) -> Result<()> {
+        // Handle demo mode
+        if self.cli.demo {
+            info!("Running in demo mode");
+            let mut reader = InputReader::from_demo(self.cli.animate)?;
+            
+            if self.cli.animate {
+                // For animated demo, we'll keep generating new content
+                let mut buffer = String::new();
+                reader.read_to_string(&mut buffer)?;
+                self.run_animation(renderer, &buffer)?;
+            } else {
+                // For static demo, read all generated content
+                let mut buffer = String::new();
+                reader.read_to_string(&mut buffer)?;
+                renderer.render_static(&buffer)?;
+            }
+            return Ok(());
+        }
+
         // If no files specified, read from stdin
         if self.cli.files.is_empty() {
             info!("No input files specified, reading from stdin");
@@ -240,12 +259,12 @@ impl ChromaCat {
     fn run_animation(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
         let frame_duration = renderer.frame_duration();
         let mut last_frame = Instant::now();
-        let paused = false;
+        let mut paused = false;
+        let start_time = Instant::now();
 
         // Skip terminal setup and animation loop in test environment
         if Self::is_test() {
-            // Just render one frame for testing
-            renderer.render_frame(content, 0.016)?; // Pass delta time in seconds (roughly 60fps)
+            renderer.render_frame(content, 0.016)?;
             return Ok(());
         }
 
@@ -254,17 +273,28 @@ impl ChromaCat {
 
         // Main animation loop
         'main: loop {
+            // Add duration check
+            if self.cli.duration > 0 && start_time.elapsed() >= Duration::from_secs(self.cli.duration) {
+                break 'main;
+            }
+
             // Handle input with minimal polling delay
             if event::poll(Duration::from_millis(1))? {
                 match event::read()? {
                     Event::Key(key) => {
-                        match renderer.handle_key_event(key) {
-                            Ok(true) => continue 'main, // Continue running
-                            Ok(false) => break 'main,   // Exit requested
-                            Err(e) => {
-                                // Handle error but continue running
-                                eprintln!("Key handling error: {}", e);
-                                continue 'main;
+                        use crossterm::event::KeyCode;
+                        match key.code {
+                            KeyCode::Esc | KeyCode::Char('q') => break 'main,
+                            KeyCode::Char(' ') => paused = !paused,
+                            _ => {
+                                match renderer.handle_key_event(key) {
+                                    Ok(true) => continue 'main,
+                                    Ok(false) => break 'main,
+                                    Err(e) => {
+                                        eprintln!("Key handling error: {}", e);
+                                        continue 'main;
+                                    }
+                                }
                             }
                         }
                     }
@@ -282,19 +312,15 @@ impl ChromaCat {
 
             // Update and render frame
             if !paused && now.duration_since(last_frame) >= frame_duration {
-                // Calculate delta time in seconds
                 let delta_seconds = now.duration_since(last_frame).as_secs_f64();
 
-                // Render frame, handle potential errors
                 if let Err(e) = renderer.render_frame(content, delta_seconds) {
                     eprintln!("Render error: {}", e);
-                    // Optionally break or continue based on error severity
                     continue 'main;
                 }
 
                 last_frame = now;
             } else {
-                // Avoid busy-waiting
                 std::thread::sleep(Duration::from_millis(1));
             }
         }

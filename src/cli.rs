@@ -182,6 +182,13 @@ pub struct Cli {
         help = CliFormat::highlight_description("Set input buffer size for streaming mode (default: 8192)")
     )]
     pub buffer_size: Option<usize>,
+
+    #[arg(
+        long = "demo",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Run in demo mode with generated patterns")
+    )]
+    pub demo: bool,
 }
 
 /// Pattern-specific parameters grouped by pattern type

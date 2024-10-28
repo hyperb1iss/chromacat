@@ -75,12 +75,10 @@ impl RenderBuffer {
             for grapheme in graphemes {
                 let width = grapheme.width();
 
-                if current_width + width > max_width {
-                    if !current_line.is_empty() {
-                        self.line_buffer.push(current_line);
-                        current_line = String::new();
-                        current_width = 0;
-                    }
+                if current_width + width > max_width && !current_line.is_empty() {
+                    self.line_buffer.push(current_line);
+                    current_line = String::new();
+                    current_width = 0;
                 }
 
                 current_line.push_str(grapheme);
@@ -123,7 +121,7 @@ impl RenderBuffer {
         end: usize,
     ) -> Result<(), RendererError> {
         let end = end.min(self.line_buffer.len());
-        let max_width = self.color_buffer.get(0).map_or(0, |row| row.len());
+        let max_width = self.color_buffer.first().map_or(0, |row| row.len());
 
         for y in start..end {
             let line = &self.line_buffer[y];
@@ -153,7 +151,7 @@ impl RenderBuffer {
         &mut self,
         engine: &mut PatternEngine,
     ) -> Result<(), RendererError> {
-        let max_width = self.color_buffer.get(0).map_or(0, |row| row.len());
+        let max_width = self.color_buffer.first().map_or(0, |row| row.len());
 
         // Calculate colors for each line without advancing the pattern
         for (y, line) in self.line_buffer.iter().enumerate() {
@@ -250,7 +248,7 @@ impl RenderBuffer {
             if !is_static_mode {
                 write!(stdout, "\x1b[K")?;
             }
-            write!(stdout, "\n")?;
+            writeln!(stdout)?;
         }
 
         // Reset colors at the end

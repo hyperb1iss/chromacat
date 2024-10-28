@@ -119,7 +119,7 @@ impl<'de> Deserialize<'de> for Repeat {
     {
         struct RepeatVisitor;
 
-        impl<'de> Visitor<'de> for RepeatVisitor {
+        impl Visitor<'_> for RepeatVisitor {
             type Value = Repeat;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

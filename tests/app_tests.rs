@@ -5,6 +5,9 @@ use chromacat::ChromaCat;
 use std::env;
 use std::io::Write;
 use tempfile::NamedTempFile;
+use std::sync::Once;
+
+static INIT: Once = Once::new();
 
 // Helper function to create a temporary file with content
 fn create_test_file(content: &str) -> NamedTempFile {
@@ -14,9 +17,12 @@ fn create_test_file(content: &str) -> NamedTempFile {
 }
 
 fn setup_test_env() {
-    env::set_var("RUST_TEST", "1");
-    // Ensure we're using the default theme for tests
-    env::set_var("NO_EXTERNAL_THEMES", "1");
+    INIT.call_once(|| {
+        env::set_var("RUST_TEST", "1");
+        env::set_var("NO_EXTERNAL_THEMES", "1");
+        env::set_var("TERM", "dumb");
+        env::set_var("CI", "1");
+    });
 }
 
 #[test]
@@ -42,7 +48,8 @@ fn test_chromacat_basic() {
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
-        buffer_size: None, // Add the new field
+        buffer_size: None,
+        demo: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -78,7 +85,8 @@ fn test_chromacat_invalid_angle() {
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
-        buffer_size: None, // Add the new field
+        buffer_size: None,
+        demo: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -144,7 +152,8 @@ fn test_chromacat_pattern_params() {
             pattern_help: false,
             no_aspect_correction: false,
             aspect_ratio: 0.5,
-            buffer_size: None, // Add the new field
+            buffer_size: None,
+            demo: false,
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -181,7 +190,8 @@ fn test_chromacat_animation_settings() {
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
-        buffer_size: None, // Add the new field
+        buffer_size: None,
+        demo: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -216,6 +226,7 @@ fn test_streaming_mode() {
         no_aspect_correction: false,
         aspect_ratio: 0.5,
         buffer_size: Some(4096), // Test with custom buffer size
+        demo: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -223,4 +234,79 @@ fn test_streaming_mode() {
         Ok(_) => (),
         Err(e) => panic!("Streaming test failed with error: {:?}", e),
     }
+}
+
+#[test]
+fn test_demo_mode() {
+    setup_test_env();
+    println!("Starting demo mode test");
+
+    let start_time = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(5);
+
+    // Test static demo mode first
+    println!("Testing static demo mode");
+    let cli = Cli {
+        files: vec![],
+        pattern: PatternKind::Horizontal,
+        theme: String::from("rainbow"),
+        animate: false,
+        fps: 30,
+        duration: 0,
+        no_color: true,
+        list_available: false,
+        smooth: false,
+        frequency: 1.0,
+        amplitude: 1.0,
+        speed: 1.0,
+        pattern_params: PatternParameters::default(),
+        theme_file: None,
+        pattern_help: false,
+        no_aspect_correction: false,
+        aspect_ratio: 0.5,
+        buffer_size: None,
+        demo: true,
+    };
+
+    let mut cat = ChromaCat::new(cli);
+    println!("Running static demo mode");
+    match cat.run() {
+        Ok(_) => println!("Static demo mode completed successfully"),
+        Err(e) => panic!("Static demo mode failed with error: {:?}", e),
+    }
+
+    assert!(start_time.elapsed() < timeout, "Test took too long (exceeded 5 seconds)");
+
+    println!("Testing animated demo mode");
+    let cli = Cli {
+        files: vec![],
+        pattern: PatternKind::Horizontal,
+        theme: String::from("rainbow"),
+        animate: true,
+        fps: 30,
+        duration: 1,
+        no_color: true,
+        list_available: false,
+        smooth: false,
+        frequency: 1.0,
+        amplitude: 1.0,
+        speed: 1.0,
+        pattern_params: PatternParameters::default(),
+        theme_file: None,
+        pattern_help: false,
+        no_aspect_correction: false,
+        aspect_ratio: 0.5,
+        buffer_size: None,
+        demo: true,
+    };
+
+    let mut cat = ChromaCat::new(cli);
+    println!("Running animated demo mode");
+    match cat.run() {
+        Ok(_) => println!("Animated demo mode completed successfully"),
+        Err(e) => panic!("Animated demo mode failed with error: {:?}", e),
+    }
+
+    assert!(start_time.elapsed() < timeout, "Test took too long (exceeded 5 seconds)");
+    println!("Demo mode test completed");
 }
