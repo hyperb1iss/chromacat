@@ -39,6 +39,7 @@ fn test_chromacat_basic() {
         speed: 1.0,
         pattern_params: PatternParameters { params: vec![] },
         theme_file: None,
+        pattern_help: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -71,6 +72,7 @@ fn test_chromacat_invalid_angle() {
         speed: 1.0,
         pattern_params,
         theme_file: None,
+        pattern_help: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -89,7 +91,7 @@ fn test_chromacat_pattern_params() {
                 "complexity=3.0",
                 "scale=1.5",
                 "frequency=1.0",
-                "blend_mode=add"  // Changed from blend=add to blend_mode=add
+                "blend_mode=add", // Changed from blend=add to blend_mode=add
             ],
         ),
         (
@@ -99,7 +101,7 @@ fn test_chromacat_pattern_params() {
                 "center_y=0.5",
                 "wavelength=1.0",
                 "damping=0.5",
-                "frequency=1.0"
+                "frequency=1.0",
             ],
         ),
         (
@@ -109,7 +111,7 @@ fn test_chromacat_pattern_params() {
                 "frequency=2.0",
                 "phase=0.0",
                 "offset=0.5",
-                "base_freq=1.0"
+                "base_freq=1.0",
             ],
         ),
     ];
@@ -133,6 +135,7 @@ fn test_chromacat_pattern_params() {
             speed: 1.0,
             pattern_params,
             theme_file: None,
+            pattern_help: false,
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -166,6 +169,7 @@ fn test_chromacat_animation_settings() {
         speed: 1.0,
         pattern_params: PatternParameters::default(),
         theme_file: None,
+        pattern_help: false,
     };
 
     let mut cat = ChromaCat::new(cli);

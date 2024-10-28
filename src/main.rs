@@ -1,19 +1,24 @@
 use chromacat::cli::Cli;
 use chromacat::ChromaCat;
+use chromacat::error::Result;
 use clap::Parser;
 use std::process;
 
-fn main() {
+fn main() -> Result<()> {
     // Initialize logging
     env_logger::init();
 
     // Parse command line arguments
     let cli = Cli::parse();
 
-    // Handle --list flag
+    if cli.pattern_help {
+        Cli::print_pattern_help();
+        return Ok(());
+    }
+
     if cli.list_available {
         Cli::print_available_options();
-        process::exit(0);
+        return Ok(());
     }
 
     // Create and run ChromaCat
@@ -22,4 +27,6 @@ fn main() {
         eprintln!("Error: {}", e);
         process::exit(1);
     }
+
+    Ok(())
 }

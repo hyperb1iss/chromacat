@@ -37,7 +37,7 @@ pub struct Cli {
         name = "FILES",
         help_heading = CliFormat::HEADING_INPUT,
         value_name = "FILE",
-        help = CliFormat::general("Input files (reads from stdin if none provided)")
+        help = CliFormat::highlight_description("Input files (reads from stdin if none provided)")
     )]
     pub files: Vec<PathBuf>,
 
@@ -48,7 +48,7 @@ pub struct Cli {
         default_value = "horizontal",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "TYPE",
-        help = CliFormat::core("Select pattern type")
+        help = CliFormat::highlight_description("Select pattern type for the color gradient")
     )]
     pub pattern: PatternKind,
 
@@ -58,7 +58,7 @@ pub struct Cli {
         default_value = "rainbow",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "NAME",
-        help = CliFormat::core("Select color theme (use --list to see available)")
+        help = CliFormat::highlight_description("Select color theme (use --list to see available)")
     )]
     pub theme: String,
 
@@ -68,7 +68,7 @@ pub struct Cli {
         default_value = "1.0",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "NUM",
-        help = CliFormat::core("Base frequency (0.1-10.0)")
+        help = CliFormat::highlight_description("Base frequency (0.1-10.0)")
     )]
     pub frequency: f64,
 
@@ -78,7 +78,7 @@ pub struct Cli {
         default_value = "1.0",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "NUM",
-        help = CliFormat::core("Pattern amplitude (0.1-2.0)")
+        help = CliFormat::highlight_description("Pattern amplitude (0.1-2.0)")
     )]
     pub amplitude: f64,
 
@@ -86,7 +86,7 @@ pub struct Cli {
         short = 'a',
         long,
         help_heading = CliFormat::HEADING_ANIMATION,
-        help = CliFormat::animation("Enable animation mode")
+        help = CliFormat::highlight_description("Enable animation mode")
     )]
     pub animate: bool,
 
@@ -95,7 +95,7 @@ pub struct Cli {
         default_value = "30",
         help_heading = CliFormat::HEADING_ANIMATION,
         value_name = "NUM",
-        help = CliFormat::animation("Frames per second (1-144)")
+        help = CliFormat::highlight_description("Frames per second (1-144)")
     )]
     pub fps: u32,
 
@@ -104,7 +104,7 @@ pub struct Cli {
         default_value = "0",
         help_heading = CliFormat::HEADING_ANIMATION,
         value_name = "SECS",
-        help = CliFormat::animation("Duration in seconds (0 = infinite)")
+        help = CliFormat::highlight_description("Duration in seconds (0 = infinite)")
     )]
     pub duration: u64,
 
@@ -114,14 +114,14 @@ pub struct Cli {
         default_value = "1.0",
         help_heading = CliFormat::HEADING_ANIMATION,
         value_name = "NUM",
-        help = CliFormat::animation("Animation speed (0.0-1.0)")
+        help = CliFormat::highlight_description("Animation speed (0.0-1.0)")
     )]
     pub speed: f64,
 
     #[arg(
         long,
         help_heading = CliFormat::HEADING_ANIMATION,
-        help = CliFormat::animation("Enable smooth transitions")
+        help = CliFormat::highlight_description("Enable smooth transitions")
     )]
     pub smooth: bool,
 
@@ -129,7 +129,7 @@ pub struct Cli {
         short = 'n',
         long = "no-color",
         help_heading = CliFormat::HEADING_GENERAL,
-        help = CliFormat::general("Disable colored output")
+        help = CliFormat::highlight_description("Disable colored output")
     )]
     pub no_color: bool,
 
@@ -137,7 +137,7 @@ pub struct Cli {
         short = 'l',
         long = "list",
         help_heading = CliFormat::HEADING_GENERAL,
-        help = CliFormat::general("Show available themes and patterns")
+        help = CliFormat::highlight_description("Show available themes and patterns")
     )]
     pub list_available: bool,
 
@@ -145,12 +145,19 @@ pub struct Cli {
         long = "theme-file",
         value_name = "FILE",
         help_heading = CliFormat::HEADING_CORE,
-        help = CliFormat::core("Load custom theme from YAML file")
+        help = CliFormat::highlight_description("Load custom theme from YAML file")
     )]
     pub theme_file: Option<PathBuf>,
 
     #[command(flatten)]
     pub pattern_params: PatternParameters,
+
+    #[arg(
+        long = "pattern-help",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Show detailed help for pattern parameters")
+    )]
+    pub pattern_help: bool,
 }
 
 /// Pattern-specific parameters grouped by pattern type
@@ -160,20 +167,50 @@ pub struct PatternParameters {
     #[arg(
         long = "param",
         value_name = "KEY=VALUE",
-        help = "Pattern-specific parameter (can be used multiple times)",
+        help = CliFormat::highlight_description("Pattern-specific parameter (can be used multiple times)"),
         value_parser = parse_param_value
     )]
     pub params: Vec<String>,
 }
 
 fn parse_param_value(s: &str) -> std::result::Result<String, String> {
-    if !s.contains('=') {
-        return Err("Parameter must be in format key=value".to_string());
+    // Split by commas first to handle multiple parameters
+    let param_pairs: Vec<&str> = s.split(',').collect();
+
+    // Reject empty string
+    if s.trim().is_empty() {
+        return Err("Parameter cannot be empty".to_string());
     }
-    let parts: Vec<&str> = s.split('=').collect();
-    if parts.len() != 2 {
-        return Err("Parameter must be in format key=value".to_string());
+
+    // Validate each key=value pair
+    for pair in &param_pairs {
+        let pair = pair.trim();
+
+        // Reject empty pairs from multiple commas
+        if pair.is_empty() {
+            return Err("Empty parameter pair is not allowed".to_string());
+        }
+
+        if !pair.contains('=') {
+            return Err(format!("Parameter '{}' must be in format key=value", pair));
+        }
+
+        let parts: Vec<&str> = pair.split('=').collect();
+        if parts.len() != 2 {
+            return Err(format!("Parameter '{}' must be in format key=value", pair));
+        }
+
+        // Check for empty key or value
+        let key = parts[0].trim();
+        let value = parts[1].trim();
+        if key.is_empty() {
+            return Err("Parameter key cannot be empty".to_string());
+        }
+        if value.is_empty() {
+            return Err("Parameter value cannot be empty".to_string());
+        }
     }
+
     Ok(s.to_string())
 }
 
@@ -207,6 +244,31 @@ impl std::fmt::Display for PatternKind {
     }
 }
 
+// Add this at the module level, before any impl blocks
+trait PadToWidth {
+    fn pad_to_width(&self, width: usize) -> String;
+}
+
+impl PadToWidth for String {
+    fn pad_to_width(&self, width: usize) -> String {
+        if self.len() >= width {
+            self.clone()
+        } else {
+            format!("{:<width$}", self, width = width)
+        }
+    }
+}
+
+impl PadToWidth for &str {
+    fn pad_to_width(&self, width: usize) -> String {
+        if self.len() >= width {
+            self.to_string()
+        } else {
+            format!("{:<width$}", self, width = width)
+        }
+    }
+}
+
 impl Cli {
     /// Creates pattern configuration from CLI arguments
     pub fn create_pattern_config(&self) -> Result<PatternConfig> {
@@ -218,15 +280,19 @@ impl Cli {
 
         // Get default parameters for the selected pattern
         let default_params = self.pattern.default_params();
-        
+
         // If we have parameter overrides, validate and parse them
         if !self.pattern_params.params.is_empty() {
-            println!("DEBUG: Validating parameters: {:?}", self.pattern_params.params);
-            let params_str = self.pattern_params.params.join(",");
-            
+            // Collect all parameters into a single comma-separated string
+            let all_params: Vec<String> = self.pattern_params.params.iter()
+                .flat_map(|p| p.split(','))
+                .map(|s| s.trim().to_string())
+                .collect();
+
+            let params_str = all_params.join(",");
+
             // Validate parameters
             if let Err(e) = default_params.validate(&params_str) {
-                println!("DEBUG: Parameter validation failed: {}", e);
                 return Err(ChromaCatError::PatternError {
                     pattern: self.pattern.to_string(),
                     param: "params".to_string(),
@@ -234,11 +300,9 @@ impl Cli {
                 });
             }
 
-            println!("DEBUG: Parsing parameters: {}", params_str);
             // Parse parameters
             let parsed = default_params.parse(&params_str)
                 .map_err(|e| {
-                    println!("DEBUG: Parameter parsing failed: {}", e);
                     ChromaCatError::PatternError {
                         pattern: self.pattern.to_string(),
                         param: "params".to_string(),
@@ -331,12 +395,17 @@ impl Cli {
 
     /// Prints available themes and patterns
     pub fn print_available_options() {
-        println!("\n\x1b[1;38;5;213m✨ ChromaCat Theme Gallery ✨\x1b[0m\n");
+        // Title and introduction
+        println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Help ✨"));
+        println!("{}", CliFormat::separator(&"═".repeat(90)));
+        println!("\n{}", CliFormat::highlight_description(
+            "ChromaCat is a command-line tool that adds beautiful color gradients to text output. \
+            It supports various patterns, themes, and animated effects to make your terminal more colorful."
+        ));
 
-        // Print patterns section with their parameters
-        println!("\x1b[1;38;5;39m🎮 Patterns\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
-
+        // Patterns section
+        println!("\n{}", CliFormat::core("Available Patterns:"));
+        println!("{}", CliFormat::separator(&"─".repeat(85)));
         for pattern_kind in [
             PatternKind::Horizontal,
             PatternKind::Diagonal,
@@ -349,46 +418,37 @@ impl Cli {
             PatternKind::Perlin,
         ] {
             let params = pattern_kind.default_params();
-            println!("\n\x1b[1;38;5;75m{}\x1b[0m", params.name());
-            println!("  {}", params.description());
-            
-            // Print parameter details
-            for param in params.sub_params() {
-                let range = match param.param_type() {
-                    ParamType::Number { min, max } => format!(" ({}-{})", min, max),
-                    ParamType::Boolean => " (true/false)".to_string(),
-                    ParamType::Enum { options } => format!(" ({})", options.join("/")),
-                    _ => String::new(),
-                };
-                println!("  \x1b[38;5;147m--param {}={}\x1b[0m{}", 
-                    param.name(),
-                    param.default_value(),
-                    range
-                );
-                println!("    {}", param.description());
-            }
+            println!("  {} {}",
+                CliFormat::param(&format!("{:<12}", pattern_kind)),
+                CliFormat::description(params.description())
+            );
         }
+        println!("\n{}", CliFormat::general("Use --pattern-help for detailed pattern parameters"));
 
-        // Print theme categories
-        println!("\n\x1b[1;38;5;213m🎨 Themes\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
+        Self::print_themes();
+        Self::print_usage_examples();
+    }
 
-        for category in themes::list_categories() {  // Now iterating over Vec<String>
-            println!("\n\x1b[1;38;5;147m{}\x1b[0m", category);
+    fn print_themes() {
+        println!("\n{}", CliFormat::core("🎨 Available Themes"));
+        println!("{}", CliFormat::separator(&"─".repeat(85)));
+
+        for category in themes::list_categories() {
+            println!("\n  {}", CliFormat::param(&category));
             if let Some(theme_names) = themes::list_category(&category) {
                 for name in theme_names {
                     if let Ok(theme) = themes::get_theme(&name) {
                         let preview = Self::create_theme_preview(&theme);
                         println!(
-                            "  \x1b[1;38;5;75m{:<15}\x1b[0m {} \x1b[38;5;239m│\x1b[0m {}",
-                            name, preview, theme.desc
+                            "    {} {} {}",
+                            CliFormat::param_value(&format!("{:<15}", name)),
+                            preview,
+                            CliFormat::description(&theme.desc)
                         );
                     }
                 }
             }
         }
-
-        Self::print_usage_examples();
     }
 
     fn create_theme_preview(theme: &themes::ThemeDefinition) -> String {
@@ -409,87 +469,30 @@ impl Cli {
     }
 
     fn print_usage_examples() {
-        println!("\n\x1b[1;38;5;39m📚 Usage Examples\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
+        println!("\n{}", CliFormat::core("📚 Usage Examples"));
+        println!("{}", CliFormat::separator(&"─".repeat(85)));
 
         let examples = [
             ("Basic file colorization:", "chromacat input.txt"),
             ("Using a specific theme:", "chromacat -t ocean input.txt"),
             ("Animated output:", "chromacat -a --fps 60 input.txt"),
             ("Pipe from another command:", "ls -la | chromacat -t neon"),
-            (
-                "Pattern with custom parameters:",
-                "chromacat -p wave --height 1.5 --count 3 input.txt",
-            ),
-            ("Multiple files with animation:", "chromacat -a *.txt"),
-            (
-                "Custom diagonal gradient:",
-                "chromacat -p diagonal --angle 45 --speed 0.8 input.txt",
-            ),
-            (
-                "Interactive plasma effect:",
-                "chromacat -p plasma --complexity 3.0 --scale 1.5 -a input.txt",
-            ),
+            ("Pattern with parameters:", "chromacat -p wave --param amplitude=1.5,frequency=2.0 input.txt"),
+            ("Multiple files:", "chromacat -a *.txt"),
+            ("Custom diagonal gradient:", "chromacat -p diagonal --param angle=45,speed=0.8 input.txt"),
+            ("Interactive plasma:", "chromacat -p plasma --param complexity=3.0,scale=1.5 -a input.txt"),
         ];
 
         for (desc, cmd) in examples {
-            println!("  \x1b[38;5;75m{}\x1b[0m", desc);
-            println!(
-                "    \x1b[1;38;5;239m$\x1b[0m \x1b[38;5;222m{}\x1b[0m\n",
-                cmd
+            println!("  {} {}",
+                CliFormat::param(&format!("{:<25}", desc)),
+                CliFormat::param_value(cmd)
             );
-        }
-
-        // Print pattern-specific parameters
-        println!("\n\x1b[1;38;5;39m🔧 Pattern Parameters\x1b[0m");
-        println!("\x1b[38;5;239m{}\x1b[0m", "─".repeat(80));
-
-        let parameter_docs = [
-            (
-                "Plasma Pattern",
-                vec![
-                    ("--complexity <1.0-10.0>", "Number of plasma layers"),
-                    ("--scale <0.1-5.0>", "Pattern scale factor"),
-                ],
-            ),
-            (
-                "Wave Pattern",
-                vec![
-                    ("--height <0.1-2.0>", "Wave amplitude"),
-                    ("--count <0.1-5.0>", "Number of waves"),
-                    ("--phase <0.0-2π>", "Wave phase shift"),
-                ],
-            ),
-            (
-                "Ripple Pattern",
-                vec![
-                    ("--center-x/y <0.0-1.0>", "Ripple center position"),
-                    ("--wavelength <0.1-5.0>", "Distance between ripples"),
-                    ("--damping <0.0-1.0>", "Ripple fade-out rate"),
-                ],
-            ),
-            (
-                "Spiral Pattern",
-                vec![
-                    ("--density <0.1-5.0>", "Spiral density"),
-                    ("--expansion <0.1-2.0>", "Spiral growth rate"),
-                    ("--counterclockwise", "Reverse spiral direction"),
-                ],
-            ),
-        ];
-
-        for (pattern, params) in parameter_docs {
-            println!("\n  \x1b[1;38;5;75m{}\x1b[0m", pattern);
-            for (param, desc) in params {
-                println!("    \x1b[38;5;222m{:<25}\x1b[0m {}", param, desc);
-            }
         }
     }
 
     /// Validates the CLI arguments
     pub fn validate(&self) -> Result<()> {
-        eprintln!("DEBUG: Starting CLI validation");
-        
         // Skip validation if just listing options
         if self.list_available {
             return Ok(());
@@ -525,15 +528,11 @@ impl Cli {
 
         // Validate pattern-specific parameters
         if !self.pattern_params.params.is_empty() {
-            eprintln!("DEBUG: Validating pattern parameters: {:?}", self.pattern_params.params);
             let default_params = self.pattern.default_params();
-            eprintln!("DEBUG: Using pattern: {:?}", self.pattern);
-            
+
             // Validate each parameter individually
             for param in &self.pattern_params.params {
-                eprintln!("DEBUG: Validating parameter: {}", param);
                 if let Err(e) = default_params.validate(param) {
-                    eprintln!("DEBUG: Parameter validation failed: {}", e);
                     return Err(ChromaCatError::PatternError {
                         pattern: self.pattern.to_string(),
                         param: "params".to_string(),
@@ -543,7 +542,6 @@ impl Cli {
             }
         }
 
-        eprintln!("DEBUG: CLI validation completed successfully");
         Ok(())
     }
 
@@ -558,6 +556,70 @@ impl Cli {
             });
         }
         Ok(())
+    }
+
+    // Add a new method for pattern help
+    pub fn print_pattern_help() {
+        // Title and introduction
+        println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Pattern Reference ✨"));
+        println!("{}", CliFormat::separator(&"═".repeat(90)));
+        println!("\n{}", CliFormat::highlight_description(
+            "Each pattern supports specific parameters that can be customized using the --param flag. \
+            Multiple parameters can be specified using comma separation: --param key1=value1,key2=value2"
+        ));
+
+        for pattern_kind in [
+            PatternKind::Horizontal,
+            PatternKind::Diagonal,
+            PatternKind::Plasma,
+            PatternKind::Ripple,
+            PatternKind::Wave,
+            PatternKind::Spiral,
+            PatternKind::Checkerboard,
+            PatternKind::Diamond,
+            PatternKind::Perlin,
+        ] {
+            let params = pattern_kind.default_params();
+
+            // Pattern header
+            println!("\n{} {}",
+                CliFormat::core(&format!("▶ {}", params.name())),
+                CliFormat::description(params.description())
+            );
+
+            // Parameter table
+            if !params.sub_params().is_empty() {
+                println!("{}", CliFormat::separator(&"─".repeat(85)));
+                println!("  {}  {}  {}",
+                    CliFormat::param(&"Parameter".pad_to_width(20)),
+                    CliFormat::param_value(&"Value Range".pad_to_width(20)),
+                    CliFormat::param(&"Description")
+                );
+                println!("{}", CliFormat::separator(&"��".repeat(85)));
+
+                for param in params.sub_params() {
+                    let range = match param.param_type() {
+                        ParamType::Number { min, max } => format!("{} to {}", min, max),
+                        ParamType::Boolean => "true/false".to_string(),
+                        ParamType::Enum { options } => options.join(", "),
+                        _ => String::new(),
+                    };
+
+                    println!("  {}  {}  {}",
+                        CliFormat::param(&format!("{}=", param.name()).pad_to_width(20)),
+                        CliFormat::param_value(&range.pad_to_width(20)),
+                        CliFormat::description(param.description())
+                    );
+                }
+            }
+
+            // Example usage
+            println!("\n  {} {}",
+                CliFormat::param("Example:"),
+                CliFormat::param_value(&format!("chromacat -p {} --param frequency=1.5 input.txt", pattern_kind))
+            );
+            println!("{}", CliFormat::separator(&"─".repeat(85)));
+        }
     }
 }
 
