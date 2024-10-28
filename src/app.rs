@@ -195,6 +195,11 @@ impl ChromaCat {
             }
         } else {
             debug!("Processing stdin in streaming mode");
+            if self.cli.animate {
+                return Err(ChromaCatError::Other(
+                    "Animation mode is not supported for streaming input. Please use static mode for pipes and real-time logs.".to_string()
+                ));
+            }
             // Streaming input - use streaming processor
             self.process_streaming()?;
         }
