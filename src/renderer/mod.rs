@@ -28,6 +28,7 @@ pub use terminal::TerminalState;
 use crate::pattern::PatternEngine;
 use crossterm::event::KeyEvent;
 use std::time::Duration;
+use std::io::Write;
 
 /// Coordinates all rendering functionality for ChromaCat
 pub struct Renderer {
@@ -86,13 +87,13 @@ impl Renderer {
     /// Renders static text with pattern-based colors, advancing the pattern
     /// for each line to create a flowing effect similar to lolcat
     pub fn render_static(&mut self, text: &str) -> Result<(), RendererError> {
-        self.terminal.setup()?;
+        // Don't clear screen or enter alternate screen for static mode
         self.buffer.prepare_text(text)?;
 
         // Use static color update mode
         self.buffer.update_colors_static(&mut self.engine)?;
 
-        // Render the entire buffer at once
+        // Render the buffer directly to stdout without clearing
         let mut stdout = self.terminal.stdout();
         self.buffer.render_region(
             &mut stdout,
@@ -101,7 +102,8 @@ impl Renderer {
             self.terminal.colors_enabled(),
         )?;
 
-        self.terminal.flush()?;
+        // Flush stdout
+        stdout.flush()?;
         Ok(())
     }
 

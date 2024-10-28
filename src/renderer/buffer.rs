@@ -217,12 +217,16 @@ impl RenderBuffer {
         use crossterm::{cursor::MoveTo, queue};
 
         let end = end.min(self.line_buffer.len());
+        let is_static_mode = start == 0 && end == self.line_buffer.len();
 
         for (display_line, line_idx) in (start..end).enumerate() {
-            queue!(stdout, MoveTo(0, display_line as u16))?;
+            // Only use MoveTo in animation mode
+            if !is_static_mode {
+                queue!(stdout, MoveTo(0, display_line as u16))?;
+            }
 
             if !colors_enabled {
-                write!(stdout, "{}\r\n", self.line_buffer[line_idx])?;
+                writeln!(stdout, "{}", self.line_buffer[line_idx])?;
                 continue;
             }
 
@@ -241,7 +245,17 @@ impl RenderBuffer {
                 }
                 write!(stdout, "{}", grapheme)?;
             }
-            write!(stdout, "\x1b[K\r\n")?;
+
+            // In animation mode, clear to end of line. In static mode, just newline
+            if !is_static_mode {
+                write!(stdout, "\x1b[K")?;
+            }
+            write!(stdout, "\n")?;
+        }
+
+        // Reset colors at the end
+        if colors_enabled {
+            write!(stdout, "\x1b[0m")?;
         }
 
         Ok(())
