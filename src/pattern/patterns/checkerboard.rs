@@ -4,10 +4,10 @@ use crate::pattern::params::{PatternParam, ParamType};
 use crate::pattern::utils::PatternUtils;
 use crate::define_param;
 
-define_param!(num Checker, SizeParam, "Size of checker squares", 1.0, 10.0, 2.0);
-define_param!(num Checker, BlurParam, "Blur between squares", 0.0, 1.0, 0.1);
-define_param!(num Checker, RotationParam, "Pattern rotation angle", 0.0, 360.0, 0.0);
-define_param!(num Checker, ScaleParam, "Scale of the pattern", 0.1, 5.0, 1.0);
+define_param!(num Checker, SizeParam, "size", "Size of checker squares", 1.0, 10.0, 2.0);
+define_param!(num Checker, BlurParam, "blur", "Blur between squares", 0.0, 1.0, 0.1);
+define_param!(num Checker, RotationParam, "rotation", "Pattern rotation angle", 0.0, 360.0, 0.0);
+define_param!(num Checker, ScaleParam, "scale", "Scale of the pattern", 0.1, 5.0, 1.0);
 
 /// Parameters for configuring checkerboard pattern effects
 #[derive(Debug, Clone)]
@@ -61,14 +61,34 @@ impl PatternParam for CheckerboardParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
+        // If the value contains commas, validate each part separately
+        if value.contains(',') {
+            for part in value.split(',') {
+                self.validate(part.trim())?;
             }
+            return Ok(());
         }
-        Ok(())
+
+        // Check each parameter
+        let kv: Vec<&str> = value.split('=').collect();
+        if kv.len() != 2 {
+            return Err("Parameter must be in format key=value".to_string());
+        }
+
+        // Validate parameter name first
+        let valid_params = ["size", "blur", "rotation", "scale"];
+        if !valid_params.contains(&kv[0]) {
+            return Err(format!("Invalid parameter name: {}", kv[0]));
+        }
+
+        // Then validate the value
+        match kv[0] {
+            "size" => Self::SIZE_PARAM.validate(kv[1]),
+            "blur" => Self::BLUR_PARAM.validate(kv[1]),
+            "rotation" => Self::ROTATION_PARAM.validate(kv[1]),
+            "scale" => Self::SCALE_PARAM.validate(kv[1]),
+            _ => unreachable!(), // We already validated the parameter name
+        }
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {

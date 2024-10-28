@@ -3,10 +3,11 @@ use std::any::Any;
 use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
 
-define_param!(num Diamond, SizeParam, "Size of diamond shapes", 0.1, 5.0, 1.0);
-define_param!(num Diamond, OffsetParam, "Pattern offset", 0.0, 1.0, 0.0);
-define_param!(num Diamond, SharpnessParam, "Edge sharpness", 0.1, 5.0, 1.0);
-define_param!(num Diamond, RotationParam, "Pattern rotation", 0.0, 360.0, 0.0);
+// First define the individual parameters with proper CLI names
+define_param!(num Diamond, SizeParam, "size", "Size of diamond shapes", 0.1, 5.0, 1.0);
+define_param!(num Diamond, OffsetParam, "offset", "Pattern offset", 0.0, 1.0, 0.0);
+define_param!(num Diamond, SharpnessParam, "sharpness", "Edge sharpness", 0.1, 5.0, 1.0);
+define_param!(num Diamond, RotationParam, "rotation", "Pattern rotation", 0.0, 360.0, 0.0);
 
 /// Parameters for configuring diamond pattern effects
 #[derive(Debug, Clone)]
@@ -39,6 +40,14 @@ impl Default for DiamondParams {
     }
 }
 
+// Use the validate macro to implement validation
+define_param!(validate DiamondParams,
+    SIZE_PARAM: DiamondSizeParam,
+    OFFSET_PARAM: DiamondOffsetParam,
+    SHARPNESS_PARAM: DiamondSharpnessParam,
+    ROTATION_PARAM: DiamondRotationParam
+);
+
 impl PatternParam for DiamondParams {
     fn name(&self) -> &'static str {
         "diamond"
@@ -60,14 +69,7 @@ impl PatternParam for DiamondParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -96,7 +98,9 @@ impl PatternParam for DiamondParams {
                     Self::ROTATION_PARAM.validate(kv[1])?;
                     params.rotation = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         

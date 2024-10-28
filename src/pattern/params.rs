@@ -50,14 +50,14 @@ pub trait PatternParam: Debug + Any {
 #[macro_export]
 macro_rules! define_param {
     // For numeric parameters
-    ($(#[$meta:meta])* num $pattern:ident, $name:ident, $desc:expr, $min:expr, $max:expr, $default:expr) => {
+    ($(#[$meta:meta])* num $pattern:ident, $name:ident, $cli_name:expr, $desc:expr, $min:expr, $max:expr, $default:expr) => {
         paste::paste! {
             $(#[$meta])*
             #[derive(Debug, Clone)]
             struct [<$pattern $name>];
 
             impl $crate::pattern::params::PatternParam for [<$pattern $name>] {
-                fn name(&self) -> &'static str { stringify!($name) }
+                fn name(&self) -> &'static str { $cli_name }
                 fn description(&self) -> &'static str { $desc }
                 fn param_type(&self) -> $crate::pattern::params::ParamType { 
                     $crate::pattern::params::ParamType::Number { min: $min, max: $max } 
@@ -84,14 +84,14 @@ macro_rules! define_param {
     };
 
     // For boolean parameters
-    ($(#[$meta:meta])* bool $pattern:ident, $name:ident, $desc:expr, $default:expr) => {
+    ($(#[$meta:meta])* bool $pattern:ident, $name:ident, $cli_name:expr, $desc:expr, $default:expr) => {
         paste::paste! {
             $(#[$meta])*
             #[derive(Debug, Clone)]
             struct [<$pattern $name>];
 
             impl $crate::pattern::params::PatternParam for [<$pattern $name>] {
-                fn name(&self) -> &'static str { stringify!($name) }
+                fn name(&self) -> &'static str { $cli_name }
                 fn description(&self) -> &'static str { $desc }
                 fn param_type(&self) -> $crate::pattern::params::ParamType { 
                     $crate::pattern::params::ParamType::Boolean 
@@ -117,14 +117,14 @@ macro_rules! define_param {
     };
 
     // For enum parameters
-    ($(#[$meta:meta])* enum $pattern:ident, $name:ident, $desc:expr, $options:expr, $default:expr) => {
+    ($(#[$meta:meta])* enum $pattern:ident, $name:ident, $cli_name:expr, $desc:expr, $options:expr, $default:expr) => {
         paste::paste! {
             $(#[$meta])*
             #[derive(Debug, Clone)]
             struct [<$pattern $name>];
 
             impl $crate::pattern::params::PatternParam for [<$pattern $name>] {
-                fn name(&self) -> &'static str { stringify!($name) }
+                fn name(&self) -> &'static str { $cli_name }
                 fn description(&self) -> &'static str { $desc }
                 fn param_type(&self) -> $crate::pattern::params::ParamType { 
                     $crate::pattern::params::ParamType::Enum { options: $options } 
@@ -146,6 +146,59 @@ macro_rules! define_param {
                     Box::new(self.clone())
                 }
                 fn as_any(&self) -> &dyn std::any::Any { self }
+            }
+        }
+    };
+
+    // Backwards compatibility - if no CLI name is provided, use the parameter name
+    ($(#[$meta:meta])* num $pattern:ident, $name:ident, $desc:expr, $min:expr, $max:expr, $default:expr) => {
+        define_param!($(#[$meta])* num $pattern, $name, stringify!($name), $desc, $min, $max, $default);
+    };
+    
+    ($(#[$meta:meta])* bool $pattern:ident, $name:ident, $desc:expr, $default:expr) => {
+        define_param!($(#[$meta])* bool $pattern, $name, stringify!($name), $desc, $default);
+    };
+    
+    ($(#[$meta:meta])* enum $pattern:ident, $name:ident, $desc:expr, $options:expr, $default:expr) => {
+        define_param!($(#[$meta])* enum $pattern, $name, stringify!($name), $desc, $options, $default);
+    };
+
+    // Add a new helper macro for composite parameter validation
+    (@validate_composite $self:expr, $value:expr, $valid_params:expr, $($param:expr),*) => {{
+        // If the value contains commas, validate each part separately
+        if $value.contains(',') {
+            for part in $value.split(',') {
+                $self.validate(part.trim())?;
+            }
+            return Ok(());
+        }
+
+        // Check parameter format
+        let kv: Vec<&str> = $value.split('=').collect();
+        if kv.len() != 2 {
+            return Err("Parameter must be in format key=value".to_string());
+        }
+
+        // Validate parameter name first
+        if !$valid_params.contains(&kv[0]) {
+            return Err(format!("Invalid parameter name: {}", kv[0]));
+        }
+
+        // Then validate the value using the appropriate parameter validator
+        match kv[0] {
+            $(
+                param_name if param_name == $param.name() => $param.validate(kv[1]),
+            )*
+            _ => unreachable!(), // We already validated the parameter name
+        }
+    }};
+
+    // For composite parameter validation (doesn't implement the trait)
+    (validate $pattern:ident, $($param_const:ident: $param_type:ty),*) => {
+        impl $pattern {
+            fn validate_params(&self, value: &str) -> Result<(), String> {
+                let valid_params = [$(Self::$param_const.name()),*];
+                define_param!(@validate_composite self, value, &valid_params, $(Self::$param_const),*)
             }
         }
     };

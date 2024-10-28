@@ -3,11 +3,12 @@ use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
 use std::any::Any;
 
-define_param!(num Ripple, CenterX, "X-coordinate of the ripple center", 0.0, 1.0, 0.5);
-define_param!(num Ripple, CenterY, "Y-coordinate of the ripple center", 0.0, 1.0, 0.5);
-define_param!(num Ripple, Wavelength, "Distance between ripple waves", 0.1, 5.0, 1.0);
-define_param!(num Ripple, Damping, "How quickly ripples fade out", 0.0, 1.0, 0.5);
-define_param!(num Ripple, Frequency, "Speed of ripple animation", 0.1, 10.0, 1.0);
+// Define parameters with proper CLI names and bounds
+define_param!(num Ripple, CenterXParam, "center_x", "X-coordinate of the ripple center", 0.0, 1.0, 0.5);
+define_param!(num Ripple, CenterYParam, "center_y", "Y-coordinate of the ripple center", 0.0, 1.0, 0.5);
+define_param!(num Ripple, WavelengthParam, "wavelength", "Distance between ripple waves", 0.1, 5.0, 1.0);
+define_param!(num Ripple, DampingParam, "damping", "How quickly ripples fade out", 0.0, 1.0, 0.5);
+define_param!(num Ripple, FrequencyParam, "frequency", "Speed of ripple animation", 0.1, 10.0, 1.0);
 
 /// Parameters for configuring ripple pattern effects
 #[derive(Debug, Clone)]
@@ -25,11 +26,11 @@ pub struct RippleParams {
 }
 
 impl RippleParams {
-    const CENTER_X_PARAM: RippleCenterX = RippleCenterX;
-    const CENTER_Y_PARAM: RippleCenterY = RippleCenterY;
-    const WAVELENGTH_PARAM: RippleWavelength = RippleWavelength;
-    const DAMPING_PARAM: RippleDamping = RippleDamping;
-    const FREQUENCY_PARAM: RippleFrequency = RippleFrequency;
+    const CENTER_X_PARAM: RippleCenterXParam = RippleCenterXParam;
+    const CENTER_Y_PARAM: RippleCenterYParam = RippleCenterYParam;
+    const WAVELENGTH_PARAM: RippleWavelengthParam = RippleWavelengthParam;
+    const DAMPING_PARAM: RippleDampingParam = RippleDampingParam;
+    const FREQUENCY_PARAM: RippleFrequencyParam = RippleFrequencyParam;
 }
 
 impl Default for RippleParams {
@@ -43,6 +44,15 @@ impl Default for RippleParams {
         }
     }
 }
+
+// Use the validate macro to implement validation
+define_param!(validate RippleParams,
+    CENTER_X_PARAM: RippleCenterXParam,
+    CENTER_Y_PARAM: RippleCenterYParam,
+    WAVELENGTH_PARAM: RippleWavelengthParam,
+    DAMPING_PARAM: RippleDampingParam,
+    FREQUENCY_PARAM: RippleFrequencyParam
+);
 
 impl PatternParam for RippleParams {
     fn name(&self) -> &'static str {
@@ -65,14 +75,7 @@ impl PatternParam for RippleParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -105,7 +108,9 @@ impl PatternParam for RippleParams {
                     Self::FREQUENCY_PARAM.validate(kv[1])?;
                     params.frequency = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         
@@ -138,12 +143,27 @@ impl super::Patterns {
         let dy = y as f64 / self.height as f64 - params.center_y;
         let distance = (dx * dx + dy * dy).sqrt();
 
-        let time = self.time * PI * 2.0;
-        let value = self
-            .utils
-            .fast_sin(distance / params.wavelength * PI * 10.0 * params.frequency + time);
-        let amplitude = (-distance * params.damping * 5.0).exp();
+        // Make time factor more significant
+        let time_factor = self.time * params.frequency * PI * 2.0;
 
-        (value * amplitude + 1.0) / 2.0
+        // Primary ripple wave with time-based phase
+        let ripple_angle = distance / params.wavelength * PI * 10.0 + time_factor;
+        let value = self.utils.fast_sin(ripple_angle);
+
+        // Apply distance-based damping with minimum amplitude to ensure animation at center
+        let amplitude = (-distance * params.damping * 5.0).exp().max(0.2);
+
+        // Add time-based modulation components
+        let base_modulation = self.utils.fast_sin(time_factor * 0.5) * 0.3;
+        let distance_modulation = self.utils.fast_sin(time_factor + distance * PI * 4.0) * 0.2;
+        let phase_modulation = self.utils.fast_sin(time_factor * 0.7 + 
+            (dx.atan2(dy) + time_factor * 0.1) * 2.0) * 0.2;
+        
+        let modulation = base_modulation + distance_modulation + phase_modulation;
+
+        // Combine all components with stronger modulation
+        let combined = value * amplitude + modulation;
+        let result = (combined + 1.0) * 0.5;
+        result.clamp(0.0, 1.0)
     }
 }

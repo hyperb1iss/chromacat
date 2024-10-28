@@ -80,22 +80,37 @@ fn test_all_patterns_bounds() {
 #[test]
 fn test_pattern_animation() {
     let test = PatternTest::new();
-    let patterns = vec![
+    let animated_patterns = vec![
         PatternParams::Wave(WaveParams::default()),
         PatternParams::Ripple(RippleParams::default()),
         PatternParams::Spiral(SpiralParams::default()),
         PatternParams::Plasma(PlasmaParams::default()),
     ];
 
-    for params in patterns {
-        let mut engine = test.create_engine(params.clone());
+    for pattern in animated_patterns {
+        eprintln!("\nDEBUG: Testing animation for pattern: {:?}", pattern);
+        let mut config = PatternConfig::new(pattern.clone());
+        // Set speed to ensure animation occurs
+        config.common.speed = 1.0;
+        let mut engine = PatternEngine::new(create_test_gradient(), config, test.width, test.height);
+
+        // Get initial value
         let initial = engine.get_value_at(50, 50).unwrap();
-        engine.update(0.5);
-        let updated = engine.get_value_at(50, 50).unwrap();
+        eprintln!("DEBUG: Initial value: {}", initial);
+        eprintln!("DEBUG: Current time: {}", engine.time());
+
+        // Update animation time
+        engine.update(1.0);
+        eprintln!("DEBUG: Updated time to: {}", engine.time());
+
+        // Get value after animation
+        let animated = engine.get_value_at(50, 50).unwrap();
+        eprintln!("DEBUG: Animated value: {}", animated);
+
         assert_ne!(
-            initial, updated,
+            initial, animated,
             "Pattern {:?} should produce different values after animation",
-            params
+            pattern
         );
     }
 }

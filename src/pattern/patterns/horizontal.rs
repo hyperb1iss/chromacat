@@ -2,7 +2,8 @@ use std::any::Any;
 use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
 
-define_param!(bool Horizontal, InvertParam, "Invert gradient direction", false);
+// Define the parameter with proper CLI name
+define_param!(bool Horizontal, InvertParam, "invert", "Invert gradient direction", false);
 
 /// Parameters for configuring horizontal gradient pattern
 #[derive(Debug, Clone)]
@@ -23,6 +24,11 @@ impl Default for HorizontalParams {
     }
 }
 
+// Use the validate macro to implement validation
+define_param!(validate HorizontalParams,
+    INVERT_PARAM: HorizontalInvertParam
+);
+
 impl PatternParam for HorizontalParams {
     fn name(&self) -> &'static str {
         "horizontal"
@@ -41,14 +47,7 @@ impl PatternParam for HorizontalParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -65,7 +64,9 @@ impl PatternParam for HorizontalParams {
                     Self::INVERT_PARAM.validate(kv[1])?;
                     params.invert = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         

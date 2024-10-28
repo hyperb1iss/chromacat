@@ -3,10 +3,11 @@ use crate::pattern::params::{PatternParam, ParamType};
 use crate::pattern::utils::PatternUtils;
 use crate::define_param;
 
-define_param!(num Perlin, OctavesParam, "Number of noise layers", 1.0, 8.0, 4.0);
-define_param!(num Perlin, PersistenceParam, "How quickly amplitudes diminish", 0.0, 1.0, 0.5);
-define_param!(num Perlin, ScaleParam, "Scale of the noise", 0.1, 5.0, 1.0);
-define_param!(num Perlin, SeedParam, "Random seed", 0.0, 4294967295.0, 0.0);
+// Define parameters with proper CLI names and bounds
+define_param!(num Perlin, OctavesParam, "octaves", "Number of noise layers", 1.0, 8.0, 4.0);
+define_param!(num Perlin, PersistenceParam, "persistence", "How quickly amplitudes diminish", 0.0, 1.0, 0.5);
+define_param!(num Perlin, ScaleParam, "scale", "Scale of the noise", 0.1, 5.0, 1.0);
+define_param!(num Perlin, SeedParam, "seed", "Random seed", 0.0, 4294967295.0, 0.0);
 
 /// Parameters for configuring Perlin noise pattern effects
 #[derive(Debug, Clone)]
@@ -39,6 +40,14 @@ impl Default for PerlinParams {
     }
 }
 
+// Use the validate macro to implement validation
+define_param!(validate PerlinParams,
+    OCTAVES_PARAM: PerlinOctavesParam,
+    PERSISTENCE_PARAM: PerlinPersistenceParam,
+    SCALE_PARAM: PerlinScaleParam,
+    SEED_PARAM: PerlinSeedParam
+);
+
 impl PatternParam for PerlinParams {
     fn name(&self) -> &'static str {
         "perlin"
@@ -60,14 +69,7 @@ impl PatternParam for PerlinParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -96,7 +98,9 @@ impl PatternParam for PerlinParams {
                     Self::SEED_PARAM.validate(kv[1])?;
                     params.seed = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         

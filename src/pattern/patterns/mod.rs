@@ -51,7 +51,7 @@ impl Patterns {
             PatternParams::Diagonal(p) => self.diagonal(x, y, p.clone()),
             PatternParams::Plasma(p) => self.plasma(x, y, p.clone()),
             PatternParams::Ripple(p) => self.ripple(x, y, p.clone()),
-            PatternParams::Wave(p) => self.wave(x, p.clone()),
+            PatternParams::Wave(p) => self.wave(x, y, p.clone()),
             PatternParams::Spiral(p) => self.spiral(x, y, p.clone()),
             PatternParams::Checkerboard(p) => self.checkerboard(x, y, p.clone()),
             PatternParams::Diamond(p) => self.diamond(x, y, p.clone()),

@@ -3,11 +3,12 @@ use std::any::Any;
 use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
 
-define_param!(num Spiral, DensityParam, "How tightly wound the spiral is", 0.1, 5.0, 1.0);
-define_param!(num Spiral, RotationParam, "Base rotation angle in degrees", 0.0, 360.0, 0.0);
-define_param!(num Spiral, ExpansionParam, "How quickly spiral expands", 0.1, 2.0, 1.0);
-define_param!(bool Spiral, ClockwiseParam, "Direction of spiral rotation", true);
-define_param!(num Spiral, FrequencyParam, "Animation speed", 0.1, 10.0, 1.0);
+// Define parameters with proper CLI names and bounds
+define_param!(num Spiral, DensityParam, "density", "How tightly wound the spiral is", 0.1, 5.0, 1.0);
+define_param!(num Spiral, RotationParam, "rotation", "Base rotation angle in degrees", 0.0, 360.0, 0.0);
+define_param!(num Spiral, ExpansionParam, "expansion", "How quickly spiral expands", 0.1, 2.0, 1.0);
+define_param!(bool Spiral, ClockwiseParam, "clockwise", "Direction of spiral rotation", true);
+define_param!(num Spiral, FrequencyParam, "frequency", "Animation speed", 0.1, 10.0, 1.0);
 
 /// Parameters for configuring spiral pattern effects
 #[derive(Debug, Clone)]
@@ -44,6 +45,15 @@ impl Default for SpiralParams {
     }
 }
 
+// Use the validate macro to implement validation
+define_param!(validate SpiralParams,
+    DENSITY_PARAM: SpiralDensityParam,
+    ROTATION_PARAM: SpiralRotationParam,
+    EXPANSION_PARAM: SpiralExpansionParam,
+    CLOCKWISE_PARAM: SpiralClockwiseParam,
+    FREQUENCY_PARAM: SpiralFrequencyParam
+);
+
 impl PatternParam for SpiralParams {
     fn name(&self) -> &'static str {
         "spiral"
@@ -65,14 +75,7 @@ impl PatternParam for SpiralParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -105,7 +108,9 @@ impl PatternParam for SpiralParams {
                     Self::FREQUENCY_PARAM.validate(kv[1])?;
                     params.frequency = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         
@@ -139,17 +144,35 @@ impl super::Patterns {
         let dx = x as f64 - center_x;
         let dy = y as f64 - center_y;
 
+        // Calculate base angle and apply direction
         let mut angle = dy.atan2(dx);
         if !params.clockwise {
             angle = -angle;
         }
 
+        // Calculate normalized distance from center
         let distance = (dx * dx + dy * dy).sqrt() / (self.width.min(self.height) as f64 / 2.0);
-        let rot_rad = params.rotation * PI / 180.0;
-        let time = self.time * PI * 2.0;
+        
+        // Make time factor more significant
+        let time_factor = self.time * params.frequency * PI * 2.0;
 
-        ((angle + distance * params.density * params.expansion + rot_rad + time * params.frequency)
-            % (PI * 2.0))
-            / (PI * 2.0)
+        // Base rotation with time-based animation
+        let rot_rad = (params.rotation + time_factor * 20.0) * PI / 180.0;
+        
+        // Primary spiral component
+        let spiral_angle = angle + distance * params.density * params.expansion + rot_rad;
+        let primary = ((spiral_angle + time_factor) % (PI * 2.0)) / (PI * 2.0);
+
+        // Add distance-based modulation
+        let distance_mod = self.utils.fast_sin(distance * PI * 2.0 + time_factor) * 0.2;
+
+        // Add time-based phase modulation
+        let phase_mod = self.utils.fast_sin(time_factor * 0.7 + angle * 2.0) * 0.15;
+
+        // Combine all components with smooth transitions
+        let combined = primary + distance_mod + phase_mod;
+        let smoothed = (self.utils.fast_sin(combined * PI * 2.0) + 1.0) * 0.5;
+
+        smoothed.clamp(0.0, 1.0)
     }
 }

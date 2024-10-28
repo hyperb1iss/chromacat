@@ -20,10 +20,10 @@ impl Default for PlasmaBlendMode {
     }
 }
 
-define_param!(num Plasma, ComplexityParam, "Number of sine wave components", 1.0, 10.0, 3.0);
-define_param!(num Plasma, ScaleParam, "Scale of the effect", 0.1, 5.0, 1.0);
-define_param!(num Plasma, FrequencyParam, "Animation speed", 0.1, 10.0, 1.0);
-define_param!(enum Plasma, BlendModeParam, "Color blending mode", &["add", "multiply", "max"], "add");
+define_param!(num Plasma, ComplexityParam, "complexity", "Number of sine wave components", 1.0, 10.0, 3.0);
+define_param!(num Plasma, ScaleParam, "scale", "Scale of the effect", 0.1, 5.0, 1.0);
+define_param!(num Plasma, FrequencyParam, "frequency", "Animation speed", 0.1, 10.0, 1.0);
+define_param!(enum Plasma, BlendModeParam, "blend_mode", "Color blending mode", &["add", "multiply", "max"], "add");
 
 /// Parameters for configuring plasma pattern effects
 #[derive(Debug, Clone)]
@@ -56,6 +56,14 @@ impl Default for PlasmaParams {
     }
 }
 
+// Use the validate macro to implement validation
+define_param!(validate PlasmaParams,
+    COMPLEXITY_PARAM: PlasmaComplexityParam,
+    SCALE_PARAM: PlasmaScaleParam,
+    FREQUENCY_PARAM: PlasmaFrequencyParam,
+    BLEND_MODE_PARAM: PlasmaBlendModeParam
+);
+
 impl PatternParam for PlasmaParams {
     fn name(&self) -> &'static str {
         "plasma"
@@ -71,7 +79,7 @@ impl PatternParam for PlasmaParams {
 
     fn default_value(&self) -> String {
         format!(
-            "complexity={},scale={},frequency={},blend={}",
+            "complexity={},scale={},frequency={},blend_mode={}",
             self.complexity,
             self.scale,
             self.frequency,
@@ -84,14 +92,7 @@ impl PatternParam for PlasmaParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -116,7 +117,7 @@ impl PatternParam for PlasmaParams {
                     Self::FREQUENCY_PARAM.validate(kv[1])?;
                     params.frequency = kv[1].parse().unwrap();
                 }
-                "blend" => {
+                "blend_mode" => {
                     Self::BLEND_MODE_PARAM.validate(kv[1])?;
                     params.blend_mode = match kv[1] {
                         "add" => PlasmaBlendMode::Additive,
@@ -125,7 +126,9 @@ impl PatternParam for PlasmaParams {
                         _ => return Err("Invalid blend mode".to_string()),
                     };
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         

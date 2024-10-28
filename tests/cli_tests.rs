@@ -118,22 +118,35 @@ fn test_animation_defaults() {
 
 #[test]
 fn test_pattern_validation() {
-    // Test valid parameter ranges
+    // Test valid parameters
     let args = vec![
         "chromacat",
         "-p", "wave",
         "--param", "amplitude=1.0",
-        "--param", "frequency=2.0",
+        "--param", "frequency=2.0"
     ];
+    eprintln!("DEBUG: Testing valid parameters: {:?}", args);
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.validate().is_ok());
 
-    // Test invalid parameter ranges
+    // Test invalid parameter value
     let args = vec![
         "chromacat",
         "-p", "wave",
-        "--param", "amplitude=20.0", // Too high
+        "--param", "amplitude=20.0"  // Invalid value
     ];
+    eprintln!("DEBUG: Testing invalid parameter value: {:?}", args);
+    let cli = Cli::try_parse_from(args).unwrap();
+    eprintln!("DEBUG: Validating CLI...");
+    assert!(cli.validate().is_err());
+
+    // Test invalid parameter name
+    let args = vec![
+        "chromacat",
+        "-p", "wave",
+        "--param", "invalid_param=1.0"
+    ];
+    eprintln!("DEBUG: Testing invalid parameter name: {:?}", args);
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.validate().is_err());
 }

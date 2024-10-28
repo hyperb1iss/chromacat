@@ -191,6 +191,22 @@ pub enum PatternKind {
     Perlin,
 }
 
+impl std::fmt::Display for PatternKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Horizontal => write!(f, "horizontal"),
+            Self::Diagonal => write!(f, "diagonal"),
+            Self::Plasma => write!(f, "plasma"),
+            Self::Ripple => write!(f, "ripple"),
+            Self::Wave => write!(f, "wave"),
+            Self::Spiral => write!(f, "spiral"),
+            Self::Checkerboard => write!(f, "checkerboard"),
+            Self::Diamond => write!(f, "diamond"),
+            Self::Perlin => write!(f, "perlin"),
+        }
+    }
+}
+
 impl Cli {
     /// Creates pattern configuration from CLI arguments
     pub fn create_pattern_config(&self) -> Result<PatternConfig> {
@@ -203,65 +219,96 @@ impl Cli {
         // Get default parameters for the selected pattern
         let default_params = self.pattern.default_params();
         
-        // Validate and parse any provided parameter values
-        let params_str = self.pattern_params.params.join(",");
-        if !params_str.is_empty() {
-            default_params.validate(&params_str)?;
+        // If we have parameter overrides, validate and parse them
+        if !self.pattern_params.params.is_empty() {
+            println!("DEBUG: Validating parameters: {:?}", self.pattern_params.params);
+            let params_str = self.pattern_params.params.join(",");
+            
+            // Validate parameters
+            if let Err(e) = default_params.validate(&params_str) {
+                println!("DEBUG: Parameter validation failed: {}", e);
+                return Err(ChromaCatError::PatternError {
+                    pattern: self.pattern.to_string(),
+                    param: "params".to_string(),
+                    message: e,
+                });
+            }
+
+            println!("DEBUG: Parsing parameters: {}", params_str);
+            // Parse parameters
+            let parsed = default_params.parse(&params_str)
+                .map_err(|e| {
+                    println!("DEBUG: Parameter parsing failed: {}", e);
+                    ChromaCatError::PatternError {
+                        pattern: self.pattern.to_string(),
+                        param: "params".to_string(),
+                        message: e,
+                    }
+                })?;
+
+            // Convert to PatternParams using pattern-specific conversion
+            let params = match self.pattern {
+                PatternKind::Horizontal => {
+                    let p = parsed.as_any().downcast_ref::<HorizontalParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse horizontal parameters".to_string()))?;
+                    PatternParams::Horizontal(p.clone())
+                },
+                PatternKind::Diagonal => {
+                    let p = parsed.as_any().downcast_ref::<DiagonalParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse diagonal parameters".to_string()))?;
+                    PatternParams::Diagonal(p.clone())
+                },
+                PatternKind::Plasma => {
+                    let p = parsed.as_any().downcast_ref::<PlasmaParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse plasma parameters".to_string()))?;
+                    PatternParams::Plasma(p.clone())
+                },
+                PatternKind::Ripple => {
+                    let p = parsed.as_any().downcast_ref::<RippleParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse ripple parameters".to_string()))?;
+                    PatternParams::Ripple(p.clone())
+                },
+                PatternKind::Wave => {
+                    let p = parsed.as_any().downcast_ref::<WaveParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse wave parameters".to_string()))?;
+                    PatternParams::Wave(p.clone())
+                },
+                PatternKind::Spiral => {
+                    let p = parsed.as_any().downcast_ref::<SpiralParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse spiral parameters".to_string()))?;
+                    PatternParams::Spiral(p.clone())
+                },
+                PatternKind::Checkerboard => {
+                    let p = parsed.as_any().downcast_ref::<CheckerboardParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse checkerboard parameters".to_string()))?;
+                    PatternParams::Checkerboard(p.clone())
+                },
+                PatternKind::Diamond => {
+                    let p = parsed.as_any().downcast_ref::<DiamondParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse diamond parameters".to_string()))?;
+                    PatternParams::Diamond(p.clone())
+                },
+                PatternKind::Perlin => {
+                    let p = parsed.as_any().downcast_ref::<PerlinParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse perlin parameters".to_string()))?;
+                    PatternParams::Perlin(p.clone())
+                },
+            };
+
+            return Ok(PatternConfig { common, params });
         }
 
-        let pattern_params = if !params_str.is_empty() {
-            default_params.parse(&params_str)?
-        } else {
-            default_params
-        };
-
-        // Convert to the correct PatternParams variant
+        // If no parameters provided, use defaults
         let params = match self.pattern {
-            PatternKind::Horizontal => PatternParams::Horizontal(
-                pattern_params.as_any().downcast_ref::<HorizontalParams>()
-                    .expect("Failed to downcast horizontal parameters")
-                    .clone()
-            ),
-            PatternKind::Diagonal => PatternParams::Diagonal(
-                pattern_params.as_any().downcast_ref::<DiagonalParams>()
-                    .expect("Failed to downcast diagonal parameters")
-                    .clone()
-            ),
-            PatternKind::Plasma => PatternParams::Plasma(
-                pattern_params.as_any().downcast_ref::<PlasmaParams>()
-                    .expect("Failed to downcast plasma parameters")
-                    .clone()
-            ),
-            PatternKind::Ripple => PatternParams::Ripple(
-                pattern_params.as_any().downcast_ref::<RippleParams>()
-                    .expect("Failed to downcast ripple parameters")
-                    .clone()
-            ),
-            PatternKind::Wave => PatternParams::Wave(
-                pattern_params.as_any().downcast_ref::<WaveParams>()
-                    .expect("Failed to downcast wave parameters")
-                    .clone()
-            ),
-            PatternKind::Spiral => PatternParams::Spiral(
-                pattern_params.as_any().downcast_ref::<SpiralParams>()
-                    .expect("Failed to downcast spiral parameters")
-                    .clone()
-            ),
-            PatternKind::Checkerboard => PatternParams::Checkerboard(
-                pattern_params.as_any().downcast_ref::<CheckerboardParams>()
-                    .expect("Failed to downcast checkerboard parameters")
-                    .clone()
-            ),
-            PatternKind::Diamond => PatternParams::Diamond(
-                pattern_params.as_any().downcast_ref::<DiamondParams>()
-                    .expect("Failed to downcast diamond parameters")
-                    .clone()
-            ),
-            PatternKind::Perlin => PatternParams::Perlin(
-                pattern_params.as_any().downcast_ref::<PerlinParams>()
-                    .expect("Failed to downcast perlin parameters")
-                    .clone()
-            ),
+            PatternKind::Horizontal => PatternParams::Horizontal(HorizontalParams::default()),
+            PatternKind::Diagonal => PatternParams::Diagonal(DiagonalParams::default()),
+            PatternKind::Plasma => PatternParams::Plasma(PlasmaParams::default()),
+            PatternKind::Ripple => PatternParams::Ripple(RippleParams::default()),
+            PatternKind::Wave => PatternParams::Wave(WaveParams::default()),
+            PatternKind::Spiral => PatternParams::Spiral(SpiralParams::default()),
+            PatternKind::Checkerboard => PatternParams::Checkerboard(CheckerboardParams::default()),
+            PatternKind::Diamond => PatternParams::Diamond(DiamondParams::default()),
+            PatternKind::Perlin => PatternParams::Perlin(PerlinParams::default()),
         };
 
         Ok(PatternConfig { common, params })
@@ -441,6 +488,8 @@ impl Cli {
 
     /// Validates the CLI arguments
     pub fn validate(&self) -> Result<()> {
+        eprintln!("DEBUG: Starting CLI validation");
+        
         // Skip validation if just listing options
         if self.list_available {
             return Ok(());
@@ -474,6 +523,27 @@ impl Cli {
         self.validate_range("amplitude", self.amplitude, 0.1, 2.0)?;
         self.validate_range("speed", self.speed, 0.0, 1.0)?;
 
+        // Validate pattern-specific parameters
+        if !self.pattern_params.params.is_empty() {
+            eprintln!("DEBUG: Validating pattern parameters: {:?}", self.pattern_params.params);
+            let default_params = self.pattern.default_params();
+            eprintln!("DEBUG: Using pattern: {:?}", self.pattern);
+            
+            // Validate each parameter individually
+            for param in &self.pattern_params.params {
+                eprintln!("DEBUG: Validating parameter: {}", param);
+                if let Err(e) = default_params.validate(param) {
+                    eprintln!("DEBUG: Parameter validation failed: {}", e);
+                    return Err(ChromaCatError::PatternError {
+                        pattern: self.pattern.to_string(),
+                        param: "params".to_string(),
+                        message: e,
+                    });
+                }
+            }
+        }
+
+        eprintln!("DEBUG: CLI validation completed successfully");
         Ok(())
     }
 

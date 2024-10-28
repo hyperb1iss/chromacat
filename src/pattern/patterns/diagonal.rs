@@ -3,8 +3,9 @@ use std::any::Any;
 use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
 
-define_param!(num Diagonal, AngleParam, "Angle of the diagonal pattern", 0.0, 360.0, 45.0);
-define_param!(num Diagonal, FrequencyParam, "Animation speed", 0.1, 10.0, 1.0);
+// First define the individual parameters
+define_param!(num Diagonal, AngleParam, "angle", "Angle of the diagonal pattern", 0.0, 360.0, 45.0);
+define_param!(num Diagonal, FrequencyParam, "frequency", "Animation speed", 0.1, 10.0, 1.0);
 
 /// Parameters for configuring diagonal pattern effects
 #[derive(Debug, Clone)]
@@ -29,6 +30,12 @@ impl Default for DiagonalParams {
     }
 }
 
+// Use the validate macro to implement validation
+define_param!(validate DiagonalParams,
+    ANGLE_PARAM: DiagonalAngleParam,
+    FREQUENCY_PARAM: DiagonalFrequencyParam
+);
+
 impl PatternParam for DiagonalParams {
     fn name(&self) -> &'static str {
         "diagonal"
@@ -50,14 +57,7 @@ impl PatternParam for DiagonalParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -78,7 +78,9 @@ impl PatternParam for DiagonalParams {
                     Self::FREQUENCY_PARAM.validate(kv[1])?;
                     params.frequency = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         

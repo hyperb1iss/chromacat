@@ -61,13 +61,23 @@ fn test_pattern_animation() {
     ];
 
     for pattern in animated_patterns {
-        let config = PatternConfig::new(pattern.clone());
+        eprintln!("\nDEBUG: Testing animation for pattern: {:?}", pattern);
+        let mut config = PatternConfig::new(pattern.clone());
+        // Set speed to ensure animation occurs
+        config.common.speed = 1.0;
         let mut engine = PatternEngine::new(create_test_gradient(), config, 100, 100);
 
         // Test that animation updates produce different values
         let initial = engine.get_value_at(50, 50).unwrap();
-        engine.update(0.5);
+        eprintln!("DEBUG: Initial value at (50,50): {}", initial);
+        eprintln!("DEBUG: Current time: {}", engine.time());
+        
+        // Use a larger time delta to ensure visible change
+        engine.update(1.0);
+        eprintln!("DEBUG: Updated time to: {}", engine.time());
+        
         let after_update = engine.get_value_at(50, 50).unwrap();
+        eprintln!("DEBUG: Value after update at (50,50): {}", after_update);
 
         assert_ne!(
             initial, after_update,

@@ -3,11 +3,13 @@ use std::any::Any;
 use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
 
-define_param!(num Wave, AmplitudeParam, "Wave height", 0.1, 2.0, 1.0);
-define_param!(num Wave, FrequencyParam, "Number of waves", 0.1, 5.0, 1.0);
-define_param!(num Wave, PhaseParam, "Phase shift", 0.0, 6.28318530718, 0.0);
-define_param!(num Wave, OffsetParam, "Vertical offset", 0.0, 1.0, 0.5);
-define_param!(num Wave, BaseFreqParam, "Animation speed multiplier", 0.1, 10.0, 1.0);
+define_param!(num Wave, AmplitudeParam, "amplitude", "Wave height", 0.1, 2.0, 1.0);
+define_param!(num Wave, FrequencyParam, "frequency", "Number of waves", 0.1, 5.0, 1.0);
+define_param!(num Wave, PhaseParam, "phase", "Phase shift", 0.0, 6.28318530718, 0.0);
+define_param!(num Wave, OffsetParam, "offset", "Vertical offset", 0.0, 1.0, 0.5);
+define_param!(num Wave, BaseFreqParam, "base_freq", "Animation speed multiplier", 0.1, 10.0, 1.0);
+
+// ... struct definition and impl blocks ...
 
 #[derive(Debug, Clone)]
 pub struct WaveParams {
@@ -16,14 +18,6 @@ pub struct WaveParams {
     pub phase: f64,
     pub offset: f64,
     pub base_freq: f64,
-}
-
-impl WaveParams {
-    const AMPLITUDE_PARAM: WaveAmplitudeParam = WaveAmplitudeParam;
-    const FREQUENCY_PARAM: WaveFrequencyParam = WaveFrequencyParam;
-    const PHASE_PARAM: WavePhaseParam = WavePhaseParam;
-    const OFFSET_PARAM: WaveOffsetParam = WaveOffsetParam;
-    const BASE_FREQ_PARAM: WaveBaseFreqParam = WaveBaseFreqParam;
 }
 
 impl Default for WaveParams {
@@ -37,6 +31,23 @@ impl Default for WaveParams {
         }
     }
 }
+
+impl WaveParams {
+    const AMPLITUDE_PARAM: WaveAmplitudeParam = WaveAmplitudeParam;
+    const FREQUENCY_PARAM: WaveFrequencyParam = WaveFrequencyParam;
+    const PHASE_PARAM: WavePhaseParam = WavePhaseParam;
+    const OFFSET_PARAM: WaveOffsetParam = WaveOffsetParam;
+    const BASE_FREQ_PARAM: WaveBaseFreqParam = WaveBaseFreqParam;
+}
+
+// Use the validate macro to implement validation
+define_param!(validate WaveParams,
+    AMPLITUDE_PARAM: WaveAmplitudeParam,
+    FREQUENCY_PARAM: WaveFrequencyParam,
+    PHASE_PARAM: WavePhaseParam,
+    OFFSET_PARAM: WaveOffsetParam,
+    BASE_FREQ_PARAM: WaveBaseFreqParam
+);
 
 impl PatternParam for WaveParams {
     fn name(&self) -> &'static str {
@@ -59,14 +70,7 @@ impl PatternParam for WaveParams {
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
-        for param in self.sub_params() {
-            if let Some(param_value) = value.split(',')
-                .find(|part| part.starts_with(&format!("{}=", param.name())))
-            {
-                param.validate(param_value.split('=').nth(1).unwrap_or(""))?;
-            }
-        }
-        Ok(())
+        self.validate_params(value)
     }
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
@@ -99,7 +103,9 @@ impl PatternParam for WaveParams {
                     Self::BASE_FREQ_PARAM.validate(kv[1])?;
                     params.base_freq = kv[1].parse().unwrap();
                 }
-                _ => {}
+                invalid_param => {
+                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                }
             }
         }
         
@@ -127,12 +133,25 @@ impl PatternParam for WaveParams {
 
 impl super::Patterns {
     /// Generates a wave pattern with configurable properties
-    pub fn wave(&self, x: usize, params: WaveParams) -> f64 {
+    pub fn wave(&self, x: usize, y: usize, params: WaveParams) -> f64 {
         let x_norm = x as f64 / (self.width.max(1) - 1) as f64;
-        let wave_angle = x_norm * params.frequency * params.base_freq * PI * 4.0 
-            + params.phase + self.time * 2.0 * PI;
-        let wave = self.utils.fast_sin(wave_angle) * params.amplitude;
+        let y_norm = y as f64 / (self.height.max(1) - 1) as f64;
+        
+        // Make animation more pronounced by using time directly in the wave calculation
+        let time_factor = self.time * params.frequency * params.base_freq;
+        
+        // Primary wave with time-based phase shift
+        let wave_angle = x_norm * params.frequency * PI * 4.0 + params.phase + time_factor * PI * 2.0;
+        let primary_wave = self.utils.fast_sin(wave_angle) * params.amplitude;
 
-        (params.offset + wave).clamp(0.0, 1.0)
+        // Secondary wave for more complex animation
+        let secondary_angle = y_norm * params.frequency * PI * 2.0 + time_factor * PI;
+        let secondary_wave = self.utils.fast_sin(secondary_angle) * params.amplitude * 0.2;
+
+        // Combine waves with time-based modulation
+        let combined = primary_wave + secondary_wave;
+        let modulation = self.utils.fast_sin(time_factor * PI) * 0.1;
+
+        (params.offset + combined + modulation).clamp(0.0, 1.0)
     }
 }

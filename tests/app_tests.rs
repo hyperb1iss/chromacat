@@ -27,7 +27,7 @@ fn test_chromacat_basic() {
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
         pattern: PatternKind::Horizontal,
-        theme: String::from("rainbow"), // Use default theme
+        theme: String::from("rainbow"),
         animate: false,
         fps: 30,
         duration: 0,
@@ -37,12 +37,15 @@ fn test_chromacat_basic() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params: PatternParameters::default(),
+        pattern_params: PatternParameters { params: vec![] },
         theme_file: None,
     };
 
     let mut cat = ChromaCat::new(cli);
-    assert!(cat.run().is_ok());
+    match cat.run() {
+        Ok(_) => (),
+        Err(e) => panic!("Basic test failed with error: {:?}", e),
+    }
 }
 
 #[test]
@@ -82,21 +85,38 @@ fn test_chromacat_pattern_params() {
     let test_cases = vec![
         (
             PatternKind::Plasma,
-            vec!["complexity=3.0", "scale=1.5"],
+            vec![
+                "complexity=3.0",
+                "scale=1.5",
+                "frequency=1.0",
+                "blend_mode=add"  // Changed from blend=add to blend_mode=add
+            ],
         ),
         (
             PatternKind::Ripple,
-            vec!["center_x=0.5", "center_y=0.5", "wavelength=1.0", "damping=0.5"],
+            vec![
+                "center_x=0.5",
+                "center_y=0.5",
+                "wavelength=1.0",
+                "damping=0.5",
+                "frequency=1.0"
+            ],
         ),
         (
             PatternKind::Wave,
-            vec!["amplitude=1.0", "frequency=2.0", "phase=0.0", "offset=0.5"],
+            vec![
+                "amplitude=1.0",
+                "frequency=2.0",
+                "phase=0.0",
+                "offset=0.5",
+                "base_freq=1.0"
+            ],
         ),
     ];
 
     for (pattern, params) in test_cases {
         let mut pattern_params = PatternParameters::default();
-        pattern_params.params = params.into_iter().map(String::from).collect();
+        pattern_params.params = params.iter().map(|s| s.to_string()).collect();
 
         let cli = Cli {
             files: vec![test_file.path().to_path_buf()],
@@ -116,7 +136,13 @@ fn test_chromacat_pattern_params() {
         };
 
         let mut cat = ChromaCat::new(cli);
-        assert!(cat.run().is_ok());
+        match cat.run() {
+            Ok(_) => (),
+            Err(e) => panic!(
+                "Failed with pattern {:?}: {:?}\nParameters: {:?}",
+                pattern, e, params
+            ),
+        }
     }
 }
 
@@ -143,5 +169,8 @@ fn test_chromacat_animation_settings() {
     };
 
     let mut cat = ChromaCat::new(cli);
-    assert!(cat.run().is_ok());
+    match cat.run() {
+        Ok(_) => (),
+        Err(e) => panic!("Animation test failed with error: {:?}", e),
+    }
 }
