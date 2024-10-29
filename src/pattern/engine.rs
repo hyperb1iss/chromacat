@@ -93,6 +93,17 @@ impl PatternEngine {
         // Update patterns with new time
         self.patterns = Patterns::new(self.width, self.height, self.time, 0);
     }
+
+        /// Updates the gradient while maintaining animation state
+        pub fn update_gradient(&mut self, gradient: Box<dyn Gradient + Send + Sync>) {
+            self.gradient = Arc::new(gradient);
+        }
+    
+        /// Updates pattern configuration while maintaining animation state
+        pub fn update_pattern_config(&mut self, config: PatternConfig) {
+            self.config = config;
+        }
+    
 }
 
 impl Clone for PatternEngine {

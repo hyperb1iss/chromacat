@@ -27,8 +27,12 @@ pub use terminal::TerminalState;
 
 use crate::pattern::PatternEngine;
 use crossterm::event::KeyEvent;
-use std::time::Duration;
 use std::io::Write;
+use std::time::Duration;
+use crossterm::event::KeyCode;
+use crate::themes;
+use crate::pattern::{PatternConfig, PatternParams};
+use crate::cli::PatternKind;
 
 /// Coordinates all rendering functionality for ChromaCat
 pub struct Renderer {
@@ -44,6 +48,14 @@ pub struct Renderer {
     scroll: ScrollState,
     /// Status bar renderer
     status_bar: StatusBar,
+    /// Available theme names
+    available_themes: Vec<String>,
+    /// Current theme index
+    current_theme_index: usize,
+    /// Available pattern types
+    available_patterns: Vec<PatternKind>,
+    /// Current pattern index
+    current_pattern_index: usize,
 }
 
 impl Renderer {
@@ -55,6 +67,25 @@ impl Renderer {
         let scroll = ScrollState::new(term_size.1.saturating_sub(2));
         let status_bar = StatusBar::new(term_size);
 
+        // Initialize available themes
+        let available_themes = themes::all_themes()
+            .iter()
+            .map(|t| t.name.clone())
+            .collect();
+
+        // Initialize available patterns
+        let available_patterns = vec![
+            PatternKind::Horizontal,
+            PatternKind::Diagonal,
+            PatternKind::Plasma,
+            PatternKind::Ripple,
+            PatternKind::Wave,
+            PatternKind::Spiral,
+            PatternKind::Checkerboard,
+            PatternKind::Diamond,
+            PatternKind::Perlin,
+        ];
+
         Ok(Self {
             engine,
             config,
@@ -62,6 +93,10 @@ impl Renderer {
             terminal,
             scroll,
             status_bar,
+            available_themes,
+            current_theme_index: 0,
+            available_patterns,
+            current_pattern_index: 0,
         })
     }
 
@@ -140,13 +175,29 @@ impl Renderer {
 
     /// Handles keyboard input events
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Result<bool, RendererError> {
-        match self.scroll.handle_key_event(key) {
-            Action::Continue => {
+        match key.code {
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                // Add debug logging
+                eprintln!("Switching theme");
+                self.next_theme()?;
                 self.update_visible_region()?;
                 Ok(true)
             }
-            Action::Exit => Ok(false),
-            Action::NoChange => Ok(true),
+            KeyCode::Char('p') | KeyCode::Char('P') => {
+                // Add debug logging
+                eprintln!("Switching pattern");
+                self.next_pattern()?;
+                self.update_visible_region()?;
+                Ok(true)
+            }
+            _ => match self.scroll.handle_key_event(key) {
+                Action::Continue => {
+                    self.update_visible_region()?;
+                    Ok(true)
+                }
+                Action::Exit => Ok(false),
+                Action::NoChange => Ok(true),
+            }
         }
     }
 
@@ -194,6 +245,60 @@ impl Renderer {
     fn update_visible_region(&mut self) -> Result<(), RendererError> {
         // Update the entire buffer in animation mode
         self.buffer.update_colors(&self.engine)
+    }
+
+    /// Switches to the next available theme
+    pub fn next_theme(&mut self) -> Result<(), RendererError> {
+        self.current_theme_index = (self.current_theme_index + 1) % self.available_themes.len();
+        let new_theme = &self.available_themes[self.current_theme_index];
+        
+        eprintln!("Switching to theme: {}", new_theme); // Debug logging
+        
+        // Create new gradient from theme
+        let theme = themes::get_theme(new_theme)?;
+        let gradient = theme.create_gradient()?;
+        
+        // Update engine with new gradient
+        self.engine.update_gradient(gradient);
+        self.status_bar.set_theme(new_theme);
+        
+        // Force refresh
+        self.update_visible_region()?;
+        
+        Ok(())
+    }
+
+    /// Switches to the next available pattern
+    pub fn next_pattern(&mut self) -> Result<(), RendererError> {
+        self.current_pattern_index = (self.current_pattern_index + 1) % self.available_patterns.len();
+        let new_pattern = self.available_patterns[self.current_pattern_index];
+        
+        eprintln!("Switching to pattern: {:?}", new_pattern); // Debug logging
+        
+        // Create new pattern configuration
+        let pattern_config = PatternConfig {
+            common: self.engine.config().common.clone(),
+            params: match new_pattern {
+                PatternKind::Horizontal => PatternParams::Horizontal(Default::default()),
+                PatternKind::Diagonal => PatternParams::Diagonal(Default::default()),
+                PatternKind::Plasma => PatternParams::Plasma(Default::default()),
+                PatternKind::Ripple => PatternParams::Ripple(Default::default()),
+                PatternKind::Wave => PatternParams::Wave(Default::default()),
+                PatternKind::Spiral => PatternParams::Spiral(Default::default()),
+                PatternKind::Checkerboard => PatternParams::Checkerboard(Default::default()),
+                PatternKind::Diamond => PatternParams::Diamond(Default::default()),
+                PatternKind::Perlin => PatternParams::Perlin(Default::default()),
+            },
+        };
+        
+        // Update engine with new pattern
+        self.engine.update_pattern_config(pattern_config);
+        self.status_bar.set_pattern(&new_pattern.to_string());
+        
+        // Force refresh
+        self.update_visible_region()?;
+        
+        Ok(())
     }
 }
 
