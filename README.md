@@ -10,13 +10,14 @@ ChromaCat is a turbocharged terminal colorizer written in Rust that brings stunn
 
 ## ✨ Features
 
-- 🎨 **Rich Pattern Library**: From simple horizontal gradients to psychedelic plasma effects
-- 🌈 **40+ Built-in Themes**: Everything from classic rainbow to cyberpunk aesthetics
+- 🎨 **Rich Pattern Library**: Nine distinct pattern types from simple gradients to psychedelic plasma effects
+- 🌈 **40+ Built-in Themes**: Everything from classic rainbow to custom color schemes
 - 🔄 **Smooth Animations**: Breathe life into your terminal with fluid color transitions
 - 🎮 **Interactive Mode**: Real-time control over animations and effects
 - 🎯 **Precise Control**: Fine-tune every aspect of your gradients
-- 🦀 **Blazing Fast**: Written in Rust for optimal performance
+- 🦀 **Blazing Fast**: Optimized Rust implementation with minimal overhead
 - 🌍 **Full Unicode Support**: Works beautifully with emojis and international text
+- 📱 **Terminal-Aware**: Adapts to terminal dimensions and capabilities
 
 ## 🚀 Installation
 
@@ -51,11 +52,14 @@ ls -la | chromacat -t cyberpunk
 
 # Add some animation
 cat your_file.txt | chromacat -a
+
+# Use a specific pattern
+echo "Wave pattern!" | chromacat -p wave --param amplitude=1.5
 ```
 
 ## 🎨 Pattern Types
 
-ChromaCat offers several pattern types to make your terminal output pop:
+ChromaCat offers several pattern types for dynamic colorization:
 
 - `horizontal` - Classic left-to-right gradient (default)
 - `diagonal` - Angled gradient with customizable direction
@@ -67,71 +71,61 @@ ChromaCat offers several pattern types to make your terminal output pop:
 - `diamond` - Diamond-shaped gradient pattern
 - `perlin` - Organic, cloud-like noise pattern
 
-## 🌈 Built-in Themes
+## 🌈 Theme Categories
 
-ChromaCat comes with a rich selection of pre-configured themes:
+ChromaCat includes many themed gradients organized by category:
 
-### Classic Themes
+### Space Themes
 
-- `rainbow` - The classic ROY G. BIV
-- `grayscale` - Smooth black to white transitions
-- `sepia` - Vintage brownscale vibes
+- `nebula` - Cosmic nebula colors
+- `cosmos` - Deep space with stars
+- `aurora` - Northern lights in motion
+- `galaxy` - Spiral galaxy with star clusters
 
 ### Tech Themes
 
 - `matrix` - Digital rain aesthetic
 - `cyberpunk` - High-tech urban future vibes
-- `hackerman` - Old-school terminal feel
+- `terminal` - Classic computer terminal look
+- `hackerman` - Retro hacker aesthetic
+- `quantum` - Quantum superposition states
 
 ### Nature Themes
 
-- `ocean` - Cool blues of the deep
-- `forest` - Earthy green gradients
-- `aurora` - Northern lights inspired
+- `ocean` - Cool blue tones of the sea
+- `forest` - Natural green tones
+- `autumn` - Warm fall colors
+- `sunset` - Evening sky colors
+- `desert` - Warm earth tones
 
 ### Aesthetic Themes
 
-- `vaporwave` - 90s aesthetic with pink and cyan
-- `retrowave` - 80s-inspired synthwave colors
-- `neon` - Bright, vibrant pop
+- `pastel` - Soft, muted colors
+- `neon` - Bright, vibrant colors that pop
+- `retrowave` - 80s-inspired synthwave aesthetic
+- `vaporwave` - 90s-inspired aesthetic
 
-## 🎨 Custom Themes
+### Party Themes
 
-Create your own themes using YAML format. Custom themes support all features of built-in themes and can be used alongside them.
+- `rave` - Intense party colors that pulse
+- `disco` - 70s disco-inspired colors
+- `festival` - Vibrant festival color palette
+- `carnival` - Bright carnival celebration colors
 
-### Loading Custom Themes
+### Abstract Themes
 
-```bash
-# Load a custom theme file
-chromacat --theme-file my-themes.yaml -t my-custom-theme
+- `heat` - Warm colors transitioning from red to yellow
+- `ice` - Cool, frozen tones
+- `fire` - Hot, intense flames
+- `toxic` - Radioactive greens and acid colors
+- `plasma` - Electric plasma-like effect
 
-# Combine with any pattern
-chromacat --theme-file themes/neon.yaml -t cyberpunk-nights -p wave
-```
-
-### Theme Format
-
-```yaml
-- name: sunset-dream
-  desc: Warm sunset colors with smooth transitions
-  colors:
-    - [1.0, 0.2, 0.0, 0.0, deep-orange]
-    - [1.0, 0.6, 0.2, 0.3, light-orange]
-    - [0.8, 0.4, 0.6, 0.7, purple]
-    - [0.4, 0.2, 0.8, 1.0, deep-blue]
-  dist: back
-  repeat: pulse(0.3)
-  speed: 0.8
-  ease: smoother
-```
-
-### Theme Properties
-
-- **Colors**: RGB values (0.0-1.0) with optional position and name
-- **Distribution (`dist`)**: `even`, `front`, `back`, `center`, `alt`
-- **Repeat**: `none`, `mirror`, `repeat`, `pulse(rate)`, `rotate(rate)`
-- **Easing**: `linear`, `smooth`, `smoother`, `sine`, `exp`, `elastic`
-- **Speed**: Animation speed multiplier (default: 1.0)
+### Pride Themes
+- `trans` - Transgender pride flag colors
+- `pan` - Pansexual pride flag colors
+- `nonbinary` - Non-binary pride flag colors
+- `lesbian` - Lesbian pride flag colors
+- `progress` - Progress pride flag with inclusive colors
 
 ## 💫 Usage Examples
 
@@ -148,6 +142,22 @@ echo "Ocean vibes" | chromacat -t ocean
 chromacat file1.txt file2.txt
 ```
 
+### Pattern Selection and Customization
+
+```bash
+# Diagonal gradient at 45 degrees
+chromacat -p diagonal --param angle=45 file.txt
+
+# Plasma effect with custom settings
+chromacat -p plasma --param complexity=3.0,scale=1.5 file.txt
+
+# Wave pattern with customization
+chromacat -p wave --param amplitude=1.5,frequency=2.0 file.txt
+
+# Ripple pattern from center
+chromacat -p ripple --param wavelength=1.0,damping=0.5 file.txt
+```
+
 ### Animation Effects
 
 ```bash
@@ -161,17 +171,17 @@ ls -la | chromacat -a --fps 60 --smooth
 chromacat --animate --duration 0 file.txt
 ```
 
-### Pattern Customization
+### Advanced Usage
 
 ```bash
-# Diagonal gradient at 45 degrees
-chromacat -p diagonal --angle 45 file.txt
+# Combine with other commands
+git status | chromacat -p ripple -t neon
 
-# Plasma effect with custom settings
-chromacat -p plasma --complexity 3.0 --scale 1.5 file.txt
+# Custom animation speed
+find . -type f | chromacat -a --speed 0.5
 
-# Wave pattern with custom parameters
-chromacat -p wave --height 1.5 --count 3 file.txt
+# Progress logging with style
+yarn build | chromacat -t cyberpunk
 ```
 
 ## 🎮 Interactive Controls
@@ -179,12 +189,13 @@ chromacat -p wave --height 1.5 --count 3 file.txt
 When running in animation mode (`-a`):
 
 - `Space` - Pause/Resume animation
-- `R` - Reset animation time
+- `T` - Cycle through themes
+- `P` - Cycle through patterns
 - `Q` or `Esc` - Quit
 - `←` `→` - Adjust animation speed
-- `↑` `↓` - Modify pattern parameters
+- `↑` `↓` - Scroll through content
 
-## 🛠 Configuration
+## 🛠 Configuration Options
 
 ### Common Parameters
 
@@ -203,19 +214,19 @@ When running in animation mode (`-a`):
 
 ```bash
 # Plasma
-chromacat -p plasma --complexity <1.0-10.0> --scale <0.1-5.0>
+chromacat -p plasma --param complexity=3.0,scale=1.5,blend_mode=add
 
 # Ripple
-chromacat -p ripple --wavelength <0.1-5.0> --damping <0.0-1.0>
+chromacat -p ripple --param wavelength=1.0,damping=0.5,center_x=0.5,center_y=0.5
 
 # Wave
-chromacat -p wave --height <0.1-2.0> --count <0.1-5.0>
+chromacat -p wave --param amplitude=1.0,frequency=2.0,phase=0.0,offset=0.5
 
 # Spiral
-chromacat -p spiral --density <0.1-5.0> --expansion <0.1-2.0>
+chromacat -p spiral --param density=2.0,rotation=90,expansion=1.5
 
 # Checkerboard
-chromacat -p checkerboard --size <1-10> --blur <0.0-1.0>
+chromacat -p checkerboard --param size=2,blur=0.1,rotation=45
 ```
 
 ## 🔧 Integration Tips
@@ -244,16 +255,41 @@ cargo build 2>&1 | chromacat -p plasma -t matrix
 watch -n1 "ps aux | sort -rn -k 3,3 | head -n 5 | chromacat -t heat"
 ```
 
-## 🎯 Performance Tips
+## 📝 Custom Themes
 
-- Use static rendering for large files instead of animation mode
-- Adjust FPS based on your terminal's capabilities
-- Consider using simpler patterns (like horizontal or diagonal) for very large outputs
-- The `--no-color` flag can be used to bypass processing when needed
+ChromaCat supports custom theme files in YAML format:
+
+```yaml
+- name: custom-theme
+  desc: A beautiful custom gradient
+  colors:
+    - [1.0, 0.0, 0.0, 0.0, red]
+    - [0.0, 1.0, 0.0, 0.5, green]
+    - [0.0, 0.0, 1.0, 1.0, blue]
+  dist: even
+  repeat: mirror
+  speed: 1.0
+  ease: smooth
+```
+
+Load custom themes with:
+
+```bash
+chromacat --theme-file my-themes.yaml -t custom-theme
+```
+
+## 🎯 Performance Considerations
+
+ChromaCat is designed to be fast and efficient:
+
+- Pre-computed lookup tables for pattern generation
+- Efficient buffering for large inputs
+- Smart terminal handling and state management
+- Optional performance modes for resource-constrained environments
 
 ## 🤝 Contributing
 
-Contributions are super welcome! Here's how you can help:
+Contributions are welcome! Here's how you can help:
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -261,28 +297,7 @@ Contributions are super welcome! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-Please make sure to update tests as appropriate and follow the existing coding style.
-
-## 🐛 Known Issues
-
-- Some terminals might not support all color combinations
-- Very large files might cause performance issues in animation mode
-- Pattern parameters might need adjustment based on terminal size
-
-## 🙏 Acknowledgements
-
-ChromaCat leverages several open-source Rust crates and tools that make its functionalities possible:
-
-- [**clap**](https://crates.io/crates/clap) for command-line argument parsing
-- [**colorgrad**](https://crates.io/crates/colorgrad) for creating and managing color gradients
-- [**termcolor**](https://crates.io/crates/termcolor) for handling colored terminal output
-- [**atty**](https://crates.io/crates/atty) for detecting terminal streams
-- [**unicode-segmentation**](https://crates.io/crates/unicode-segmentation) for accurate Unicode character handling
-- [**lolcat**](https://github.com/busyloop/lolcat) for inspiring the initial concept of colorizing terminal output
-
-Special thanks to the Rust community for their continuous contributions and support.
-
-## 📝 License
+## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
