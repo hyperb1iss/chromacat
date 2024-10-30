@@ -24,6 +24,20 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             cmd: cargo
+            test_cmd: script -e -c "cargo test --verbose --target"
+            test_args: ""
+          - build: macos-x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            cmd: cargo
+            test_cmd: script -q /dev/null cargo test --verbose --target
+            test_args: ""
+          - build: windows-gnu
+            os: windows-latest
+            target: x86_64-pc-windows-gnu
+            cmd: cargo
+            test_cmd: cargo test --verbose --target
+            test_args: -- --test-threads=1
 
     steps:
       - name: Checkout repository
@@ -33,6 +47,17 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y expect
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install expect
 
       - name: Cache cargo registry
         uses: actions/cache@v2
@@ -47,8 +72,13 @@ jobs:
       - name: Build
         run: ${{ matrix.cmd }} build --verbose --target ${{ matrix.target }}
 
-      - name: Run tests
-        run: ${{ matrix.cmd }} test --verbose --target ${{ matrix.target }}
+      - name: Run tests with PTY
+        shell: bash
+        run: ${{ matrix.test_cmd }} ${{ matrix.target }} ${{ matrix.test_args }}
+        env:
+          RUST_TEST_THREADS: 1
+          TERM: xterm-256color
+          FORCE_TTY: 1
 
   # The following jobs only run on tag pushes (i.e., releases)
   create-release:
@@ -91,6 +121,7 @@ jobs:
             os: macos-latest
             target: aarch64-apple-darwin
             cmd: cargo
+            binary_name: chromacat
 
           - build: windows-gnu
             os: windows-latest
@@ -208,4 +239,3 @@ jobs:
           asset_path: ./target/generate-rpm/chromacat-${{ steps.get_version.outputs.VERSION }}-1.x86_64.rpm
           asset_name: chromacat-${{ steps.get_version.outputs.VERSION }}-1.x86_64.rpm
           asset_content_type: application/x-rpm
-
