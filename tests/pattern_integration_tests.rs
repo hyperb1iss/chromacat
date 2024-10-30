@@ -114,7 +114,8 @@ fn test_pattern_determinism() {
     ];
 
     for pattern in static_patterns {
-        let config = PatternConfig::new(pattern.clone());
+        let mut config = PatternConfig::new(pattern.clone());
+        config.common.theme_name = Some("test".to_string());
         let engine = PatternEngine::new(create_test_gradient(), config, 100, 100);
 
         // Test that same coordinates produce same values

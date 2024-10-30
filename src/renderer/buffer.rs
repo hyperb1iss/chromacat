@@ -115,8 +115,12 @@ impl RenderBuffer {
                 // Calculate viewport-relative y position
                 let viewport_y = y % viewport_height;
 
-                // Use only viewport coordinates for pattern generation
-                let pattern_value = engine.get_value_at(x, viewport_y)?;
+                // Use normalized coordinates for pattern generation
+                let norm_x = (x as f64 / max_width as f64) - 0.5;
+                let norm_y = (viewport_y as f64 / viewport_height as f64) - 0.5;
+
+                // Get pattern value using normalized coordinates
+                let pattern_value = engine.get_value_at_normalized(norm_x, norm_y)?;
                 let gradient_color = engine.gradient().at(pattern_value as f32);
 
                 self.color_buffer[y][x] = Color::Rgb {
@@ -145,8 +149,9 @@ impl RenderBuffer {
                     break;
                 }
 
-                // Always use y=0 for pattern generation in static mode
-                let pattern_value = engine.get_value_at(x, 0)?;
+                // Use normalized coordinates for pattern generation
+                let norm_x = (x as f64 / max_width as f64) - 0.5;
+                let pattern_value = engine.get_value_at_normalized(norm_x, 0.0)?;
                 let gradient_color = engine.gradient().at(pattern_value as f32);
 
                 self.color_buffer[y][x] = Color::Rgb {
@@ -163,7 +168,7 @@ impl RenderBuffer {
         Ok(())
     }
 
-    /// Resizes the buffer for new terminal dimensions
+    /// Resizes the buffer for new terminal dimensions, maintaining pattern consistency
     ///
     /// # Arguments
     /// * `new_size` - New terminal dimensions (width, height)
@@ -171,12 +176,11 @@ impl RenderBuffer {
     /// # Returns
     /// Ok(()) if successful, Error otherwise
     pub fn resize(&mut self, new_size: (u16, u16)) -> Result<(), RendererError> {
+        // Update terminal size
         self.term_size = new_size;
 
-        // Clone the text first to avoid borrowing conflicts
-        let text = self.original_text.clone();
-
         // Rewrap text for new width
+        let text = self.original_text.clone();
         self.prepare_text(&text)?;
 
         // Resize color buffer
@@ -260,6 +264,7 @@ impl RenderBuffer {
 
     // Private helper methods
 
+    /// Resizes the color buffer to match current dimensions while preserving data
     pub fn resize_color_buffer(&mut self) -> Result<(), RendererError> {
         let max_line_length = self
             .line_buffer

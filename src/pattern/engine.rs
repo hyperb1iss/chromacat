@@ -49,7 +49,7 @@ impl PatternEngine {
     pub fn update(&mut self, delta_seconds: f64) {
         let scaled_delta = delta_seconds * self.config.common.speed;
         self.time += scaled_delta; // Remove the modulo operation
-        // Create new pattern generator with updated time
+                                   // Create new pattern generator with updated time
         self.patterns = Patterns::new(self.width, self.height, self.time, 0);
     }
 
@@ -75,6 +75,22 @@ impl PatternEngine {
         &self.config
     }
 
+    /// Gets a pattern value using normalized coordinates relative to viewport center
+    ///
+    /// # Arguments
+    /// * `x` - Normalized x coordinate (-0.5 to 0.5)
+    /// * `y` - Normalized y coordinate (-0.5 to 0.5)
+    ///
+    /// # Returns
+    /// Pattern value between 0.0 and 1.0
+    pub fn get_value_at_normalized(&self, x: f64, y: f64) -> Result<f64> {
+        // Convert normalized coordinates to pattern space
+        let pattern_x = ((x + 0.5) * self.width as f64) as usize;
+        let pattern_y = ((y + 0.5) * self.height as f64) as usize;
+
+        self.get_value_at(pattern_x, pattern_y)
+    }
+
     /// Creates a new PatternEngine instance with different dimensions
     pub fn recreate(&self, new_width: usize, new_height: usize) -> Self {
         Self {
@@ -90,20 +106,19 @@ impl PatternEngine {
     /// Sets the animation time directly
     pub fn set_time(&mut self, time: f64) {
         self.time = time; // Remove normalization
-        // Update patterns with new time
+                          // Update patterns with new time
         self.patterns = Patterns::new(self.width, self.height, self.time, 0);
     }
 
-        /// Updates the gradient while maintaining animation state
-        pub fn update_gradient(&mut self, gradient: Box<dyn Gradient + Send + Sync>) {
-            self.gradient = Arc::new(gradient);
-        }
-    
-        /// Updates pattern configuration while maintaining animation state
-        pub fn update_pattern_config(&mut self, config: PatternConfig) {
-            self.config = config;
-        }
-    
+    /// Updates the gradient while maintaining animation state
+    pub fn update_gradient(&mut self, gradient: Box<dyn Gradient + Send + Sync>) {
+        self.gradient = Arc::new(gradient);
+    }
+
+    /// Updates pattern configuration while maintaining animation state
+    pub fn update_pattern_config(&mut self, config: PatternConfig) {
+        self.config = config;
+    }
 }
 
 impl Clone for PatternEngine {
