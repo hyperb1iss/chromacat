@@ -320,7 +320,7 @@ impl DemoGenerator {
             // Add the art with centering
             for line in art_lines {
                 let line_len = line.chars().count().min(80) as u32;
-                let side_padding = ((80 - line_len) / 2) as u32;
+                let side_padding = (80 - line_len) / 2;
 
                 output.push_str(&" ".repeat(side_padding as usize));
                 output.push_str(line);
