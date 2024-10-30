@@ -177,17 +177,11 @@ impl Renderer {
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Result<bool, RendererError> {
         match key.code {
             KeyCode::Char('t') | KeyCode::Char('T') => {
-                // Add debug logging
-                eprintln!("Switching theme");
                 self.next_theme()?;
-                self.update_visible_region()?;
                 Ok(true)
             }
             KeyCode::Char('p') | KeyCode::Char('P') => {
-                // Add debug logging
-                eprintln!("Switching pattern");
                 self.next_pattern()?;
-                self.update_visible_region()?;
                 Ok(true)
             }
             _ => match self.scroll.handle_key_event(key) {
@@ -252,8 +246,6 @@ impl Renderer {
         self.current_theme_index = (self.current_theme_index + 1) % self.available_themes.len();
         let new_theme = &self.available_themes[self.current_theme_index];
         
-        eprintln!("Switching to theme: {}", new_theme); // Debug logging
-        
         // Create new gradient from theme
         let theme = themes::get_theme(new_theme)?;
         let gradient = theme.create_gradient()?;
@@ -272,8 +264,6 @@ impl Renderer {
     pub fn next_pattern(&mut self) -> Result<(), RendererError> {
         self.current_pattern_index = (self.current_pattern_index + 1) % self.available_patterns.len();
         let new_pattern = self.available_patterns[self.current_pattern_index];
-        
-        eprintln!("Switching to pattern: {:?}", new_pattern); // Debug logging
         
         // Create new pattern configuration
         let pattern_config = PatternConfig {
