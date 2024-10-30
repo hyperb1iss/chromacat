@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
-use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
 use std::any::Any;
+use std::f64::consts::PI;
 
 // Define parameters with proper CLI names and bounds
 define_param!(num Ripple, CenterXParam, "center_x", "X-coordinate of the ripple center", 0.0, 1.0, 0.5);
@@ -80,13 +80,13 @@ impl PatternParam for RippleParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = RippleParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "center_x" => {
                     Self::CENTER_X_PARAM.validate(kv[1])?;
@@ -113,7 +113,7 @@ impl PatternParam for RippleParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -138,31 +138,48 @@ impl PatternParam for RippleParams {
 
 impl super::Patterns {
     /// Generates a ripple pattern emanating from a center point
+    #[inline(always)]
     pub fn ripple(&self, x_norm: f64, y_norm: f64, params: RippleParams) -> f64 {
-        let dx = (x_norm + 0.5) - params.center_x;
-        let dy = (y_norm + 0.5) - params.center_y;
-        let distance = (dx * dx + dy * dy).sqrt();
+        // Pre-calculate coordinates relative to center
+        let x_pos = x_norm + 0.5;
+        let y_pos = y_norm + 0.5;
+        let dx = x_pos - params.center_x;
+        let dy = y_pos - params.center_y;
 
-        // Make time factor more significant
+        // Calculate distance once
+        let dist_sq = dx * dx + dy * dy;
+        let distance = dist_sq.sqrt();
+
+        // Pre-calculate time-based values
         let time_factor = self.time * params.frequency * PI * 2.0;
+        let time_sin_half = self.utils.fast_sin(time_factor * 0.5);
+        let time_sin_07 = self.utils.fast_sin(time_factor * 0.7);
 
-        // Primary ripple wave with time-based phase
-        let ripple_angle = distance / params.wavelength * PI * 10.0 + time_factor;
-        let value = self.utils.fast_sin(ripple_angle);
+        // Calculate ripple wave with optimized parameters
+        let wave_phase = distance / params.wavelength * PI * 10.0 + time_factor;
+        let value = self.utils.fast_sin(wave_phase);
 
-        // Apply distance-based damping with minimum amplitude to ensure animation at center
+        // Optimize damping calculation
         let amplitude = (-distance * params.damping * 5.0).exp().max(0.2);
 
-        // Add time-based modulation components
-        let base_modulation = self.utils.fast_sin(time_factor * 0.5) * 0.3;
-        let distance_modulation = self.utils.fast_sin(time_factor + distance * PI * 4.0) * 0.2;
-        let phase_modulation = self.utils.fast_sin(time_factor * 0.7 + 
-            (dx.atan2(dy) + time_factor * 0.1) * 2.0) * 0.2;
-        
-        let modulation = base_modulation + distance_modulation + phase_modulation;
+        // Combine modulation components
+        let base_mod = time_sin_half * 0.3;
+        let dist_mod = self.utils.fast_sin(time_factor + distance * PI * 4.0) * 0.2;
 
-        // Combine all components with stronger modulation
+        // Optimize angle calculation
+        let angle = if dx == 0.0 && dy == 0.0 {
+            0.0
+        } else {
+            dy.atan2(dx)
+        };
+
+        let phase_mod = time_sin_07 * self.utils.fast_sin(angle * 2.0 + time_factor * 0.1) * 0.2;
+
+        // Combine all components efficiently
+        let modulation = base_mod + dist_mod + phase_mod;
         let combined = value * amplitude + modulation;
+
+        // Fast normalization with optimized clamping
         let result = (combined + 1.0) * 0.5;
         result.clamp(0.0, 1.0)
     }

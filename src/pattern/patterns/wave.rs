@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use std::any::Any;
+use std::f64::consts::PI;
 use std::f64::consts::TAU;
 
 define_param!(num Wave, AmplitudeParam, "amplitude", "Wave height", 0.1, 2.0, 1.0);
@@ -76,13 +76,13 @@ impl PatternParam for WaveParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = WaveParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "amplitude" => {
                     Self::AMPLITUDE_PARAM.validate(kv[1])?;
@@ -109,7 +109,7 @@ impl PatternParam for WaveParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -134,29 +134,50 @@ impl PatternParam for WaveParams {
 
 impl super::Patterns {
     /// Generates a wave pattern with configurable properties
+    #[inline(always)]
     pub fn wave(&self, x_norm: f64, y_norm: f64, params: WaveParams) -> f64 {
-        // Make animation more pronounced
-        let time_factor = self.time * params.frequency;
-        
-        // Primary wave with time-based phase shift and movement
-        let wave_angle = (x_norm + 0.5) * params.frequency * PI * 2.0 + params.phase + time_factor;
+        // Pre-calculate time-based values
+        let time_base = self.time * params.base_freq * PI;
+        let time_slow = time_base * 0.7; // Slower time factor for smoother animation
+
+        // Pre-calculate trigonometric values
+        let time_sin = self.utils.fast_sin(time_slow);
+        let time_sin_half = self.utils.fast_sin(time_slow * 0.5);
+
+        // Calculate base coordinates with offset
+        let x_pos = x_norm + 0.5;
+        let y_pos = y_norm + 0.5;
+
+        // Add flowing motion to frequency
+        let freq_mod = 1.0 + time_sin_half * 0.2;
+        let wave_freq = params.frequency * freq_mod;
+
+        // Primary wave with smooth phase shift
+        let wave_angle = x_pos * wave_freq * PI * 2.0 + params.phase + time_base;
         let primary_wave = self.utils.fast_sin(wave_angle) * params.amplitude;
 
-        // Secondary wave for vertical movement
-        let secondary_angle = (y_norm + 0.5) * params.frequency * PI + time_factor * 0.7;
-        let secondary_wave = self.utils.fast_sin(secondary_angle) * params.amplitude * 0.3;
+        // Secondary wave with vertical movement and phase variation
+        let sec_angle = y_pos * wave_freq * PI + time_slow * 0.7 + x_pos * PI * 0.5;
+        let secondary_wave = self.utils.fast_sin(sec_angle) * params.amplitude * 0.3;
 
-        // Add a traveling wave component
-        let travel_wave = self.utils.fast_sin((x_norm + y_norm + time_factor * 0.5) * PI * 2.0) * 0.2;
+        // Add flowing travel wave
+        let travel_phase = (x_pos + y_pos + time_slow * 0.3) * PI * 2.0;
+        let travel_wave = self.utils.fast_sin(travel_phase) * 0.15;
 
-        // Add distance-based modulation
-        let dist = ((x_norm * x_norm + y_norm * y_norm).sqrt() * 4.0 + time_factor) * PI;
-        let dist_mod = self.utils.fast_sin(dist) * 0.15;
+        // Add distance-based modulation with smooth falloff
+        let dist_sq = x_norm * x_norm + y_norm * y_norm;
+        let dist_factor = (-dist_sq * 2.0).exp();
+        let dist_angle = (dist_sq.sqrt() * 4.0 + time_slow) * PI;
+        let dist_mod = self.utils.fast_sin(dist_angle) * 0.12 * dist_factor;
 
-        // Combine all components
-        let combined = primary_wave + secondary_wave + travel_wave + dist_mod;
-        
-        // Apply base offset
-        (params.offset + combined).clamp(0.0, 1.0)
+        // Add subtle pulsing effect
+        let pulse = time_sin * 0.08 * (1.0 - dist_sq).max(0.0);
+
+        // Combine all components with smooth transitions
+        let combined = primary_wave + secondary_wave + travel_wave + dist_mod + pulse;
+
+        // Apply base offset with smooth clamping
+        let result = params.offset + combined;
+        result.clamp(0.0, 1.0)
     }
 }

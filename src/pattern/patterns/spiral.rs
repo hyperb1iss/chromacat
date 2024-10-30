@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use std::any::Any;
+use std::f64::consts::PI;
 
 // Define parameters with proper CLI names and bounds
 define_param!(num Spiral, DensityParam, "density", "How tightly wound the spiral is", 0.1, 5.0, 1.0);
@@ -80,13 +80,13 @@ impl PatternParam for SpiralParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = SpiralParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "density" => {
                     Self::DENSITY_PARAM.validate(kv[1])?;
@@ -113,7 +113,7 @@ impl PatternParam for SpiralParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -138,31 +138,59 @@ impl PatternParam for SpiralParams {
 
 impl super::Patterns {
     /// Generates a spiral pattern rotating from the center
+    #[inline(always)]
     pub fn spiral(&self, x_norm: f64, y_norm: f64, params: SpiralParams) -> f64 {
-        // Calculate angle and distance from center
+        // Pre-calculate time-based values
+        let time_base = self.time * params.frequency * PI;
+        let time_slow = time_base * 0.3; // Slower time factor for smoother animation
+
+        // Pre-calculate trigonometric values for time
+        let time_sin = self.utils.fast_sin(time_slow);
+        let time_sin_half = self.utils.fast_sin(time_slow * 0.5);
+
+        // Calculate angle and distance with better precision
         let angle = y_norm.atan2(x_norm);
-        let distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
+        let dist_sq = x_norm * x_norm + y_norm * y_norm;
+        let distance = dist_sq.sqrt();
 
-        // Make time factor more significant
-        let time_factor = self.time * params.frequency * PI * 2.0;
+        // Calculate base rotation with smoother animation
+        let rot_rad = (params.rotation + time_base * 10.0) * (PI / 180.0); // Reduced from 20.0 to 10.0
 
-        // Base rotation with time-based animation
-        let rot_rad = (params.rotation + time_factor * 20.0) * PI / 180.0;
-        
-        // Primary spiral component
-        let spiral_angle = angle + distance * params.density * params.expansion + rot_rad;
-        let primary = ((spiral_angle + time_factor) % (PI * 2.0)) / (PI * 2.0);
+        // Add flowing distortion to the spiral
+        let flow_factor = self.utils.fast_sin(distance * PI * 2.0 + time_slow) * 0.2;
+        let expansion_factor = 1.0 + time_sin_half * 0.2;
 
-        // Add distance-based modulation
-        let distance_mod = self.utils.fast_sin(distance * PI * 2.0 + time_factor) * 0.2;
+        // Calculate primary spiral with flow
+        let spiral_angle = angle
+            + (distance * params.density * params.expansion * expansion_factor + flow_factor)
+            + rot_rad;
 
-        // Add time-based phase modulation
-        let phase_mod = self.utils.fast_sin(time_factor * 0.7 + angle * 2.0) * 0.15;
+        // Smooth the primary component
+        let primary = ((spiral_angle + time_slow) % (PI * 2.0)) / (PI * 2.0);
+
+        // Add fluid distance-based modulation
+        let distance_mod = self.utils.fast_sin(
+            distance * PI * 1.5 + // Reduced frequency for smoother waves
+            time_slow * 0.8,
+        ) * 0.15; // Reduced amplitude
+
+        // Add smooth phase modulation
+        let phase_mod = self
+            .utils
+            .fast_sin(time_slow * 0.5 + angle * 2.0 + distance * PI)
+            * 0.12;
+
+        // Add subtle pulsing from the center
+        let pulse = (1.0 - distance).max(0.0) * time_sin * 0.1;
 
         // Combine all components with smooth transitions
-        let combined = primary + distance_mod + phase_mod;
+        let combined = primary + distance_mod + phase_mod + pulse;
+
+        // Final smoothing with sine wave
         let smoothed = (self.utils.fast_sin(combined * PI * 2.0) + 1.0) * 0.5;
 
-        smoothed.clamp(0.0, 1.0)
+        // Soft clamping for smoother transitions
+        let result = smoothed * (1.0 - dist_sq * 0.1).max(0.2);
+        result.clamp(0.0, 1.0)
     }
 }

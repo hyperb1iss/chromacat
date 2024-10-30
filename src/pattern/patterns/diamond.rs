@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use std::any::Any;
+use std::f64::consts::PI;
 
 // First define the individual parameters with proper CLI names
 define_param!(num Diamond, SizeParam, "size", "Size of diamond shapes", 0.1, 5.0, 1.0);
@@ -86,13 +86,13 @@ impl PatternParam for DiamondParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = DiamondParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "size" => {
                     Self::SIZE_PARAM.validate(kv[1])?;
@@ -123,7 +123,7 @@ impl PatternParam for DiamondParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -149,42 +149,57 @@ impl PatternParam for DiamondParams {
 
 impl super::Patterns {
     /// Generates a diamond-shaped pattern
+    #[inline(always)]
     pub fn diamond(&self, x_norm: f64, y_norm: f64, params: DiamondParams) -> f64 {
-        // Rotate coordinates
-        let rot_rad = params.rotation * PI / 180.0;
-        let cos_rot = self.utils.fast_cos(rot_rad);
-        let sin_rot = self.utils.fast_sin(rot_rad);
+        // Pre-calculate rotation values
+        let rot_rad = params.rotation * (PI / 180.0);
+        let (sin_rot, cos_rot) = {
+            let sin_val = self.utils.fast_sin(rot_rad);
+            let cos_val = self.utils.fast_cos(rot_rad);
+            (sin_val, cos_val)
+        };
+
+        // Optimize coordinate rotation
         let x_rot = x_norm * cos_rot - y_norm * sin_rot;
         let y_rot = x_norm * sin_rot + y_norm * cos_rot;
 
-        // Calculate animation based on mode
+        // Pre-calculate time-based values
         let time = self.time * PI * params.speed;
+        let time_sin = self.utils.fast_sin(time * 0.5);
+        let time_sin07 = self.utils.fast_sin(time * 0.7);
+        let time_sin2 = self.utils.fast_sin(time * 2.0);
+
+        // Calculate animation factor once
         let animation_factor = match params.mode.as_str() {
-            "zoom" => 1.0 + self.utils.fast_sin(time * 0.5) * 0.5,
+            "zoom" => 1.0 + time_sin * 0.5,
             "scroll" => 1.0 + time * 0.1,
-            "static" => 1.0,
-            _ => 1.0, // fallback to static mode
+            _ => 1.0, // static mode or fallback
         };
 
-        // Scale coordinates for the diamond pattern with animation
+        // Combine scale calculations
         let scale = 2.0 * params.size * animation_factor;
         let x_scaled = x_rot * scale;
         let y_scaled = y_rot * scale;
 
-        // Calculate diamond pattern
+        // Fast absolute value calculation
         let diamond_dist = x_scaled.abs() + y_scaled.abs();
-        
-        // Create repeating diamond pattern
-        let pattern_repeat = diamond_dist % 1.0;
-        
-        // Apply sharpness and offset with some temporal variation
-        let sharpness_mod = params.sharpness * (1.0 + self.utils.fast_sin(time * 0.7) * 0.2);
-        let pattern = ((pattern_repeat * sharpness_mod * PI).sin() + params.offset).clamp(0.0, 1.0);
 
-        // Add subtle pulsing effect
-        let dist_from_center = (x_rot * x_rot + y_rot * y_rot).sqrt();
-        let pulse = self.utils.fast_sin(time * 2.0 - dist_from_center * 3.0) * 0.05;
+        // Optimize pattern calculation
+        let pattern_repeat = diamond_dist - diamond_dist.floor();
 
-        (pattern + pulse).clamp(0.0, 1.0)
+        // Combine sharpness calculations
+        let sharpness_mod = params.sharpness * (1.0 + time_sin07 * 0.2);
+
+        // Pre-calculate pattern components
+        let pattern_base = (pattern_repeat * sharpness_mod * PI).sin();
+        let pattern = (pattern_base + params.offset).clamp(0.0, 1.0);
+
+        // Optimize distance and pulse calculations
+        let dist_sq = x_rot * x_rot + y_rot * y_rot;
+        let pulse = time_sin2 * 0.05 * (-dist_sq * 3.0).exp();
+
+        // Final combination with optimized clamping
+        let result = pattern + pulse;
+        result.clamp(0.0, 1.0)
     }
 }

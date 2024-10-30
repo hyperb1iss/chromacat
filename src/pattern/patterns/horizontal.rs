@@ -1,6 +1,6 @@
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use std::any::Any;
 
 // Define the parameter with proper CLI name
 define_param!(bool Horizontal, InvertParam, "invert", "Invert gradient direction", false);
@@ -44,13 +44,13 @@ impl PatternParam for HorizontalParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = HorizontalParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "invert" => {
                     Self::INVERT_PARAM.validate(kv[1])?;
@@ -61,7 +61,7 @@ impl PatternParam for HorizontalParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -80,15 +80,18 @@ impl PatternParam for HorizontalParams {
 
 impl super::Patterns {
     /// Generates a simple horizontal gradient pattern
+    #[inline(always)]
     pub fn horizontal(&self, x_pos: f64, params: HorizontalParams) -> f64 {
-        // Simple continuous flow from left to right
-        let mut value = (x_pos + self.time * 0.5) % 1.0;
-        
-        // Ensure value stays in [0, 1] range after modulo
-        if value < 0.0 {
-            value += 1.0;
-        }
+        // Pre-calculate animation offset
+        let time_offset = self.time * 0.5;
 
+        // Combine position and time in one operation
+        let mut value = x_pos + time_offset;
+
+        // Fast modulo using floor
+        value -= value.floor();
+
+        // Branchless inversion using arithmetic
         if params.invert {
             1.0 - value
         } else {

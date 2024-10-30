@@ -1,7 +1,7 @@
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
-use crate::pattern::utils::PatternUtils;
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use crate::pattern::utils::PatternUtils;
+use std::any::Any;
 
 // Define parameters with proper CLI names and bounds
 define_param!(num Perlin, OctavesParam, "octaves", "Number of noise layers", 1.0, 8.0, 4.0);
@@ -74,13 +74,13 @@ impl PatternParam for PerlinParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = PerlinParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "octaves" => {
                     Self::OCTAVES_PARAM.validate(kv[1])?;
@@ -103,7 +103,7 @@ impl PatternParam for PerlinParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -127,56 +127,80 @@ impl PatternParam for PerlinParams {
 
 impl super::Patterns {
     /// Generates a Perlin noise pattern with multiple octaves
+    #[inline(always)]
     pub fn perlin(&self, x_norm: f64, y_norm: f64, params: PerlinParams) -> f64 {
         let mut total = 0.0;
         let mut frequency = params.scale;
         let mut amplitude = 1.0;
         let mut max_value = 0.0;
 
-        for _ in 0..params.octaves {
-            total += self.perlin_noise(
-                (x_norm + 0.5) * frequency + self.time,
-                (y_norm + 0.5) * frequency + self.time,
-            ) * amplitude;
+        // Pre-calculate base coordinates
+        let x_base = x_norm + 0.5;
+        let y_base = y_norm + 0.5;
+        let time = self.time;
 
-            max_value += amplitude;
+        // Unroll first octave since it's always executed
+        total +=
+            self.perlin_noise(x_base * frequency + time, y_base * frequency + time) * amplitude;
+        max_value += amplitude;
+
+        // Process remaining octaves if any
+        if params.octaves > 1 {
             amplitude *= params.persistence;
             frequency *= 2.0;
+
+            for _ in 1..params.octaves {
+                total += self.perlin_noise(x_base * frequency + time, y_base * frequency + time)
+                    * amplitude;
+
+                max_value += amplitude;
+                amplitude *= params.persistence;
+                frequency *= 2.0;
+            }
         }
 
-        (total / max_value + 1.0) / 2.0
+        // Normalize to [0, 1] range more efficiently
+        (total / max_value + 1.0) * 0.5
     }
 
     /// Calculates a single octave of Perlin noise
+    #[inline(always)]
     fn perlin_noise(&self, x: f64, y: f64) -> f64 {
+        // Calculate grid cell coordinates
         let x0 = x.floor() as i32;
         let y0 = y.floor() as i32;
         let x1 = x0 + 1;
         let y1 = y0 + 1;
 
+        // Calculate relative position within cell
         let dx = x - x0 as f64;
         let dy = y - y0 as f64;
 
+        // Pre-calculate smoothstep values
         let sx = PatternUtils::smoothstep(dx);
         let sy = PatternUtils::smoothstep(dy);
 
-        let n00 = self.gradient_dot(self.utils.hash(x0, y0), x0, y0, dx, dy);
-        let n10 = self.gradient_dot(self.utils.hash(x1, y0), x1, y0, dx - 1.0, dy);
-        let n01 = self.gradient_dot(self.utils.hash(x0, y1), x0, y1, dx, dy - 1.0);
-        let n11 = self.gradient_dot(self.utils.hash(x1, y1), x1, y1, dx - 1.0, dy - 1.0);
+        // Calculate dot products with gradient vectors
+        let n00 = self.gradient_dot(self.utils.hash(x0, y0), dx, dy);
+        let n10 = self.gradient_dot(self.utils.hash(x1, y0), dx - 1.0, dy);
+        let n01 = self.gradient_dot(self.utils.hash(x0, y1), dx, dy - 1.0);
+        let n11 = self.gradient_dot(self.utils.hash(x1, y1), dx - 1.0, dy - 1.0);
 
+        // Interpolate results
         let nx0 = PatternUtils::lerp(n00, n10, sx);
         let nx1 = PatternUtils::lerp(n01, n11, sx);
         PatternUtils::lerp(nx0, nx1, sy)
     }
 
     /// Calculates dot product between gradient vector and distance vector
-    fn gradient_dot(&self, hash: u8, _x: i32, _y: i32, dx: f64, dy: f64) -> f64 {
+    #[inline(always)]
+    fn gradient_dot(&self, hash: u8, dx: f64, dy: f64) -> f64 {
+        // Use bitwise operations for faster gradient selection
         match hash & 3 {
-            0 => dx + dy,
-            1 => -dx + dy,
-            2 => dx - dy,
-            _ => -dx - dy,
+            0 => dx + dy,  // ( 1,  1)
+            1 => -dx + dy, // (-1,  1)
+            2 => dx - dy,  // ( 1, -1)
+            _ => -dx - dy, // (-1, -1)
         }
     }
 }

@@ -46,10 +46,9 @@ impl PatternEngine {
     }
 
     /// Updates the animation time based on delta seconds
+    #[inline]
     pub fn update(&mut self, delta_seconds: f64) {
-        let scaled_delta = delta_seconds * self.config.common.speed;
-        self.time += scaled_delta; // Remove the modulo operation
-                                   // Create new pattern generator with updated time
+        self.time += delta_seconds * self.config.common.speed;
         self.patterns = Patterns::new(self.width, self.height, self.time, 0);
     }
 
@@ -65,6 +64,7 @@ impl PatternEngine {
     }
 
     /// Calculates the pattern value at the specified coordinates
+    #[inline(always)]
     pub fn get_value_at(&self, x: usize, y: usize) -> Result<f64> {
         let value = self.patterns.generate(x, y, &self.config.params);
         Ok(value)
@@ -84,14 +84,16 @@ impl PatternEngine {
     /// # Returns
     /// Pattern value between 0.0 and 1.0
     pub fn get_value_at_normalized(&self, x: f64, y: f64) -> Result<f64> {
-        // Convert normalized coordinates to pattern space
-        let pattern_x = ((x + 0.5) * self.width as f64) as usize;
-        let pattern_y = ((y + 0.5) * self.height as f64) as usize;
+        let width_f = self.width as f64;
+        let height_f = self.height as f64;
 
+        let pattern_x = ((x + 0.5) * width_f) as usize;
+        let pattern_y = ((y + 0.5) * height_f) as usize;
         self.get_value_at(pattern_x, pattern_y)
     }
 
     /// Creates a new PatternEngine instance with different dimensions
+    #[cold]
     pub fn recreate(&self, new_width: usize, new_height: usize) -> Self {
         Self {
             config: self.config.clone(),

@@ -35,6 +35,8 @@ impl PatternUtils {
     ///
     /// # Returns
     /// Sine value for the given angle
+    #[inline]
+    #[rustfmt::skip]
     pub fn fast_sin(&self, angle: f64) -> f64 {
         let normalized_angle = angle.rem_euclid(2.0 * PI);
         let index = ((normalized_angle * 180.0 / PI) as usize) % 360;
@@ -48,6 +50,8 @@ impl PatternUtils {
     ///
     /// # Returns
     /// Cosine value for the given angle
+    #[inline]
+    #[rustfmt::skip]
     pub fn fast_cos(&self, angle: f64) -> f64 {
         let normalized_angle = angle.rem_euclid(2.0 * PI);
         let index = ((normalized_angle * 180.0 / PI) as usize) % 360;
@@ -59,7 +63,12 @@ impl PatternUtils {
     /// # Returns
     /// Vector containing pre-calculated sine values
     fn init_sin_table() -> Vec<f64> {
-        (0..360).map(|i| (i as f64 * PI / 180.0).sin()).collect()
+        let mut table = Vec::with_capacity(360);
+        let factor = PI / 180.0;
+        for i in 0..360 {
+            table.push((i as f64 * factor).sin());
+        }
+        table
     }
 
     /// Initializes the cosine lookup table with 360 degree values.
@@ -67,7 +76,12 @@ impl PatternUtils {
     /// # Returns
     /// Vector containing pre-calculated cosine values
     fn init_cos_table() -> Vec<f64> {
-        (0..360).map(|i| (i as f64 * PI / 180.0).cos()).collect()
+        let mut table = Vec::with_capacity(360);
+        let factor = PI / 180.0;
+        for i in 0..360 {
+            table.push((i as f64 * factor).cos());
+        }
+        table
     }
 
     /// Initializes a permutation table for noise generation.
@@ -98,7 +112,8 @@ impl PatternUtils {
     /// # Returns
     /// Smoothly interpolated value between 0 and 1
     pub fn smoothstep(t: f64) -> f64 {
-        t * t * (3.0 - 2.0 * t)
+        let t2 = t * t;
+        t2 * (3.0 - 2.0 * t)
     }
 
     /// Linear interpolation between two values.
@@ -110,6 +125,7 @@ impl PatternUtils {
     ///
     /// # Returns
     /// Interpolated value between a and b
+    #[inline(always)]
     pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
         a + t * (b - a)
     }
@@ -124,33 +140,37 @@ impl PatternUtils {
     ///
     /// # Returns
     /// Interpolated value that properly handles wrapping around 1.0
+    #[inline(always)]
     pub fn interpolate_value(prev_value: f64, next_value: f64, alpha: f64) -> f64 {
         let diff = next_value - prev_value;
-        if diff.abs() > 0.5 {
-            let wrapped_next = if diff > 0.0 {
-                next_value - 1.0
-            } else {
-                next_value + 1.0
-            };
-            let interpolated = prev_value + (wrapped_next - prev_value) * alpha;
-            if interpolated < 0.0 {
-                interpolated + 1.0
-            } else if interpolated > 1.0 {
-                interpolated - 1.0
-            } else {
-                interpolated
-            }
+
+        if diff.abs() <= 0.5 {
+            return prev_value + diff * alpha;
+        }
+
+        let wrapped_next = if diff > 0.0 {
+            next_value - 1.0
         } else {
-            prev_value + (next_value - prev_value) * alpha
+            next_value + 1.0
+        };
+
+        let interpolated = prev_value + (wrapped_next - prev_value) * alpha;
+        if interpolated < 0.0 {
+            interpolated + 1.0
+        } else if interpolated > 1.0 {
+            interpolated - 1.0
+        } else {
+            interpolated
         }
     }
 
     /// Hashes coordinates for Perlin noise generation
+    #[inline(always)]
     pub fn hash(&self, x: i32, y: i32) -> u8 {
         let x_hash = (x & 255) as usize;
         let y_hash = (y & 255) as usize;
-        let idx = (x_hash + (y_hash * 256)) % 256;
-        self.perm_table[idx]
+        // Use wrapping arithmetic for better optimization
+        self.perm_table[(x_hash.wrapping_add(y_hash.wrapping_mul(256))) & 255]
     }
 
     /// Performs smooth interpolation using cubic Hermite curve.
@@ -161,7 +181,8 @@ impl PatternUtils {
     ///
     /// # Returns
     /// Smoothly interpolated value between 0.0 and 1.0
-    pub fn smoothstep_bool(edge_test: bool) -> f64 {
+    #[inline(always)]
+    pub const fn smoothstep_bool(edge_test: bool) -> f64 {
         if edge_test {
             1.0
         } else {

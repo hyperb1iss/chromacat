@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use std::any::Any;
+use std::f64::consts::PI;
 
 /// Blending modes for plasma effect
 #[derive(Debug, Clone, Copy)]
@@ -97,13 +97,13 @@ impl PatternParam for PlasmaParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = PlasmaParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "complexity" => {
                     Self::COMPLEXITY_PARAM.validate(kv[1])?;
@@ -131,7 +131,7 @@ impl PatternParam for PlasmaParams {
                 }
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -148,64 +148,92 @@ impl PatternParam for PlasmaParams {
         Box::new(self.clone())
     }
 
-    fn as_any(&self) -> &dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl super::Patterns {
-    /// Generates a plasma effect pattern
+    #[inline]
     pub fn plasma(&self, x_norm: f64, y_norm: f64, params: PlasmaParams) -> f64 {
         let time = self.time * PI;
 
-        // Convert back to 0-1 range for plasma calculations
+        // Pre-calculate frequently used values
         let x_pos = x_norm + 0.5;
         let y_pos = y_norm + 0.5;
-
-        let cx = 0.5 + 0.4 * self.utils.fast_sin(time * 0.4);
-        let cy = 0.5 + 0.4 * self.utils.fast_cos(time * 0.43);
-
         let base_freq = params.frequency * params.scale * 2.0;
+
+        // Pre-calculate time-based values used multiple times
+        let time_sin04 = self.utils.fast_sin(time * 0.4);
+        let time_cos043 = self.utils.fast_cos(time * 0.43);
+
+        let cx = 0.5 + 0.4 * time_sin04;
+        let cy = 0.5 + 0.4 * time_cos043;
+
+        // Calculate distance components once
+        let dx1 = x_pos - cx;
+        let dy1 = y_pos - cy;
+        let dist1_sq = dx1 * dx1 + dy1 * dy1;
+
+        // Accumulate values with minimal divisions
         let mut sum = 0.0;
         let mut divisor = 0.0;
 
-        let dx1 = x_pos - cx;
-        let dy1 = y_pos - cy;
-        let dist1 = (dx1 * dx1 + dy1 * dy1).sqrt();
-        sum += self.utils.fast_sin(dist1 * 8.0 * base_freq + time * 0.6) * 1.2;
+        // First component
+        sum += self
+            .utils
+            .fast_sin(dist1_sq.sqrt() * 8.0 * base_freq + time * 0.6)
+            * 1.2;
         divisor += 1.2;
 
-        sum += self.utils.fast_sin(x_pos * 5.0 * base_freq + time * 0.4) * 0.8;
-        sum += self.utils.fast_sin(y_pos * 5.0 * base_freq + time * 0.47) * 0.8;
+        // Combine similar operations
+        let x_freq = x_pos * 5.0 * base_freq;
+        let y_freq = y_pos * 5.0 * base_freq;
+        sum += self.utils.fast_sin(x_freq + time * 0.4) * 0.8
+            + self.utils.fast_sin(y_freq + time * 0.47) * 0.8;
         divisor += 1.6;
 
+        // Pre-calculate rotation values
         let angle = time * 0.2;
-        let rx = x_pos * self.utils.fast_cos(angle) - y_pos * self.utils.fast_sin(angle);
-        let ry = x_pos * self.utils.fast_sin(angle) + y_pos * self.utils.fast_cos(angle);
+        let (sin_angle, cos_angle) = (self.utils.fast_sin(angle), self.utils.fast_cos(angle));
+        let rx = x_pos * cos_angle - y_pos * sin_angle;
+        let ry = x_pos * sin_angle + y_pos * cos_angle;
         sum += self.utils.fast_sin((rx + ry) * 4.0 * base_freq) * 1.0;
         divisor += 1.0;
 
+        // Center distance calculation
         let dx2 = x_pos - 0.5;
         let dy2 = y_pos - 0.5;
+        let dist2_sq = dx2 * dx2 + dy2 * dy2;
         let angle2 = dy2.atan2(dx2) + time * 0.3;
-        let dist2 = (dx2 * dx2 + dy2 * dy2).sqrt() * 6.0;
-        sum += self.utils.fast_sin(dist2 + angle2 * 2.0) * 0.8;
+        sum += self.utils.fast_sin(dist2_sq.sqrt() * 6.0 + angle2 * 2.0) * 0.8;
         divisor += 0.8;
 
-        for i in 0..params.complexity as u32 {
-            let fi = i as f64;
-            let speed = 0.2 + fi * 0.04;
+        // Complexity-based components
+        let complexity = params.complexity as u32;
+        if complexity > 0 {
+            let mut fi = 0.0;
+            for _ in 0..complexity {
+                let speed = 0.2 + fi * 0.04;
 
-            let cx = 0.5 + 0.3 * self.utils.fast_sin(time * speed);
-            let cy = 0.5 + 0.3 * self.utils.fast_cos(time * speed + PI * 0.3);
+                // Pre-calculate position
+                let cx = 0.5 + 0.3 * self.utils.fast_sin(time * speed);
+                let cy = 0.5 + 0.3 * self.utils.fast_cos(time * speed + PI * 0.3);
 
-            let dx = x_pos - cx;
-            let dy = y_pos - cy;
-            let dist = (dx * dx + dy * dy).sqrt();
+                let dx = x_pos - cx;
+                let dy = y_pos - cy;
+                let dist = (dx * dx + dy * dy).sqrt();
 
-            let freq = (3.0 + fi) * base_freq;
-            sum += self.utils.fast_sin(dist * freq + time * (0.4 + fi * 0.1)) * (1.2 / (fi + 1.0));
-            divisor += 1.0 / (fi + 1.0);
+                let freq = (3.0 + fi) * base_freq;
+                let weight = 1.2 / (fi + 1.0);
+                sum += self.utils.fast_sin(dist * freq + time * (0.4 + fi * 0.1)) * weight;
+                divisor += weight;
+
+                fi += 1.0;
+            }
         }
 
+        // Final normalization
         let normalized = (sum / divisor) * 1.2;
         (self.utils.fast_sin(normalized * PI * 0.8) + 1.0) * 0.5
     }

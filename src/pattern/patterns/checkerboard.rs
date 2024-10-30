@@ -1,8 +1,8 @@
-use std::f64::consts::PI;
-use std::any::Any;
-use crate::pattern::params::{PatternParam, ParamType};
-use crate::pattern::utils::PatternUtils;
 use crate::define_param;
+use crate::pattern::params::{ParamType, PatternParam};
+use crate::pattern::utils::PatternUtils;
+use std::any::Any;
+use std::f64::consts::PI;
 
 define_param!(num Checker, SizeParam, "size", "Size of checker squares", 1.0, 10.0, 2.0);
 define_param!(num Checker, BlurParam, "blur", "Blur between squares", 0.0, 1.0, 0.1);
@@ -93,13 +93,13 @@ impl PatternParam for CheckerboardParams {
 
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String> {
         let mut params = CheckerboardParams::default();
-        
+
         for part in value.split(',') {
             let kv: Vec<&str> = part.split('=').collect();
             if kv.len() != 2 {
                 continue;
             }
-            
+
             match kv[0] {
                 "size" => {
                     Self::SIZE_PARAM.validate(kv[1])?;
@@ -120,7 +120,7 @@ impl PatternParam for CheckerboardParams {
                 _ => {}
             }
         }
-        
+
         Ok(Box::new(params))
     }
 
@@ -144,51 +144,63 @@ impl PatternParam for CheckerboardParams {
 
 impl super::Patterns {
     /// Generates a checkerboard pattern with rotation and blur
+    #[inline(always)]
     pub fn checkerboard(&self, x_norm: f64, y_norm: f64, params: CheckerboardParams) -> f64 {
-        // Scale coordinates
+        // Pre-calculate scaled coordinates
         let x_scaled = x_norm * params.scale;
         let y_scaled = y_norm * params.scale;
 
-        // Add time-based rotation
-        let time_rotation = self.time * 45.0;
-        let total_rotation = (params.rotation + time_rotation) * PI / 180.0;
-        
-        // Rotate coordinates
-        let cos_rot = self.utils.fast_cos(total_rotation);
-        let sin_rot = self.utils.fast_sin(total_rotation);
+        // Pre-calculate rotation values
+        let total_rotation = (params.rotation + self.time * 45.0) * (PI / 180.0);
+        let (sin_rot, cos_rot) = {
+            let sin_val = self.utils.fast_sin(total_rotation);
+            let cos_val = self.utils.fast_cos(total_rotation);
+            (sin_val, cos_val)
+        };
+
+        // Combine rotation calculations
         let x_rot = x_scaled * cos_rot - y_scaled * sin_rot;
         let y_rot = x_scaled * sin_rot + y_scaled * cos_rot;
 
-        // Add time-based scale oscillation
-        let scale_oscillation = self.utils.fast_sin(self.time * PI) * 0.2 + 1.0;
-        let animated_scale = params.size as f64 * scale_oscillation;
+        // Pre-calculate scale animation
+        let scale_factor = self.utils.fast_sin(self.time * PI) * 0.2 + 1.0;
+        let size_scaled = params.size as f64 * scale_factor;
 
-        // Calculate checker pattern with animated scale
-        let x_checker = (x_rot * animated_scale).floor() as i32;
-        let y_checker = (y_rot * animated_scale).floor() as i32;
-        let base_value = (x_checker + y_checker) % 2 == 0;
+        // Calculate checker pattern
+        let x_checker = (x_rot * size_scaled).floor() as i32;
+        let y_checker = (y_rot * size_scaled).floor() as i32;
+        let is_white = (x_checker + y_checker) & 1 == 0;
 
+        // Fast path for no blur
         if params.blur <= 0.0 {
-            return if base_value { 1.0 } else { 0.0 };
+            return if is_white { 1.0 } else { 0.0 };
         }
 
-        // Apply blur using smoothstep with time-based blur variation
-        let x_fract = (x_rot * animated_scale).fract();
-        let y_fract = (y_rot * animated_scale).fract();
-        let animated_blur = params.blur * (self.utils.fast_sin(self.time * PI * 2.0) * 0.2 + 0.8);
-        let blur_scale = animated_blur * 0.5;
+        // Calculate blur with optimized range checks
+        let x_fract = (x_rot * size_scaled).fract();
+        let y_fract = (y_rot * size_scaled).fract();
 
-        let x_blend = PatternUtils::smoothstep(
-            if (0.5 - blur_scale..=0.5 + blur_scale).contains(&x_fract) { 1.0 } else { 0.0 }
-        );
-        let y_blend = PatternUtils::smoothstep(
-            if (0.5 - blur_scale..=0.5 + blur_scale).contains(&y_fract) { 1.0 } else { 0.0 }
-        );
+        // Pre-calculate blur parameters
+        let blur_amount = params.blur * (self.utils.fast_sin(self.time * PI * 2.0) * 0.2 + 0.8);
+        let blur_range = blur_amount * 0.5;
+        let half = 0.5;
 
-        if base_value {
-            (1.0 - x_blend) * (1.0 - y_blend) + x_blend * y_blend
+        // Optimize range checks
+        let x_in_blur_range = (x_fract - half).abs() <= blur_range;
+        let y_in_blur_range = (y_fract - half).abs() <= blur_range;
+
+        // Calculate blending values
+        let x_blend = if x_in_blur_range { 1.0 } else { 0.0 };
+        let y_blend = if y_in_blur_range { 1.0 } else { 0.0 };
+
+        let x_smooth = PatternUtils::smoothstep(x_blend);
+        let y_smooth = PatternUtils::smoothstep(y_blend);
+
+        // Final blend calculation without branches
+        if is_white {
+            (1.0 - x_smooth) * (1.0 - y_smooth) + x_smooth * y_smooth
         } else {
-            x_blend * (1.0 - y_blend) + (1.0 - x_blend) * y_blend
+            x_smooth * (1.0 - y_smooth) + (1.0 - x_smooth) * y_smooth
         }
     }
 }
