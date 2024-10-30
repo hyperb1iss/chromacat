@@ -248,7 +248,7 @@ fn test_demo_mode() {
     println!("Testing static demo mode");
     let cli = Cli {
         files: vec![],
-        pattern: PatternKind::Horizontal,
+        pattern: PatternKind::Diagonal,
         theme: String::from("rainbow"),
         animate: false,
         fps: 30,

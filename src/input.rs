@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
 
-/// Handles reading input from either stdin or a file
+/// Handles reading input from either stdin, a file, or demo mode
 pub struct InputReader {
     source: Box<dyn BufRead>,
 }
@@ -49,18 +49,24 @@ impl InputReader {
     }
 }
 
-/// Demo mode input source
+/// Demo mode input source that generates content once and caches it
 struct DemoInput {
-    generator: DemoGenerator,
+    /// Pre-generated content buffer
     buffer: Vec<u8>,
+    /// Current read position in buffer
     position: usize,
 }
 
 impl DemoInput {
-    fn new(generator: DemoGenerator) -> Self {
+    fn new(mut generator: DemoGenerator) -> Self {
+        // Generate content once at initialization
+        log::info!("Initializing demo mode content");
+        let content = generator.generate();
+        let buffer = content.into_bytes();
+        log::debug!("Demo content size: {} bytes", buffer.len());
+
         Self {
-            generator,
-            buffer: Vec::new(),
+            buffer,
             position: 0,
         }
     }
@@ -68,14 +74,6 @@ impl DemoInput {
 
 impl Read for DemoInput {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        // Generate content if buffer is empty
-        if self.buffer.is_empty() {
-            let content = self.generator.generate();
-            eprintln!("Generated content length: {}", content.len());
-            self.buffer = content.into_bytes();
-            self.position = 0;
-        }
-
         // If we've read everything, return 0
         if self.position >= self.buffer.len() {
             return Ok(0);
@@ -93,19 +91,12 @@ impl Read for DemoInput {
 
 impl BufRead for DemoInput {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        // Generate content if buffer is empty
-        if self.buffer.is_empty() {
-            let content = self.generator.generate();
-            eprintln!("BufRead generated content length: {}", content.len());
-            self.buffer = content.into_bytes();
-            self.position = 0;
-        }
-
         // Return remaining unread portion of the buffer
         Ok(&self.buffer[self.position..])
     }
 
     fn consume(&mut self, amt: usize) {
+        // Update position after reading
         self.position = (self.position + amt).min(self.buffer.len());
     }
 }

@@ -1,6 +1,9 @@
+// File: src/demo.rs
 //! Demo mode text generator for ChromaCat
 //!
-//! This module provides creative text patterns for demonstrating ChromaCat's capabilities.
+//! This module provides creative text patterns for demonstrating ChromaCat's capabilities
+//! by generating a comprehensive display of various pattern types. Content is generated
+//! once and cached for efficiency.
 
 use rand::{thread_rng, Rng};
 
@@ -16,10 +19,14 @@ enum DemoPattern {
     Mandala,
 }
 
-/// Generates demo text content
+/// Generates and caches demo text content
 pub struct DemoGenerator {
+    /// Available pattern types
     patterns: Vec<DemoPattern>,
+    /// Random number generator
     rng: rand::rngs::ThreadRng,
+    /// Cached generated content
+    generated_content: Option<String>,
 }
 
 impl DemoGenerator {
@@ -36,15 +43,22 @@ impl DemoGenerator {
                 DemoPattern::Boxes,
             ],
             rng: thread_rng(),
+            generated_content: None,
         }
     }
 
-    /// Generates the next frame of demo content
+    /// Generates or returns cached demo content
     pub fn generate(&mut self) -> String {
-        // Always generate full content, regardless of animation mode
-        let mut output = String::with_capacity(50000);
+        // Return cached content if available
+        if let Some(content) = &self.generated_content {
+            log::debug!("Returning cached demo content");
+            return content.clone();
+        }
 
-        // Collect patterns into a vector first to avoid borrowing issues
+        log::info!("Generating demo content for the first time");
+
+        // Generate content once
+        let mut output = String::with_capacity(50000);
         let patterns: Vec<DemoPattern> = self.patterns.clone();
 
         // Generate each pattern once
@@ -65,19 +79,9 @@ impl DemoGenerator {
         output.push_str(&"=".repeat(80));
         output.push_str("\n\n");
 
+        // Cache the generated content
+        self.generated_content = Some(output.clone());
         output
-    }
-
-    fn generate_pattern(&mut self, pattern: DemoPattern) -> String {
-        match pattern {
-            DemoPattern::Matrix => self.generate_matrix(),
-            DemoPattern::Waves => self.generate_waves(),
-            DemoPattern::Spiral => self.generate_spiral(),
-            DemoPattern::Code => self.generate_code(),
-            DemoPattern::Ascii => self.generate_ascii_art(),
-            DemoPattern::Boxes => self.generate_boxes(),
-            DemoPattern::Mandala => self.generate_mandala(),
-        }
     }
 
     fn generate_matrix(&mut self) -> String {
@@ -89,7 +93,6 @@ impl DemoGenerator {
         for _ in 0..24 {
             for _ in 0..80 {
                 if self.rng.gen_bool(0.7) {
-                    // Increased density
                     output.push(chars[self.rng.gen_range(0..2)]);
                 } else {
                     output.push(' ');
@@ -106,7 +109,6 @@ impl DemoGenerator {
         let wave_chars: Vec<char> = "█▓▒░ ".chars().collect();
         let char_count = wave_chars.len() - 1;
 
-        // Create smoother wave pattern
         for y in 0..24 {
             for x in 0..80 {
                 let phase = (x as f64 * 0.2 + y as f64 * 0.1).sin();
@@ -126,34 +128,23 @@ impl DemoGenerator {
         let spiral_chars: Vec<char> = "█▓▒░ ".chars().collect();
         let char_count = spiral_chars.len() - 1;
 
-        // New approach using polar coordinates
         for y in 0..24 {
             for x in 0..80 {
                 let center_x = 40.0;
                 let center_y = 12.0;
                 let dx = x as f64 - center_x;
-                let dy = (y as f64 - center_y) * 2.0; // Adjust for terminal aspect ratio
+                let dy = (y as f64 - center_y) * 2.0;
 
-                // Convert to polar coordinates
                 let r = (dx * dx + dy * dy).sqrt();
                 let theta = dy.atan2(dx);
 
-                // Create spiral pattern
                 let spiral = (r * 0.15 - theta).sin();
-                let value = (spiral + 1.0) / 2.0; // Normalize to 0.0-1.0 range
+                let value = (spiral + 1.0) / 2.0;
 
                 let idx = (value * char_count as f64) as usize;
                 output.push(spiral_chars[idx.min(char_count)]);
             }
             output.push('\n');
-        }
-
-        // Add debug output to check dimensions
-        for (i, line) in output.lines().enumerate() {
-            let len = line.chars().count();
-            if len != 80 {
-                eprintln!("Line {} has incorrect length: {}", i, len);
-            }
         }
 
         output
@@ -162,10 +153,9 @@ impl DemoGenerator {
     fn generate_boxes(&mut self) -> String {
         let mut output = String::with_capacity(2000);
 
-        // Create a more structured box pattern
         for y in 0..24 {
             for x in 0..80 {
-                let pattern_size = 6; // Smaller boxes
+                let pattern_size = 6;
                 let is_border = x % pattern_size == 0 || y % pattern_size == 0;
                 let is_corner = x % pattern_size == 0 && y % pattern_size == 0;
 
@@ -235,7 +225,7 @@ impl DemoGenerator {
             "│  // Create beautiful gradients     │",
             "│  // for your terminal output!      │",
             "│                                    │",
-            "└───────────────────────────────────┘",
+            "└────────────────────────────┘",
         ];
 
         // Center and pad the code box
@@ -282,28 +272,28 @@ impl DemoGenerator {
     ║                                                              ║
     ╚══════════════════════════════════════════════════════════════╝"#,
             r#"
-    ┌──────────────────────────────────────────────────────────────┐
-    │   ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ███╗ █████╗  ██████╗█████╗ ████████╗  │
-    │  ██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗╚══██╔══╝ │
-    │  ██║     ███████║██████╔╝██║   ██║██╔████╔██║███████║██║     ███████║   ██║    │
-    │  ██║     ██╔══██║██╔══██╗██║   ██║██║╚██╔╝██║██╔══██║██║     ██╔══██║   ██║    │
-    │  ╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║   ██║    │
-    │   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝    │
-    └──────────────────────────────────────────────────────────────┘"#,
+        ┌──────────────────────────────────────────────────────────────┐
+        │   ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ███╗ █████╗  ██████╗█████╗ ████████╗  │
+        │  ██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗╚══██╔══╝ │
+        │  ██║     ███████║██████╔╝██║   ██║██╔████╔██║███████║██║     ███████║   ██║    │
+        │  ██║     ██╔══██║██╔══██╗██║   ██║██║╚██╔╝██║██╔══██║██║     ██╔══██║   ██║    │
+        │  ╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║   ██║    │
+        │   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝    │
+        └──────────────────────────────────────────────────────────────┘"#,
             r#"
-    ┌──────────────────────────────────────────────────────────────┐
-    │                     🎨 Terminal Artistry 🎨                   │
-    │                                                              │
-    │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
-    │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
-    │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
-    │              ░░  ▒▒  ▓▓  ████████  ▓▓  ▒▒  ░░             │
-    │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
-    │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
-    │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
-    │                                                              │
-    │                    Paint Your Terminal World                 │
-    └──────────────────────────────────────────────────────────────┘"#,
+        ┌──────────────────────────────────────────────────────────────┐
+        │                     🎨 Terminal Artistry 🎨                   │
+        │                                                              │
+        │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
+        │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
+        │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
+        │              ░░  ▒▒  ▓▓  ████████  ▓▓  ▒▒  ░░             │
+        │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
+        │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
+        │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
+        │                                                              │
+        │                    Paint Your Terminal World                 │
+        └──────────────────────────────────────────────────────────────┘"#,
         ];
 
         let mut output = String::new();
@@ -312,47 +302,40 @@ impl DemoGenerator {
         for (i, art) in arts.iter().enumerate() {
             // Get non-empty lines
             let art_lines: Vec<&str> = art.lines().filter(|line| !line.trim().is_empty()).collect();
+            let art_height = art_lines.len();
 
-            // Calculate lines needed for this block
-            let lines_needed: usize = block_size;
-            let art_height: usize = art_lines.len();
-
-            // Calculate top padding (ensure it's non-negative)
-            let top_padding = lines_needed.saturating_sub(art_height) / 2;
+            // Calculate padding while avoiding overflow
+            let padding = if art_height < block_size {
+                (block_size - art_height) / 2
+            } else {
+                0
+            };
 
             // Add top padding
-            for _ in 0..top_padding {
+            for _ in 0..padding {
                 output.push_str(&" ".repeat(80));
                 output.push('\n');
             }
 
             // Add the art with centering
             for line in art_lines {
-                let line_len: usize = line.chars().count();
-                let side_padding = if line_len < 80 {
-                    (80 - line_len) / 2
-                } else {
-                    0
-                };
+                let line_len = line.chars().count().min(80) as u32;
+                let side_padding = ((80 - line_len) / 2) as u32;
 
-                output.push_str(&" ".repeat(side_padding));
+                output.push_str(&" ".repeat(side_padding as usize));
                 output.push_str(line);
 
-                // Add remaining padding to reach 80 chars
-                let remaining = if side_padding + line_len < 80 {
-                    80 - (side_padding + line_len)
-                } else {
-                    0
-                };
+                // Calculate remaining space safely with explicit types
+                let remaining = (80_u32).saturating_sub(side_padding + line_len) as usize;
                 output.push_str(&" ".repeat(remaining));
                 output.push('\n');
             }
 
-            // Calculate and add bottom padding
-            let current_height = output.lines().count() % block_size;
-            if current_height < block_size {
-                let bottom_padding = block_size - current_height;
-                for _ in 0..bottom_padding {
+            // Add bottom padding to complete the block
+            let lines_so_far = output.lines().count() % block_size;
+            if lines_so_far < block_size {
+                let remaining_lines = block_size - lines_so_far;
+                for _ in 0..remaining_lines {
                     output.push_str(&" ".repeat(80));
                     output.push('\n');
                 }
@@ -368,9 +351,16 @@ impl DemoGenerator {
         output
     }
 
-    /// Check if the generator is in animated mode
-    pub fn is_animated(&self) -> bool {
-        true
+    fn generate_pattern(&mut self, pattern: DemoPattern) -> String {
+        match pattern {
+            DemoPattern::Matrix => self.generate_matrix(),
+            DemoPattern::Waves => self.generate_waves(),
+            DemoPattern::Spiral => self.generate_spiral(),
+            DemoPattern::Code => self.generate_code(),
+            DemoPattern::Ascii => self.generate_ascii_art(),
+            DemoPattern::Boxes => self.generate_boxes(),
+            DemoPattern::Mandala => self.generate_mandala(),
+        }
     }
 }
 
