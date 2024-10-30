@@ -16,6 +16,8 @@ pub struct CommonParams {
     pub correct_aspect: bool,
     /// Aspect ratio (width/height)
     pub aspect_ratio: f64,
+    /// Current theme name
+    pub theme_name: Option<String>,
 }
 
 impl Default for CommonParams {
@@ -26,6 +28,7 @@ impl Default for CommonParams {
             speed: 1.0,
             correct_aspect: true,
             aspect_ratio: 0.5,
+            theme_name: None,
         }
     }
 }

@@ -16,6 +16,7 @@ fn test_time_consistency() {
             speed: 1.0,
             correct_aspect: true,
             aspect_ratio: 0.5,
+            theme_name: Some("test".to_string()),
         },
         params: PatternParams::Plasma(PlasmaParams::default()),
     };
@@ -76,6 +77,7 @@ fn test_consistent_animation_speed() {
             speed: 1.0,
             correct_aspect: true,
             aspect_ratio: 0.5,
+            theme_name: Some("test".to_string()),
         },
         params: PatternParams::Plasma(PlasmaParams::default()),
     };

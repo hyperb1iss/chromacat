@@ -25,14 +25,14 @@ pub use scroll::{Action, ScrollState};
 pub use status_bar::StatusBar;
 pub use terminal::TerminalState;
 
+use crate::cli::PatternKind;
 use crate::pattern::PatternEngine;
+use crate::pattern::{PatternConfig, PatternParams};
+use crate::themes;
+use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use std::io::Write;
 use std::time::Duration;
-use crossterm::event::KeyCode;
-use crate::themes;
-use crate::pattern::{PatternConfig, PatternParams};
-use crate::cli::PatternKind;
 
 /// Coordinates all rendering functionality for ChromaCat
 pub struct Renderer {
@@ -65,13 +65,13 @@ impl Renderer {
         let term_size = terminal.size();
         let buffer = RenderBuffer::new(term_size);
         let scroll = ScrollState::new(term_size.1.saturating_sub(2));
-        let status_bar = StatusBar::new(term_size);
+        let mut status_bar = StatusBar::new(term_size);
 
         // Initialize available themes
         let available_themes = themes::all_themes()
             .iter()
             .map(|t| t.name.clone())
-            .collect();
+            .collect::<Vec<_>>();
 
         // Initialize available patterns
         let available_patterns = vec![
@@ -86,6 +86,39 @@ impl Renderer {
             PatternKind::Perlin,
         ];
 
+        // Set initial theme and pattern in status bar based on engine's configuration
+        let initial_theme = match engine.config().common.theme_name.as_ref() {
+            Some(name) => name,
+            None => "rainbow", // fallback
+        };
+        status_bar.set_theme(initial_theme);
+
+        // Find the current theme index
+        let current_theme_index = available_themes
+            .iter()
+            .position(|t| t == initial_theme)
+            .unwrap_or(0);
+
+        // Determine initial pattern index based on current config
+        let initial_pattern = match engine.config().params {
+            PatternParams::Horizontal(_) => PatternKind::Horizontal,
+            PatternParams::Diagonal(_) => PatternKind::Diagonal,
+            PatternParams::Plasma(_) => PatternKind::Plasma,
+            PatternParams::Ripple(_) => PatternKind::Ripple,
+            PatternParams::Wave(_) => PatternKind::Wave,
+            PatternParams::Spiral(_) => PatternKind::Spiral,
+            PatternParams::Checkerboard(_) => PatternKind::Checkerboard,
+            PatternParams::Diamond(_) => PatternKind::Diamond,
+            PatternParams::Perlin(_) => PatternKind::Perlin,
+        };
+
+        let current_pattern_index = available_patterns
+            .iter()
+            .position(|&p| p == initial_pattern)
+            .unwrap_or(0);
+
+        status_bar.set_pattern(&initial_pattern.to_string());
+
         Ok(Self {
             engine,
             config,
@@ -94,9 +127,9 @@ impl Renderer {
             scroll,
             status_bar,
             available_themes,
-            current_theme_index: 0,
+            current_theme_index,
             available_patterns,
-            current_pattern_index: 0,
+            current_pattern_index,
         })
     }
 
@@ -191,7 +224,7 @@ impl Renderer {
                 }
                 Action::Exit => Ok(false),
                 Action::NoChange => Ok(true),
-            }
+            },
         }
     }
 
@@ -243,29 +276,39 @@ impl Renderer {
 
     /// Switches to the next available theme
     pub fn next_theme(&mut self) -> Result<(), RendererError> {
+        // Calculate next index
         self.current_theme_index = (self.current_theme_index + 1) % self.available_themes.len();
         let new_theme = &self.available_themes[self.current_theme_index];
-        
+
         // Create new gradient from theme
         let theme = themes::get_theme(new_theme)?;
         let gradient = theme.create_gradient()?;
-        
-        // Update engine with new gradient
+
+        // Update engine with new gradient and theme name
         self.engine.update_gradient(gradient);
+
+        // Update theme name in engine's config
+        let mut config = self.engine.config().clone();
+        config.common.theme_name = Some(new_theme.clone());
+        self.engine.update_pattern_config(config);
+
+        // Update status bar
         self.status_bar.set_theme(new_theme);
-        
+
         // Force refresh
         self.update_visible_region()?;
-        
+
         Ok(())
     }
 
     /// Switches to the next available pattern
     pub fn next_pattern(&mut self) -> Result<(), RendererError> {
-        self.current_pattern_index = (self.current_pattern_index + 1) % self.available_patterns.len();
+        // Calculate next index
+        self.current_pattern_index =
+            (self.current_pattern_index + 1) % self.available_patterns.len();
         let new_pattern = self.available_patterns[self.current_pattern_index];
-        
-        // Create new pattern configuration
+
+        // Create new pattern configuration while preserving common parameters
         let pattern_config = PatternConfig {
             common: self.engine.config().common.clone(),
             params: match new_pattern {
@@ -280,14 +323,14 @@ impl Renderer {
                 PatternKind::Perlin => PatternParams::Perlin(Default::default()),
             },
         };
-        
+
         // Update engine with new pattern
         self.engine.update_pattern_config(pattern_config);
         self.status_bar.set_pattern(&new_pattern.to_string());
-        
+
         // Force refresh
         self.update_visible_region()?;
-        
+
         Ok(())
     }
 }

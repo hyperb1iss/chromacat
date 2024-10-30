@@ -24,6 +24,7 @@ fn create_test_config() -> PatternConfig {
             speed: 1.0,
             correct_aspect: true,
             aspect_ratio: 0.5,
+            theme_name: Some("test".to_string()),
         },
         params: PatternParams::Horizontal(HorizontalParams::default()),
     }

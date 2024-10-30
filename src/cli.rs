@@ -314,6 +314,7 @@ impl Cli {
             speed: self.speed,
             correct_aspect: !self.no_aspect_correction,
             aspect_ratio: self.aspect_ratio,
+            theme_name: Some(self.theme.clone()),
         };
 
         // Get default parameters for the selected pattern

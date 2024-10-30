@@ -50,12 +50,34 @@ impl StatusBar {
         stdout: &mut std::io::StdoutLock,
         scroll: &ScrollState,
     ) -> Result<(), RendererError> {
-        // Draw separator line
+        // Define colors
+        let separator_color = Color::Rgb {
+            r: 40,
+            g: 44,
+            b: 52,
+        };
+        let accent_color = Color::Rgb {
+            r: 97,
+            g: 175,
+            b: 239,
+        };
+        let text_color = Color::Rgb {
+            r: 171,
+            g: 178,
+            b: 191,
+        };
+        let muted_color = Color::Rgb {
+            r: 92,
+            g: 99,
+            b: 112,
+        };
+
+        // Draw separator line with a cleaner look
         queue!(
             stdout,
             MoveTo(0, self.height - 2),
             Print("\x1b[K"),
-            SetForegroundColor(Color::DarkGrey),
+            SetForegroundColor(separator_color),
             Print("─".repeat(self.width as usize))
         )?;
 
@@ -64,11 +86,11 @@ impl StatusBar {
         // Calculate available width
         let total_width = self.width as usize;
 
-        // Build compact status sections
-        let left_section = format!("😺 {}│{}", self.current_theme, self.current_pattern);
-        let middle_section = "[t]theme [p]pat";
+        // Build status sections with improved formatting
+        let left_section = format!(" {} • {}", self.current_theme, self.current_pattern);
+        let middle_section = "[T]heme [P]attern";
         let right_section = format!(
-            "↑↓scroll│q quit│{}-{}/{}",
+            "Lines {}-{}/{}  [Q]uit ",
             start + 1,
             end,
             scroll.total_lines
@@ -79,39 +101,25 @@ impl StatusBar {
         let middle_width = middle_section.chars().count();
         let right_width = right_section.chars().count();
 
-        // If total width is too small, prioritize important info
-        let available_width = total_width.saturating_sub(2); // Leave 2 chars margin
-
-        queue!(
-            stdout,
-            MoveTo(0, self.height - 1),
-            Print("\x1b[K"),
-            SetForegroundColor(Color::Rgb {
-                r: 255,
-                g: 182,
-                b: 193
-            }),
-        )?;
+        // Clear status bar line
+        queue!(stdout, MoveTo(0, self.height - 1), Print("\x1b[K"),)?;
 
         // Render sections based on available space
+        let available_width = total_width.saturating_sub(2); // Leave 2 chars margin
+
         if left_width + middle_width + right_width <= available_width {
             // Full render - everything fits
             queue!(
                 stdout,
+                SetForegroundColor(accent_color),
                 Print(&left_section),
-                SetForegroundColor(Color::Rgb {
-                    r: 180,
-                    g: 180,
-                    b: 180
-                }),
-                Print(" "),
+                SetForegroundColor(text_color),
+                MoveTo(
+                    (self.width as usize / 2 - middle_width / 2) as u16,
+                    self.height - 1
+                ),
                 Print(middle_section),
-                Print(" "),
-                SetForegroundColor(Color::Rgb {
-                    r: 150,
-                    g: 150,
-                    b: 150
-                }),
+                SetForegroundColor(muted_color),
                 MoveTo(
                     self.width.saturating_sub(right_width as u16),
                     self.height - 1
@@ -122,13 +130,9 @@ impl StatusBar {
             // Medium render - skip middle section
             queue!(
                 stdout,
+                SetForegroundColor(accent_color),
                 Print(&left_section),
-                Print(" "),
-                SetForegroundColor(Color::Rgb {
-                    r: 150,
-                    g: 150,
-                    b: 150
-                }),
+                SetForegroundColor(muted_color),
                 MoveTo(
                     self.width.saturating_sub(right_width as u16),
                     self.height - 1
@@ -136,11 +140,15 @@ impl StatusBar {
                 Print(right_section),
             )?;
         } else {
-            // Minimal render - just theme/pattern
-            let max_left = available_width.saturating_sub(3); // Leave room for ellipsis
-            let truncated = left_section.chars().take(max_left).collect::<String>();
-            queue!(stdout, Print(truncated), Print("..."),)?;
+            // Minimal render - just essential info
+            let max_width = available_width.saturating_sub(3);
+            let minimal_info = format!(" {}…", self.current_theme);
+            let truncated = minimal_info.chars().take(max_width).collect::<String>();
+            queue!(stdout, SetForegroundColor(accent_color), Print(truncated),)?;
         }
+
+        // Reset color at the end
+        queue!(stdout, SetForegroundColor(Color::Reset))?;
 
         Ok(())
     }
