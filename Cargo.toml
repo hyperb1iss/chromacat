@@ -10,6 +10,7 @@ homepage = "https://github.com/hyperb1iss/chromacat"
 repository = "https://github.com/hyperb1iss/chromacat"
 keywords = ["cli", "color", "terminal", "gradient", "text"]
 categories = ["command-line-utilities"]
+default-run = "chromacat"
 
 [dependencies]
 clap = { version = "4.1", features = ["derive"] }
