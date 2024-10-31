@@ -70,6 +70,7 @@ ChromaCat offers several pattern types for dynamic colorization:
 - `checkerboard` - Alternating gradient colors in a grid
 - `diamond` - Diamond-shaped gradient pattern
 - `perlin` - Organic, cloud-like noise pattern
+- `pixel_rain` - Matrix-style digital rain effect
 
 ## 🎨 Theme Gallery
 

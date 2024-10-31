@@ -7,6 +7,7 @@ mod plasma;
 mod ripple;
 mod spiral;
 mod wave;
+mod pixel_rain;
 
 pub use checkerboard::CheckerboardParams;
 pub use diagonal::DiagonalParams;
@@ -17,6 +18,7 @@ pub use plasma::{PlasmaParams, PlasmaBlendMode};
 pub use ripple::RippleParams;
 pub use spiral::SpiralParams;
 pub use wave::WaveParams;
+pub use pixel_rain::PixelRainParams;
 
 use crate::pattern::utils::PatternUtils;
 use crate::pattern::config::PatternParams;
@@ -90,6 +92,7 @@ impl Patterns {
             PatternParams::Checkerboard(p) => self.checkerboard(x_norm, y_norm, p.clone()),
             PatternParams::Diamond(p) => self.diamond(x_norm, y_norm, p.clone()),
             PatternParams::Perlin(p) => self.perlin(x_norm, y_norm, p.clone()),
+            PatternParams::PixelRain(p) => self.pixel_rain(x_norm, y_norm, p.clone()),
         }
     }
 }

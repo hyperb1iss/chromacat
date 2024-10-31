@@ -10,6 +10,7 @@ use crate::pattern::{
     CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
     PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
 };
+use crate::pattern::patterns::PixelRainParams;
 use crate::renderer::AnimationConfig;
 use crate::themes;
 use crate::cli_format::CliFormat;
@@ -246,17 +247,28 @@ fn parse_param_value(s: &str) -> std::result::Result<String, String> {
 }
 
 /// Available pattern types for gradient effects
-#[derive(Debug, Clone, Copy, ValueEnum, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ValueEnum)]
 pub enum PatternKind {
+    #[value(name = "horizontal")]
     Horizontal,
+    #[value(name = "diagonal")]
     Diagonal,
+    #[value(name = "plasma")]
     Plasma,
+    #[value(name = "ripple")]
     Ripple,
+    #[value(name = "wave")]
     Wave,
+    #[value(name = "spiral")]
     Spiral,
+    #[value(name = "checkerboard")]
     Checkerboard,
+    #[value(name = "diamond")]
     Diamond,
+    #[value(name = "perlin")]
     Perlin,
+    #[value(name = "pixel_rain")]
+    PixelRain,
 }
 
 impl std::fmt::Display for PatternKind {
@@ -271,6 +283,7 @@ impl std::fmt::Display for PatternKind {
             Self::Checkerboard => write!(f, "checkerboard"),
             Self::Diamond => write!(f, "diamond"),
             Self::Perlin => write!(f, "perlin"),
+            Self::PixelRain => write!(f, "pixel_rain"),
         }
     }
 }
@@ -278,6 +291,26 @@ impl std::fmt::Display for PatternKind {
 impl Default for PatternKind {
     fn default() -> Self {
         Self::Diagonal
+    }
+}
+
+impl std::str::FromStr for PatternKind {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "horizontal" => Ok(Self::Horizontal),
+            "diagonal" => Ok(Self::Diagonal),
+            "plasma" => Ok(Self::Plasma),
+            "ripple" => Ok(Self::Ripple),
+            "wave" => Ok(Self::Wave),
+            "spiral" => Ok(Self::Spiral),
+            "checkerboard" => Ok(Self::Checkerboard),
+            "diamond" => Ok(Self::Diamond),
+            "perlin" => Ok(Self::Perlin),
+            "pixel_rain" => Ok(Self::PixelRain),
+            _ => Err(format!("Unknown pattern type: {}", s)),
+        }
     }
 }
 
@@ -396,6 +429,11 @@ impl Cli {
                         .ok_or_else(|| ChromaCatError::Other("Failed to parse perlin parameters".to_string()))?;
                     PatternParams::Perlin(p.clone())
                 },
+                PatternKind::PixelRain => {
+                    let p = parsed.as_any().downcast_ref::<PixelRainParams>()
+                        .ok_or_else(|| ChromaCatError::Other("Failed to parse pixel_rain parameters".to_string()))?;
+                    PatternParams::PixelRain(p.clone())
+                },
             };
 
             return Ok(PatternConfig { common, params });
@@ -412,6 +450,7 @@ impl Cli {
             PatternKind::Checkerboard => PatternParams::Checkerboard(CheckerboardParams::default()),
             PatternKind::Diamond => PatternParams::Diamond(DiamondParams::default()),
             PatternKind::Perlin => PatternParams::Perlin(PerlinParams::default()),
+            PatternKind::PixelRain => PatternParams::PixelRain(PixelRainParams::default()),
         };
 
         Ok(PatternConfig { common, params })
@@ -455,6 +494,7 @@ impl Cli {
             PatternKind::Checkerboard,
             PatternKind::Diamond,
             PatternKind::Perlin,
+            PatternKind::PixelRain,
         ] {
             let params = pattern_kind.default_params();
             println!("  {} {}",
@@ -619,6 +659,7 @@ impl Cli {
             PatternKind::Checkerboard,
             PatternKind::Diamond,
             PatternKind::Perlin,
+            PatternKind::PixelRain,
         ] {
             let params = pattern_kind.default_params();
 
@@ -676,6 +717,7 @@ impl PatternKind {
             Self::Checkerboard => Box::new(CheckerboardParams::default()),
             Self::Diamond => Box::new(DiamondParams::default()),
             Self::Perlin => Box::new(PerlinParams::default()),
+            Self::PixelRain => Box::new(PixelRainParams::default()),
         }
     }
 }

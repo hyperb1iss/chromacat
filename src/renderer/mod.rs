@@ -93,6 +93,7 @@ impl Renderer {
             PatternKind::Checkerboard,
             PatternKind::Diamond,
             PatternKind::Perlin,
+            PatternKind::PixelRain,
         ];
 
         // Set initial theme and pattern in status bar based on engine's configuration
@@ -119,6 +120,7 @@ impl Renderer {
             PatternParams::Checkerboard(_) => PatternKind::Checkerboard,
             PatternParams::Diamond(_) => PatternKind::Diamond,
             PatternParams::Perlin(_) => PatternKind::Perlin,
+            PatternParams::PixelRain(_) => PatternKind::PixelRain,
         };
 
         let current_pattern_index = available_patterns
@@ -392,6 +394,7 @@ impl Renderer {
                 PatternKind::Checkerboard => PatternParams::Checkerboard(Default::default()),
                 PatternKind::Diamond => PatternParams::Diamond(Default::default()),
                 PatternKind::Perlin => PatternParams::Perlin(Default::default()),
+                PatternKind::PixelRain => PatternParams::PixelRain(Default::default()),
             },
         };
 
