@@ -126,3 +126,28 @@ impl CliFormat {
         format!("{}{}{}", Self::DESCRIPTION, result, Self::RESET)
     }
 }
+
+// Add this trait definition
+pub trait PadToWidth {
+    fn pad_to_width(&self, width: usize) -> String;
+}
+
+impl PadToWidth for String {
+    fn pad_to_width(&self, width: usize) -> String {
+        if self.len() >= width {
+            self.clone()
+        } else {
+            format!("{:<width$}", self, width = width)
+        }
+    }
+}
+
+impl PadToWidth for &str {
+    fn pad_to_width(&self, width: usize) -> String {
+        if self.len() >= width {
+            self.to_string()
+        } else {
+            format!("{:<width$}", self, width = width)
+        }
+    }
+}

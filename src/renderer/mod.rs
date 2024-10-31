@@ -26,9 +26,8 @@ pub use scroll::{Action, ScrollState};
 pub use status_bar::StatusBar;
 pub use terminal::TerminalState;
 
-use crate::cli::PatternKind;
 use crate::pattern::PatternEngine;
-use crate::pattern::{PatternConfig, PatternParams};
+use crate::pattern::{PatternConfig, PatternParams, REGISTRY};
 use crate::themes;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -53,8 +52,8 @@ pub struct Renderer {
     available_themes: Vec<String>,
     /// Current theme index
     current_theme_index: usize,
-    /// Available pattern types
-    available_patterns: Vec<PatternKind>,
+    /// Available pattern IDs
+    available_patterns: Vec<String>,
     /// Current pattern index
     current_pattern_index: usize,
     /// Last frame timestamp for timing
@@ -82,19 +81,11 @@ impl Renderer {
             .map(|t| t.name.clone())
             .collect::<Vec<_>>();
 
-        // Initialize available patterns
-        let available_patterns = vec![
-            PatternKind::Horizontal,
-            PatternKind::Diagonal,
-            PatternKind::Plasma,
-            PatternKind::Ripple,
-            PatternKind::Wave,
-            PatternKind::Spiral,
-            PatternKind::Checkerboard,
-            PatternKind::Diamond,
-            PatternKind::Perlin,
-            PatternKind::PixelRain,
-        ];
+        // Initialize available patterns from registry
+        let available_patterns = REGISTRY.list_patterns()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
 
         // Set initial theme and pattern in status bar based on engine's configuration
         let initial_theme = match engine.config().common.theme_name.as_ref() {
@@ -110,25 +101,25 @@ impl Renderer {
             .unwrap_or(0);
 
         // Determine initial pattern index based on current config
-        let initial_pattern = match engine.config().params {
-            PatternParams::Horizontal(_) => PatternKind::Horizontal,
-            PatternParams::Diagonal(_) => PatternKind::Diagonal,
-            PatternParams::Plasma(_) => PatternKind::Plasma,
-            PatternParams::Ripple(_) => PatternKind::Ripple,
-            PatternParams::Wave(_) => PatternKind::Wave,
-            PatternParams::Spiral(_) => PatternKind::Spiral,
-            PatternParams::Checkerboard(_) => PatternKind::Checkerboard,
-            PatternParams::Diamond(_) => PatternKind::Diamond,
-            PatternParams::Perlin(_) => PatternKind::Perlin,
-            PatternParams::PixelRain(_) => PatternKind::PixelRain,
+        let initial_pattern = match &engine.config().params {
+            PatternParams::Horizontal(_) => "horizontal",
+            PatternParams::Diagonal(_) => "diagonal",
+            PatternParams::Plasma(_) => "plasma",
+            PatternParams::Ripple(_) => "ripple",
+            PatternParams::Wave(_) => "wave",
+            PatternParams::Spiral(_) => "spiral",
+            PatternParams::Checkerboard(_) => "checkerboard",
+            PatternParams::Diamond(_) => "diamond",
+            PatternParams::Perlin(_) => "perlin",
+            PatternParams::PixelRain(_) => "pixel_rain",
         };
 
         let current_pattern_index = available_patterns
             .iter()
-            .position(|&p| p == initial_pattern)
+            .position(|p| p == initial_pattern)
             .unwrap_or(0);
 
-        status_bar.set_pattern(&initial_pattern.to_string());
+        status_bar.set_pattern(initial_pattern);
 
         // Initialize timing state
         let now = Instant::now();
@@ -149,7 +140,7 @@ impl Renderer {
             last_frame: None,
             frame_count: 0,
             last_fps_update: now,
-            current_fps: fps as f64, // Use stored fps instead of moved config
+            current_fps: fps as f64,
         })
     }
 
@@ -377,30 +368,24 @@ impl Renderer {
     /// Switches to the next available pattern
     pub fn next_pattern(&mut self) -> Result<(), RendererError> {
         // Calculate next index
-        self.current_pattern_index =
-            (self.current_pattern_index + 1) % self.available_patterns.len();
-        let new_pattern = self.available_patterns[self.current_pattern_index];
+        self.current_pattern_index = (self.current_pattern_index + 1) % self.available_patterns.len();
+        let new_pattern_id = &self.available_patterns[self.current_pattern_index];
+
+        // Get default parameters for the new pattern
+        let pattern_params = REGISTRY.create_pattern_params(new_pattern_id)
+            .ok_or_else(|| RendererError::InvalidConfig(
+                format!("Failed to create parameters for pattern: {}", new_pattern_id)
+            ))?;
 
         // Create new pattern configuration while preserving common parameters
         let pattern_config = PatternConfig {
             common: self.engine.config().common.clone(),
-            params: match new_pattern {
-                PatternKind::Horizontal => PatternParams::Horizontal(Default::default()),
-                PatternKind::Diagonal => PatternParams::Diagonal(Default::default()),
-                PatternKind::Plasma => PatternParams::Plasma(Default::default()),
-                PatternKind::Ripple => PatternParams::Ripple(Default::default()),
-                PatternKind::Wave => PatternParams::Wave(Default::default()),
-                PatternKind::Spiral => PatternParams::Spiral(Default::default()),
-                PatternKind::Checkerboard => PatternParams::Checkerboard(Default::default()),
-                PatternKind::Diamond => PatternParams::Diamond(Default::default()),
-                PatternKind::Perlin => PatternParams::Perlin(Default::default()),
-                PatternKind::PixelRain => PatternParams::PixelRain(Default::default()),
-            },
+            params: pattern_params,
         };
 
         // Update engine with new pattern config
         self.engine.update_pattern_config(pattern_config);
-        self.status_bar.set_pattern(&new_pattern.to_string());
+        self.status_bar.set_pattern(new_pattern_id);
 
         // Force complete refresh
         self.terminal.clear_screen()?;

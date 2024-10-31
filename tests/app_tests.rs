@@ -1,6 +1,6 @@
 //! Integration tests for the ChromaCat application core functionality
 
-use chromacat::cli::{Cli, PatternKind, PatternParameters};
+use chromacat::cli::Cli;
 use chromacat::ChromaCat;
 use std::env;
 use std::io::Write;
@@ -32,7 +32,7 @@ fn test_chromacat_basic() {
 
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
-        pattern: PatternKind::Horizontal,
+        pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
         animate: false,
         fps: 30,
@@ -43,7 +43,7 @@ fn test_chromacat_basic() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params: PatternParameters { params: vec![] },
+        params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
@@ -64,12 +64,9 @@ fn test_chromacat_invalid_angle() {
     setup_test_env();
     let test_file = create_test_file("Testing invalid angle");
 
-    let mut pattern_params = PatternParameters::default();
-    pattern_params.params.push("angle=400".to_string());
-
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
-        pattern: PatternKind::Diagonal,
+        pattern: "diagonal".to_string(),
         theme: String::from("rainbow"),
         animate: false,
         fps: 30,
@@ -80,7 +77,7 @@ fn test_chromacat_invalid_angle() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params,
+        params: vec!["angle=400".to_string()],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
@@ -100,7 +97,7 @@ fn test_chromacat_pattern_params() {
 
     let test_cases = vec![
         (
-            PatternKind::Plasma,
+            "plasma",
             vec![
                 "complexity=3.0",
                 "scale=1.5",
@@ -109,7 +106,7 @@ fn test_chromacat_pattern_params() {
             ],
         ),
         (
-            PatternKind::Ripple,
+            "ripple",
             vec![
                 "center_x=0.5",
                 "center_y=0.5",
@@ -119,7 +116,7 @@ fn test_chromacat_pattern_params() {
             ],
         ),
         (
-            PatternKind::Wave,
+            "wave",
             vec![
                 "amplitude=1.0",
                 "frequency=2.0",
@@ -131,12 +128,9 @@ fn test_chromacat_pattern_params() {
     ];
 
     for (pattern, params) in test_cases {
-        let mut pattern_params = PatternParameters::default();
-        pattern_params.params = params.iter().map(|s| s.to_string()).collect();
-
         let cli = Cli {
             files: vec![test_file.path().to_path_buf()],
-            pattern,
+            pattern: pattern.to_string(),
             theme: String::from("rainbow"),
             animate: false,
             fps: 30,
@@ -147,7 +141,7 @@ fn test_chromacat_pattern_params() {
             frequency: 1.0,
             amplitude: 1.0,
             speed: 1.0,
-            pattern_params,
+            params: params.iter().map(|s| s.to_string()).collect(),
             theme_file: None,
             pattern_help: false,
             no_aspect_correction: false,
@@ -160,7 +154,7 @@ fn test_chromacat_pattern_params() {
         match cat.run() {
             Ok(_) => (),
             Err(e) => panic!(
-                "Failed with pattern {:?}: {:?}\nParameters: {:?}",
+                "Failed with pattern {}: {:?}\nParameters: {:?}",
                 pattern, e, params
             ),
         }
@@ -174,7 +168,7 @@ fn test_chromacat_animation_settings() {
 
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
-        pattern: PatternKind::Horizontal,
+        pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
         animate: true,
         fps: 60,
@@ -185,7 +179,7 @@ fn test_chromacat_animation_settings() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params: PatternParameters::default(),
+        params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
@@ -209,7 +203,7 @@ fn test_streaming_mode() {
 
     let cli = Cli {
         files: vec![test_file.path().to_path_buf()],
-        pattern: PatternKind::Horizontal,
+        pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
         animate: false,
         fps: 30,
@@ -220,7 +214,7 @@ fn test_streaming_mode() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params: PatternParameters::default(),
+        params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
@@ -248,7 +242,7 @@ fn test_demo_mode() {
     println!("Testing static demo mode");
     let cli = Cli {
         files: vec![],
-        pattern: PatternKind::Diagonal,
+        pattern: "diagonal".to_string(),
         theme: String::from("rainbow"),
         animate: false,
         fps: 30,
@@ -259,7 +253,7 @@ fn test_demo_mode() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params: PatternParameters::default(),
+        params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
@@ -280,7 +274,7 @@ fn test_demo_mode() {
     println!("Testing animated demo mode");
     let cli = Cli {
         files: vec![],
-        pattern: PatternKind::Horizontal,
+        pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
         animate: true,
         fps: 30,
@@ -291,7 +285,7 @@ fn test_demo_mode() {
         frequency: 1.0,
         amplitude: 1.0,
         speed: 1.0,
-        pattern_params: PatternParameters::default(),
+        params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,

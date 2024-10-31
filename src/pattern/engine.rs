@@ -1,6 +1,5 @@
 use colorgrad::Gradient;
 use std::sync::Arc;
-// use std::f64::consts::PI;
 
 use crate::error::Result;
 use crate::pattern::config::PatternConfig;
