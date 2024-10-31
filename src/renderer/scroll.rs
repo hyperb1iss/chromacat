@@ -43,16 +43,18 @@ impl ScrollState {
         self.clamp_scroll();
     }
 
-    /// Updates viewport height
+    /// Updates the viewport height and clamps scroll position
     pub fn update_viewport(&mut self, height: u16) {
         self.viewport_height = height;
         self.clamp_scroll();
     }
 
-    /// Returns the visible range of lines
+    /// Returns the visible range of lines, clamped to valid bounds
     pub fn get_visible_range(&self) -> (usize, usize) {
-        let end = self.top_line + self.viewport_height as usize;
-        (self.top_line, end.min(self.total_lines))
+        let start = self.top_line;
+        let max_visible = self.viewport_height as usize;
+        let end = (start + max_visible).min(self.total_lines);
+        (start, end)
     }
 
     /// Handles keyboard input for scrolling
@@ -79,22 +81,26 @@ impl ScrollState {
         }
     }
 
-    /// Scrolls up by the specified amount
+    /// Scrolls up by the specified amount with bounds checking
     pub fn scroll_up(&mut self, amount: i32) {
         if amount <= 0 {
             return;
         }
-        let new_top = self.top_line.saturating_sub(amount as usize);
-        self.top_line = new_top;
+        self.top_line = self.top_line.saturating_sub(amount as usize);
     }
 
-    /// Scrolls down by the specified amount
+    /// Scrolls down by the specified amount with bounds checking
     pub fn scroll_down(&mut self, amount: i32) {
         if amount <= 0 {
             return;
         }
-        let max_top = self.max_scroll();
-        self.top_line = (self.top_line + amount as usize).min(max_top);
+        let max_scroll = self.max_scroll();
+        self.top_line = (self.top_line + amount as usize).min(max_scroll);
+    }
+
+    /// Returns the total number of lines
+    pub fn total_lines(&self) -> usize {
+        self.total_lines
     }
 
     // Private helper methods
@@ -105,6 +111,15 @@ impl ScrollState {
     }
 
     fn clamp_scroll(&mut self) {
+        let max_scroll = self.max_scroll();
+        self.top_line = self.top_line.min(max_scroll);
+    }
+
+    pub fn validate_viewport(&mut self) {
+        // Ensure viewport height is reasonable
+        self.viewport_height = self.viewport_height.max(1);
+
+        // Ensure top line is in valid range
         let max_scroll = self.max_scroll();
         self.top_line = self.top_line.min(max_scroll);
     }

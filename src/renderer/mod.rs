@@ -6,10 +6,11 @@
 //!
 //! The rendering system is built around several key components:
 //! - Terminal state management and interaction
-//! - Text and color buffer handling
+//! - Double buffered text and color handling
 //! - Pattern-based color generation
 //! - Scrolling and viewport control
 //! - Status bar rendering
+//! - Frame timing and synchronization
 
 mod buffer;
 mod config;
@@ -32,7 +33,7 @@ use crate::themes;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use std::io::Write;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Coordinates all rendering functionality for ChromaCat
 pub struct Renderer {
@@ -40,7 +41,7 @@ pub struct Renderer {
     engine: PatternEngine,
     /// Animation configuration
     config: AnimationConfig,
-    /// Buffer for text and colors
+    /// Double buffered text and colors
     buffer: RenderBuffer,
     /// Terminal state manager
     terminal: TerminalState,
@@ -56,6 +57,14 @@ pub struct Renderer {
     available_patterns: Vec<PatternKind>,
     /// Current pattern index
     current_pattern_index: usize,
+    /// Last frame timestamp for timing
+    last_frame: Option<Instant>,
+    /// Frame counter for FPS calculation
+    frame_count: u32,
+    /// Last FPS update timestamp
+    last_fps_update: Instant,
+    /// Current FPS measurement
+    current_fps: f64,
 }
 
 impl Renderer {
@@ -119,6 +128,11 @@ impl Renderer {
 
         status_bar.set_pattern(&initial_pattern.to_string());
 
+        // Initialize timing state
+        let now = Instant::now();
+
+        let fps = config.fps; // Store fps before moving config
+
         Ok(Self {
             engine,
             config,
@@ -130,6 +144,10 @@ impl Renderer {
             current_theme_index,
             available_patterns,
             current_pattern_index,
+            last_frame: None,
+            frame_count: 0,
+            last_fps_update: now,
+            current_fps: fps as f64, // Use stored fps instead of moved config
         })
     }
 
@@ -151,57 +169,116 @@ impl Renderer {
         self.config.cycle_duration
     }
 
-    /// Renders static text with pattern-based colors
     /// Renders static text with pattern-based colors, advancing the pattern
     /// for each line to create a flowing effect similar to lolcat
     pub fn render_static(&mut self, text: &str) -> Result<(), RendererError> {
-        // Don't clear screen or enter alternate screen for static mode
+        // Prepare the full content
         self.buffer.prepare_text(text)?;
 
-        // Use static color update mode
-        self.buffer.update_colors_static(&mut self.engine)?;
+        // Use static color update mode for the entire content
+        self.buffer.update_colors_static(&self.engine)?;
 
-        // Render the buffer directly to stdout without clearing
+        // Get a stdout lock for efficient writing
         let mut stdout = self.terminal.stdout();
+
+        // Render the entire buffer content, not just one screen
         self.buffer.render_region(
             &mut stdout,
             0,
-            self.buffer.line_count(),
+            self.buffer.total_lines(),
             self.terminal.colors_enabled(),
+            false,
         )?;
 
-        // Flush stdout
+        // Ensure everything is flushed
         stdout.flush()?;
         Ok(())
     }
 
     /// Renders a single animation frame
     pub fn render_frame(&mut self, text: &str, delta_seconds: f64) -> Result<(), RendererError> {
+        let now = Instant::now();
+
         // First-time initialization
         if !self.buffer.has_content() {
             self.terminal.enter_alternate_screen()?;
             self.buffer.prepare_text(text)?;
             self.scroll.set_total_lines(self.buffer.line_count());
-            self.buffer.update_colors(&self.engine)?;
+            let visible_range = self.scroll.get_visible_range();
+            self.buffer.update_colors(&self.engine, visible_range.0)?;
             self.draw_full_screen()?;
+            self.last_frame = Some(now);
+            self.last_fps_update = now;
             return Ok(());
         }
 
+        // Calculate and enforce frame timing more precisely
+        let frame_time = if let Some(last) = self.last_frame {
+            now.duration_since(last)
+        } else {
+            Duration::from_secs_f64(delta_seconds)
+        };
+
+        let target_frame_time = Duration::from_secs_f64(1.0 / self.config.fps as f64);
+        if frame_time < target_frame_time {
+            // Skip frame if we're ahead of schedule
+            return Ok(());
+        }
+
+        // Update FPS counter with more accurate timing
+        self.frame_count += 1;
+        let fps_interval = Duration::from_secs(1);
+        if now.duration_since(self.last_fps_update) >= fps_interval {
+            self.current_fps =
+                self.frame_count as f64 / now.duration_since(self.last_fps_update).as_secs_f64();
+            self.frame_count = 0;
+            self.last_fps_update = now;
+            self.status_bar.set_fps(self.current_fps);
+        }
+
+        // Update pattern with actual elapsed time
+        self.engine.update(frame_time.as_secs_f64());
+
         // Update engine and colors
-        self.engine.update(delta_seconds);
-        self.update_visible_region()?;
-        self.draw_frame()?;
-        self.terminal.flush()?;
+        let visible_range = self.scroll.get_visible_range();
+        self.buffer.update_colors(&self.engine, visible_range.0)?;
+
+        // Draw frame with current viewport
+        let mut stdout = self.terminal.stdout();
+        self.buffer.render_region(
+            &mut stdout,
+            visible_range.0,
+            visible_range.1,
+            self.terminal.colors_enabled(),
+            true,
+        )?;
+
+        // Update status bar
+        self.status_bar.render(&mut stdout, &self.scroll)?;
+
+        stdout.flush()?;
+        self.last_frame = Some(now);
 
         Ok(())
     }
 
     /// Handles terminal resize events
     pub fn handle_resize(&mut self, new_width: u16, new_height: u16) -> Result<(), RendererError> {
+        // Validate dimensions
+        if new_width == 0 || new_height == 0 {
+            return Err(RendererError::InvalidConfig(
+                "Invalid terminal dimensions".to_string(),
+            ));
+        }
+
         self.terminal.resize(new_width, new_height)?;
         self.scroll.update_viewport(new_height.saturating_sub(2));
         self.buffer.resize((new_width, new_height))?;
         self.status_bar.resize((new_width, new_height));
+
+        // Validate scroll state after resize
+        self.scroll.validate_viewport();
+
         self.draw_full_screen()?;
         Ok(())
     }
@@ -211,15 +288,29 @@ impl Renderer {
         match key.code {
             KeyCode::Char('t') | KeyCode::Char('T') => {
                 self.next_theme()?;
+                self.draw_full_screen()?;
                 Ok(true)
             }
             KeyCode::Char('p') | KeyCode::Char('P') => {
                 self.next_pattern()?;
+                self.draw_full_screen()?;
                 Ok(true)
             }
             _ => match self.scroll.handle_key_event(key) {
                 Action::Continue => {
-                    self.update_visible_region()?;
+                    // Update colors and render without clearing screen
+                    let visible_range = self.scroll.get_visible_range();
+                    self.buffer.update_colors(&self.engine, visible_range.0)?;
+                    let mut stdout = self.terminal.stdout();
+                    self.buffer.render_region(
+                        &mut stdout,
+                        visible_range.0,
+                        visible_range.1,
+                        self.terminal.colors_enabled(),
+                        true,
+                    )?;
+                    self.status_bar.render(&mut stdout, &self.scroll)?;
+                    stdout.flush()?;
                     Ok(true)
                 }
                 Action::Exit => Ok(false),
@@ -231,47 +322,27 @@ impl Renderer {
     // Private helper methods
 
     fn draw_full_screen(&mut self) -> Result<(), RendererError> {
-        self.terminal.clear_screen()?;
         let mut stdout = self.terminal.stdout();
-
-        // Get the visible range once before the rendering calls
         let visible_range = self.scroll.get_visible_range();
 
-        // Draw the visible region using the pre-computed range
+        // Draw content and status bar atomically
         self.buffer.render_region(
             &mut stdout,
             visible_range.0,
             visible_range.1,
             self.terminal.colors_enabled(),
+            true,
         )?;
-
-        // Render the status bar using the pre-computed scroll state
         self.status_bar.render(&mut stdout, &self.scroll)?;
-        Ok(())
-    }
 
-    fn draw_frame(&mut self) -> Result<(), RendererError> {
-        let mut stdout = self.terminal.stdout();
-
-        // Get the visible range once
-        let visible_range = self.scroll.get_visible_range();
-
-        // Draw the visible region using the pre-computed range
-        self.buffer.render_region(
-            &mut stdout,
-            visible_range.0,
-            visible_range.1,
-            self.terminal.colors_enabled(),
-        )?;
-
-        // Render the status bar
-        self.status_bar.render(&mut stdout, &self.scroll)?;
+        stdout.flush()?;
         Ok(())
     }
 
     fn update_visible_region(&mut self) -> Result<(), RendererError> {
-        // Update the entire buffer in animation mode
-        self.buffer.update_colors(&self.engine)
+        let visible_range = self.scroll.get_visible_range();
+        self.buffer.update_colors(&self.engine, visible_range.0)?;
+        Ok(())
     }
 
     /// Switches to the next available theme
@@ -324,11 +395,12 @@ impl Renderer {
             },
         };
 
-        // Update engine with new pattern
+        // Update engine with new pattern config
         self.engine.update_pattern_config(pattern_config);
         self.status_bar.set_pattern(&new_pattern.to_string());
 
-        // Force refresh
+        // Force complete refresh
+        self.terminal.clear_screen()?;
         self.update_visible_region()?;
 
         Ok(())

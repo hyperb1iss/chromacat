@@ -2,9 +2,15 @@
 //!
 //! This module handles the storage and manipulation of text content and
 //! associated color information for rendering. It provides efficient
-//! buffer management and updates while supporting Unicode text.
+//! buffer management and updates while supporting Unicode text through
+//! double buffering for smooth display updates.
 
-use crossterm::style::Color;
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    queue,
+    style::{Color, Print},
+};
+use std::fmt::Write as FmtWrite;
 use std::io::Write;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -12,120 +18,239 @@ use unicode_width::UnicodeWidthStr;
 use super::error::RendererError;
 use crate::pattern::PatternEngine;
 
+/// A cell in the character buffer containing both the character and its color
+#[derive(Debug, Clone, PartialEq)]
+struct BufferCell {
+    /// The character to display
+    ch: char,
+    /// The color of the character
+    color: Color,
+    /// Whether this cell has been modified since last swap
+    dirty: bool,
+}
+
+impl Default for BufferCell {
+    fn default() -> Self {
+        Self {
+            ch: ' ',
+            color: Color::Reset,
+            dirty: false,
+        }
+    }
+}
+
 /// Manages text content and color information for rendering.
-/// Provides efficient storage and updates for text content and associated colors.
+/// Provides efficient storage and updates for text content and associated colors
+/// using double buffering for smooth display updates.
 #[derive(Debug)]
 pub struct RenderBuffer {
-    /// Buffer for text lines with pre-allocated capacity
-    line_buffer: Vec<String>,
-    /// Buffer for color information, organized by line
-    color_buffer: Vec<Vec<Color>>,
+    /// Front buffer (currently displayed)
+    front: Vec<Vec<BufferCell>>,
+    /// Back buffer (being rendered to)
+    back: Vec<Vec<BufferCell>>,
     /// Terminal dimensions (width, height)
     term_size: (u16, u16),
     /// Original unwrapped text content
     original_text: String,
+    /// Line wrapping information
+    line_info: Vec<(usize, usize)>, // (start, length) pairs
 }
 
 impl RenderBuffer {
     /// Creates a new render buffer with pre-allocated capacity based on terminal size
     #[inline]
     pub fn new(term_size: (u16, u16)) -> Self {
+        let width = term_size.0 as usize;
+        let height = term_size.1 as usize;
+        let buffer = vec![vec![BufferCell::default(); width]; height];
+
         Self {
-            line_buffer: Vec::with_capacity(term_size.1 as usize),
-            color_buffer: Vec::new(),
+            front: buffer.clone(),
+            back: buffer,
             term_size,
             original_text: String::with_capacity(1024), // Pre-allocate reasonable size
+            line_info: Vec::with_capacity(height),
         }
     }
 
     /// Checks if buffer contains any content
     #[inline]
     pub fn has_content(&self) -> bool {
-        !self.line_buffer.is_empty()
+        !self.line_info.is_empty()
     }
 
     /// Returns the number of lines in the buffer
     #[inline]
     pub fn line_count(&self) -> usize {
-        self.line_buffer.len()
+        self.line_info.len()
     }
 
     /// Prepares text content by handling wrapping and line breaks.
     /// Efficiently processes text into lines while respecting terminal width and Unicode.
     pub fn prepare_text(&mut self, text: &str) -> Result<(), RendererError> {
-        // Pre-allocate with estimated capacity
-        let estimated_lines = text.chars().filter(|&c| c == '\n').count() + 1;
-        self.line_buffer.clear();
-        self.line_buffer.reserve(estimated_lines);
         self.original_text = text.to_string();
+        self.line_info.clear();
 
         let max_width = self.term_size.0.max(1) as usize;
+        let mut buffer_pos = 0;
 
-        // Process each line more efficiently
+        // Pre-calculate required capacity
+        let estimated_lines =
+            (text.len() / max_width) + text.chars().filter(|&c| c == '\n').count() + 1;
+        self.ensure_buffer_capacity(estimated_lines);
+
+        // Process each line with efficient wrapping
         for input_line in text.split('\n') {
             if input_line.is_empty() {
-                self.line_buffer.push(String::new());
+                self.line_info.push((buffer_pos, 0));
+
+                // Clear the entire line in the back buffer
+                while buffer_pos >= self.back.len() {
+                    self.back.push(vec![BufferCell::default(); max_width]);
+                    self.front.push(vec![BufferCell::default(); max_width]);
+                }
+
+                // Mark entire line as dirty to ensure it gets cleared
+                for x in 0..max_width {
+                    self.back[buffer_pos][x] = BufferCell::default();
+                    self.back[buffer_pos][x].dirty = true;
+                }
+
+                buffer_pos += 1;
                 continue;
             }
 
-            let mut current_line = String::with_capacity(max_width);
-            let mut current_width = 0;
-            let graphemes: Vec<_> = input_line.graphemes(true).collect();
+            let mut line_width = 0;
+            let mut line_start = buffer_pos;
+            let mut last_break = None;
+            let mut segment_start = 0;
 
-            for grapheme in graphemes {
+            let graphemes: Vec<_> = input_line.graphemes(true).collect();
+            let mut i = 0;
+
+            while i < graphemes.len() {
+                let grapheme = &graphemes[i];
                 let width = grapheme.width();
 
-                if current_width + width > max_width && !current_line.is_empty() {
-                    self.line_buffer.push(current_line);
-                    current_line = String::with_capacity(max_width);
-                    current_width = 0;
+                // Handle line wrapping
+                if line_width + width > max_width {
+                    // Find break point
+                    let break_pos = last_break.unwrap_or(i);
+                    let length = if last_break.is_some() {
+                        break_pos - segment_start
+                    } else {
+                        i - segment_start
+                    };
+
+                    // Record the line segment
+                    if length > 0 {
+                        self.line_info.push((line_start, length));
+                    }
+
+                    // Start new line
+                    buffer_pos += 1; // Only advance one line
+                    line_start = buffer_pos;
+
+                    if last_break.is_some() {
+                        segment_start = break_pos + 1;
+                        i = break_pos + 1;
+                    } else {
+                        segment_start = i;
+                    }
+
+                    line_width = 0;
+                    last_break = None;
+                    continue;
                 }
 
-                current_line.push_str(grapheme);
-                current_width += width;
+                // Store character in back buffer
+                if let Some(ch) = grapheme.chars().next() {
+                    let y = buffer_pos;
+                    let x = line_width;
+
+                    // Grow buffer if needed
+                    while y >= self.back.len() {
+                        self.back.push(vec![BufferCell::default(); max_width]);
+                        self.front.push(vec![BufferCell::default(); max_width]);
+                    }
+
+                    self.back[y][x].ch = ch;
+                    self.back[y][x].dirty = true;
+                }
+
+                // Update tracking
+                if grapheme.chars().all(char::is_whitespace) {
+                    last_break = Some(i);
+                }
+                line_width += width;
+                i += 1;
             }
 
-            if !current_line.is_empty() || input_line.is_empty() {
-                self.line_buffer.push(current_line);
+            // Record the final line segment
+            if line_width > 0 {
+                self.line_info.push((line_start, line_width));
             }
+
+            buffer_pos += 1; // Move to next line
         }
 
-        self.resize_color_buffer()?;
         Ok(())
     }
 
     /// Updates color information for the entire buffer using pattern-based generation.
     /// Efficiently calculates colors for each character position using normalized coordinates.
-    pub fn update_colors(&mut self, engine: &PatternEngine) -> Result<(), RendererError> {
-        let max_width = self.color_buffer.first().map_or(0, |row| row.len());
-        let viewport_height = self.term_size.1 as usize;
+    pub fn update_colors(
+        &mut self,
+        engine: &PatternEngine,
+        viewport_start: usize,
+    ) -> Result<(), RendererError> {
+        let width = self.term_size.0 as usize;
+        let height = self.term_size.1 as usize;
 
         // Pre-calculate constants for coordinate normalization
-        let width_f = max_width as f64;
-        let height_f = viewport_height as f64;
+        let width_f = width as f64;
+        let height_f = height as f64;
 
-        // Process each line efficiently
-        for (y, line) in self.line_buffer.iter().enumerate() {
-            let viewport_y = y % viewport_height;
-            let norm_y = (viewport_y as f64 / height_f) - 0.5;
+        // Pre-allocate pattern value buffer to reduce pattern calculation overhead
+        let mut pattern_values = vec![0.0f64; width];
 
-            for (x, _) in line.graphemes(true).enumerate() {
-                if x >= max_width {
-                    break;
-                }
+        // Process each line in the buffer
+        for (buffer_y, line) in self.back.iter_mut().enumerate() {
+            // Calculate viewport-relative position
+            let viewport_y = if buffer_y >= viewport_start {
+                (buffer_y - viewport_start) as f64
+            } else {
+                continue; // Skip lines above viewport
+            };
 
-                // Calculate normalized coordinates once per iteration
+            // Only process lines within the viewport
+            if viewport_y >= height_f {
+                continue;
+            }
+
+            // Calculate normalized y coordinate once per line
+            let norm_y = viewport_y / height_f - 0.5;
+
+            // Calculate pattern values for entire line at once
+            for (x, value) in pattern_values.iter_mut().enumerate().take(width) {
                 let norm_x = (x as f64 / width_f) - 0.5;
+                *value = engine.get_value_at_normalized(norm_x, norm_y)?;
+            }
 
-                // Get pattern value and color in one pass
-                let pattern_value = engine.get_value_at_normalized(norm_x, norm_y)?;
+            // Apply colors using pre-calculated pattern values
+            for (x, &pattern_value) in pattern_values.iter().enumerate().take(width) {
                 let gradient_color = engine.gradient().at(pattern_value as f32);
-
-                self.color_buffer[y][x] = Color::Rgb {
+                let color = Color::Rgb {
                     r: (gradient_color.r * 255.0) as u8,
                     g: (gradient_color.g * 255.0) as u8,
                     b: (gradient_color.b * 255.0) as u8,
                 };
+
+                // Only update if color actually changed
+                if line[x].color != color {
+                    line[x].color = color;
+                    line[x].dirty = true;
+                }
             }
         }
 
@@ -133,136 +258,209 @@ impl RenderBuffer {
     }
 
     /// Updates colors in static mode, creating a flowing effect by advancing the pattern per line.
-    #[inline]
-    pub fn update_colors_static(
-        &mut self,
-        engine: &mut PatternEngine,
-    ) -> Result<(), RendererError> {
-        let max_width = self.color_buffer.first().map_or(0, |row| row.len());
-        let width_f = max_width as f64;
+    pub fn update_colors_static(&mut self, engine: &PatternEngine) -> Result<(), RendererError> {
+        let width = self.term_size.0 as usize;
+        let width_f = width as f64;
+        let height_f = self.line_info.len() as f64;
 
-        for (y, line) in self.line_buffer.iter().enumerate() {
-            for (x, _) in line.graphemes(true).enumerate() {
-                if x >= max_width {
-                    break;
-                }
+        // Pre-allocate pattern value buffer
+        let mut pattern_values = vec![0.0f64; width];
 
+        for y in 0..self.line_info.len() {
+            let (start, len) = self.line_info[y];
+
+            // Skip empty lines
+            if len == 0 {
+                continue;
+            }
+
+            // Ensure buffer has enough rows
+            while start >= self.back.len() {
+                self.back.push(vec![BufferCell::default(); width]);
+                self.front.push(vec![BufferCell::default(); width]);
+            }
+
+            // Calculate normalized y coordinate with more dramatic progression
+            // Multiply by 2.0 to make the pattern advance twice as fast
+            let norm_y = ((y as f64 * 2.0) / height_f) - 0.5;
+
+            // Calculate pattern values for entire line at once
+            for (x, value) in pattern_values.iter_mut().enumerate().take(len.min(width)) {
                 let norm_x = (x as f64 / width_f) - 0.5;
-                let pattern_value = engine.get_value_at_normalized(norm_x, 0.0)?;
-                let gradient_color = engine.gradient().at(pattern_value as f32);
+                *value = engine.get_value_at_normalized(norm_x, norm_y)?;
+            }
 
-                self.color_buffer[y][x] = Color::Rgb {
+            // Apply colors using pre-calculated pattern values
+            for (x, &pattern_value) in pattern_values.iter().enumerate().take(len.min(width)) {
+                let gradient_color = engine.gradient().at(pattern_value as f32);
+                let color = Color::Rgb {
                     r: (gradient_color.r * 255.0) as u8,
                     g: (gradient_color.g * 255.0) as u8,
                     b: (gradient_color.b * 255.0) as u8,
                 };
-            }
 
-            engine.update(0.1);
+                let cell = &mut self.back[start][x];
+                if cell.color != color {
+                    cell.color = color;
+                    cell.dirty = true;
+                }
+            }
         }
 
         Ok(())
     }
 
-    /// Renders a region of the buffer to the terminal with optimized color handling.
+    /// Renders a region of the buffer to the terminal with optimized color handling
+    /// and double buffering to eliminate flicker.
     pub fn render_region(
-        &self,
+        &mut self,
         stdout: &mut std::io::StdoutLock,
         start: usize,
         end: usize,
         colors_enabled: bool,
+        is_animated: bool,
     ) -> Result<(), RendererError> {
-        use crossterm::{cursor::MoveTo, queue};
+        let width = self.term_size.0 as usize;
 
-        let end = end.min(self.line_buffer.len());
-        let is_static_mode = start == 0 && end == self.line_buffer.len();
+        if is_animated {
+            // Animation mode: Use cursor movement and selective updates
+            queue!(stdout, Hide)?;
 
-        // Pre-allocate ANSI escape sequence buffer
-        let mut ansi_buffer = String::with_capacity(32);
-        let mut current_color = None;
+            // Pre-build all updates to minimize time between first and last line render
+            let mut updates = Vec::with_capacity(end - start);
+            let mut needs_color_reset = false;
 
-        for (display_line, line_idx) in (start..end).enumerate() {
-            if !is_static_mode {
-                queue!(stdout, MoveTo(0, display_line as u16))?;
-            }
+            // First pass: collect all updates
+            for (display_y, line_idx) in (start..end.min(self.line_info.len())).enumerate() {
+                let (line_start, line_len) = self.line_info[line_idx];
 
-            if !colors_enabled {
-                writeln!(stdout, "{}", self.line_buffer[line_idx])?;
-                continue;
-            }
-
-            // Process colors more efficiently
-            for (x, grapheme) in self.line_buffer[line_idx].graphemes(true).enumerate() {
-                if x >= self.color_buffer[line_idx].len() {
-                    break;
+                // Ensure buffer has enough rows
+                while line_start >= self.back.len() {
+                    self.back.push(vec![BufferCell::default(); width]);
+                    self.front.push(vec![BufferCell::default(); width]);
                 }
 
-                let color = self.color_buffer[line_idx][x];
-                if current_color != Some(color) {
-                    if let Color::Rgb { r, g, b } = color {
-                        // Format ANSI sequence into String buffer first
-                        ansi_buffer.clear();
-                        ansi_buffer.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
-                        write!(stdout, "{}", ansi_buffer)?;
+                // Build line content
+                let mut line_buffer = String::with_capacity(width * 4);
+                let mut last_color = None;
+
+                // Always process the full width for consistent display
+                for x in 0..width {
+                    let back_cell = &self.back[line_start][x];
+
+                    if colors_enabled && last_color != Some(back_cell.color) {
+                        if let Color::Rgb { r, g, b } = back_cell.color {
+                            write!(line_buffer, "\x1b[38;2;{};{};{}m", r, g, b)
+                                .map_err(|e| RendererError::Other(e.to_string()))?;
+                            needs_color_reset = true;
+                        }
+                        last_color = Some(back_cell.color);
                     }
-                    current_color = Some(color);
+
+                    line_buffer.push(if x < line_len { back_cell.ch } else { ' ' });
                 }
-                write!(stdout, "{}", grapheme)?;
+
+                updates.push((display_y, line_buffer));
             }
 
-            if !is_static_mode {
-                write!(stdout, "\x1b[K")?;
+            // Second pass: perform all rendering atomically
+            for (display_y, line_buffer) in updates {
+                queue!(stdout, MoveTo(0, display_y as u16), Print(&line_buffer))?;
             }
-            writeln!(stdout)?;
-        }
 
-        if colors_enabled {
-            write!(stdout, "\x1b[0m")?;
+            if colors_enabled && needs_color_reset {
+                queue!(stdout, Print("\x1b[0m"))?;
+            }
+            queue!(stdout, Show)?;
+            stdout.flush()?;
+        } else {
+            // Static mode: Simple line-by-line output
+            let mut needs_color_reset = false;
+
+            for line_idx in start..end.min(self.line_info.len()) {
+                let (line_start, line_len) = self.line_info[line_idx];
+
+                let mut line_buffer = String::with_capacity(width * 4);
+                let mut last_color = None;
+
+                for x in 0..line_len.min(width) {
+                    let back_cell = &self.back[line_start][x];
+
+                    if colors_enabled && last_color != Some(back_cell.color) {
+                        if let Color::Rgb { r, g, b } = back_cell.color {
+                            write!(line_buffer, "\x1b[38;2;{};{};{}m", r, g, b)?;
+                            needs_color_reset = true;
+                        }
+                        last_color = Some(back_cell.color);
+                    }
+
+                    line_buffer.push(back_cell.ch);
+                }
+
+                line_buffer.push('\n');
+                write!(stdout, "{}", line_buffer)?;
+            }
+
+            if colors_enabled && needs_color_reset {
+                write!(stdout, "\x1b[0m")?;
+            }
         }
 
         Ok(())
     }
 
-    /// Resizes the color buffer to match current dimensions while preserving data.
-    #[inline]
-    pub fn resize_color_buffer(&mut self) -> Result<(), RendererError> {
-        let max_line_length = self
-            .line_buffer
-            .iter()
-            .map(|line| line.graphemes(true).count())
-            .max()
-            .unwrap_or(0)
-            .max(self.term_size.0 as usize);
+    /// Resizes the buffer for new terminal dimensions while maintaining content.
+    pub fn resize(&mut self, new_size: (u16, u16)) -> Result<(), RendererError> {
+        let new_width = new_size.0 as usize;
+        let new_height = new_size.1 as usize;
 
-        let buffer_height = self.line_buffer.len();
+        // Create new buffers with new dimensions
+        let new_buffer = vec![vec![BufferCell::default(); new_width]; new_height];
+        self.front = new_buffer.clone();
+        self.back = new_buffer;
+        self.term_size = new_size;
 
-        // Pre-allocate with capacity
-        let mut new_buffer = Vec::with_capacity(buffer_height);
-        for _ in 0..buffer_height {
-            new_buffer.push(vec![Color::White; max_line_length]);
-        }
+        // Reprocess text for new dimensions
+        let text = self.original_text.clone();
+        self.prepare_text(&text)?;
 
-        self.color_buffer = new_buffer;
         Ok(())
     }
 
     /// Returns the maximum line length in the buffer
     #[inline]
     pub fn max_line_length(&self) -> usize {
-        self.line_buffer
+        self.line_info
             .iter()
-            .map(|line| line.graphemes(true).count())
+            .map(|(_, len)| *len)
             .max()
             .unwrap_or(0)
     }
 
-    /// Resizes the buffer for new terminal dimensions while maintaining content.
-    pub fn resize(&mut self, new_size: (u16, u16)) -> Result<(), RendererError> {
-        self.term_size = new_size;
-        // Clone the text first to avoid the borrow conflict
-        let text = self.original_text.clone();
-        self.prepare_text(&text)?;
-        Ok(())
+    /// Returns the total number of lines in the buffer
+    #[inline]
+    pub fn total_lines(&self) -> usize {
+        self.line_info.len()
+    }
+
+    // Add this method to manage buffer capacity
+    fn ensure_buffer_capacity(&mut self, required_lines: usize) {
+        let width = self.term_size.0 as usize;
+        let current_capacity = self.back.len();
+
+        if required_lines > current_capacity {
+            // Grow by doubling, but not more than needed
+            let new_capacity = (current_capacity * 2).min(required_lines + 64);
+            self.back
+                .resize(new_capacity, vec![BufferCell::default(); width]);
+            self.front
+                .resize(new_capacity, vec![BufferCell::default(); width]);
+        }
+    }
+
+    // Add this as a thread_local to avoid repeated allocations
+    thread_local! {
+        static LINE_BUFFER: std::cell::RefCell<String> = std::cell::RefCell::new(String::with_capacity(512));
     }
 }
 
