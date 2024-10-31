@@ -1,48 +1,53 @@
 - name: rave
-  desc: Intense party colors that pulse
+  desc: Intense, pulsing colors with high energy
   colors:
     - [1.0, 0.0, 1.0, 0.0, magenta]
-    - [0.0, 1.0, 0.0, 0.25, green]
-    - [1.0, 1.0, 0.0, 0.5, yellow]
-    - [0.0, 1.0, 1.0, 0.75, cyan]
-    - [1.0, 0.0, 0.0, 1.0, red]
+    - [0.0, 1.0, 0.0, 0.2, neon-green]
+    - [1.0, 1.0, 0.0, 0.4, yellow]
+    - [0.0, 1.0, 1.0, 0.6, cyan]
+    - [1.0, 0.0, 0.0, 0.8, red]
+    - [1.0, 0.0, 1.0, 1.0, magenta]
   dist: alt
   repeat: rotate(1.0)
   speed: 1.5
   ease: sine
 
 - name: disco
-  desc: 70s disco-inspired colors
+  desc: 70s disco-inspired colors with sparkle
   colors:
     - [1.0, 0.0, 0.5, 0.0, hot-pink]
-    - [0.5, 0.0, 1.0, 0.3, purple]
-    - [0.0, 0.5, 1.0, 0.7, blue]
-    - [1.0, 0.8, 0.0, 1.0, gold]
+    - [1.0, 0.5, 0.0, 0.2, orange]
+    - [1.0, 1.0, 0.0, 0.4, gold]
+    - [0.5, 0.0, 1.0, 0.6, purple]
+    - [0.0, 0.0, 1.0, 0.8, blue]
+    - [0.5, 1.0, 0.0, 1.0, lime]
   dist: center
   repeat: pulse(0.8)
   speed: 1.2
   ease: smooth
 
 - name: festival
-  desc: Vibrant festival color palette
+  desc: Vibrant festival colors with joyful vibes
   colors:
     - [1.0, 0.4, 0.0, 0.0, orange]
-    - [1.0, 0.0, 0.6, 0.25, pink]
-    - [0.6, 0.0, 1.0, 0.5, purple]
-    - [0.0, 0.8, 1.0, 0.75, blue]
-    - [0.0, 1.0, 0.4, 1.0, green]
+    - [1.0, 0.0, 0.6, 0.2, pink]
+    - [0.6, 0.0, 1.0, 0.4, purple]
+    - [0.0, 0.8, 0.8, 0.6, teal]
+    - [0.0, 1.0, 0.4, 0.8, green]
+    - [1.0, 1.0, 0.0, 1.0, yellow]
   dist: alt
   repeat: rotate(0.6)
   speed: 1.0
   ease: smoother
 
 - name: carnival
-  desc: Bright carnival celebration colors
+  desc: Bright carnival celebration colors with a festive feel
   colors:
     - [1.0, 0.0, 0.0, 0.0, red]
-    - [1.0, 0.6, 0.0, 0.25, orange]
-    - [1.0, 1.0, 0.0, 0.5, yellow]
-    - [0.0, 0.8, 0.0, 0.75, green]
+    - [1.0, 0.6, 0.0, 0.2, orange]
+    - [1.0, 1.0, 0.0, 0.4, yellow]
+    - [0.0, 0.8, 0.0, 0.6, green]
+    - [0.0, 0.0, 1.0, 0.8, blue]
     - [0.4, 0.0, 0.8, 1.0, purple]
   dist: even
   repeat: mirror

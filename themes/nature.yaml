@@ -1,58 +1,68 @@
 - name: ocean
-  desc: Cool blue tones of the sea
+  desc: Deep blues of the sea with shimmering highlights
   colors:
-    - [0.0, 0.47, 0.75, 0.0, deep-blue]
-    - [0.0, 0.71, 0.85, 0.3, medium-blue]
-    - [0.28, 0.79, 0.89, 0.7, light-blue]
-    - [0.56, 0.88, 0.94, 1.0, sky-blue]
-  dist: back
+    - [0.0, 0.2, 0.5, 0.0, deep-sea-blue]
+    - [0.0, 0.47, 0.75, 0.2, ocean-blue]
+    - [0.0, 0.71, 0.85, 0.4, turquoise]
+    - [0.28, 0.79, 0.89, 0.6, light-blue]
+    - [0.56, 0.88, 0.94, 0.8, sky-blue]
+    - [0.8, 0.94, 1.0, 1.0, shimmer]
+  dist: center
   repeat: pulse(0.2)
   speed: 0.6
   ease: smooth
 
 - name: forest
-  desc: Natural green tones
+  desc: Lush greens with earthy undertones
   colors:
     - [0.08, 0.32, 0.16, 0.0, dark-green]
-    - [0.18, 0.54, 0.34, 0.3, forest-green]
-    - [0.13, 0.54, 0.13, 0.7, green]
-    - [0.60, 0.80, 0.20, 1.0, yellow-green]
+    - [0.18, 0.54, 0.34, 0.2, forest-green]
+    - [0.13, 0.54, 0.13, 0.4, green]
+    - [0.30, 0.70, 0.30, 0.6, bright-green]
+    - [0.60, 0.80, 0.20, 0.8, yellow-green]
+    - [0.85, 0.65, 0.13, 1.0, goldenrod]
   dist: center
   repeat: mirror
   speed: 0.5
-  ease: smooth
+  ease: smoother
 
 - name: autumn
-  desc: Warm fall colors
+  desc: Warm fall colors with rich hues
   colors:
     - [0.65, 0.16, 0.16, 0.0, brown]
-    - [0.82, 0.41, 0.12, 0.3, chocolate]
-    - [1.0, 0.27, 0.0, 0.7, red-orange]
-    - [1.0, 0.55, 0.0, 1.0, dark-orange]
+    - [0.82, 0.41, 0.12, 0.2, sienna]
+    - [1.0, 0.55, 0.0, 0.4, dark-orange]
+    - [1.0, 0.27, 0.0, 0.6, red-orange]
+    - [0.85, 0.65, 0.13, 0.8, goldenrod]
+    - [1.0, 0.84, 0.0, 1.0, gold]
   dist: front
   repeat: rotate(0.3)
   speed: 0.7
   ease: sine
 
 - name: sunset
-  desc: Evening sky colors
+  desc: Vibrant evening sky colors transitioning from orange to purple
   colors:
     - [0.98, 0.31, 0.42, 0.0, coral]
-    - [0.99, 0.62, 0.45, 0.3, peach]
-    - [0.97, 0.76, 0.44, 0.7, light-orange]
-    - [0.56, 0.28, 0.58, 1.0, purple]
+    - [0.99, 0.62, 0.45, 0.2, peach]
+    - [0.97, 0.76, 0.44, 0.4, light-orange]
+    - [0.85, 0.65, 0.88, 0.6, lilac]
+    - [0.56, 0.28, 0.58, 0.8, purple]
+    - [0.29, 0.0, 0.51, 1.0, deep-purple]
   dist: back
   repeat: pulse(0.15)
   speed: 0.5
   ease: smoother
 
 - name: desert
-  desc: Warm earth tones
+  desc: Warm earth tones with sandy hues
   colors:
     - [0.94, 0.76, 0.56, 0.0, sand]
-    - [0.85, 0.60, 0.35, 0.3, tan]
-    - [0.76, 0.44, 0.24, 0.7, terra-cotta]
-    - [0.67, 0.28, 0.13, 1.0, rust]
+    - [0.85, 0.60, 0.35, 0.2, tan]
+    - [0.76, 0.44, 0.24, 0.4, terra-cotta]
+    - [0.82, 0.41, 0.12, 0.6, sienna]
+    - [0.67, 0.28, 0.13, 0.8, rust]
+    - [0.54, 0.27, 0.07, 1.0, saddle-brown]
   dist: alt
   repeat: mirror
   speed: 0.4

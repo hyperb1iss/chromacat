@@ -71,61 +71,135 @@ ChromaCat offers several pattern types for dynamic colorization:
 - `diamond` - Diamond-shaped gradient pattern
 - `perlin` - Organic, cloud-like noise pattern
 
-## 🌈 Theme Categories
+## 🎨 Theme Gallery
 
-ChromaCat includes many themed gradients organized by category:
+ChromaCat comes with over 40 built-in themes across multiple categories. Here's a sample of what's available:
 
-### Space Themes
+### 🌌 Space Themes
 
-- `nebula` - Cosmic nebula colors
-- `cosmos` - Deep space with stars
-- `aurora` - Northern lights in motion
-- `galaxy` - Spiral galaxy with star clusters
+Experience cosmic-inspired gradients perfect for sci-fi interfaces and space-themed applications.
 
-### Tech Themes
+<table>
+<tr>
+<td align="center" width="25%">
+<strong>nebula</strong><br/><img src="docs/theme-previews/space/nebula.png" alt="Nebula theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>cosmos</strong><br/><img src="docs/theme-previews/space/cosmos.png" alt="Cosmos theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>aurora</strong><br/><img src="docs/theme-previews/space/aurora.png" alt="Aurora theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>galaxy</strong><br/><img src="docs/theme-previews/space/galaxy.png" alt="Galaxy theme" width="200" height="20"/>
+</td>
+</tr>
+</table>
 
-- `matrix` - Digital rain aesthetic
-- `cyberpunk` - High-tech urban future vibes
-- `terminal` - Classic computer terminal look
-- `hackerman` - Retro hacker aesthetic
-- `quantum` - Quantum superposition states
+### 💻 Tech Themes
 
-### Nature Themes
+Modern, cyberpunk-inspired themes that bring a digital aesthetic to your terminal.
 
-- `ocean` - Cool blue tones of the sea
-- `forest` - Natural green tones
-- `autumn` - Warm fall colors
-- `sunset` - Evening sky colors
-- `desert` - Warm earth tones
+<table>
+<tr>
+<td align="center" width="20%">
+<strong>matrix</strong><br/><img src="docs/theme-previews/tech/matrix.png" alt="Matrix theme" width="200" height="20"/>
+</td>
+<td align="center" width="20%">
+<strong>cyberpunk</strong><br/><img src="docs/theme-previews/tech/cyberpunk.png" alt="Cyberpunk theme" width="200" height="20"/>
+</td>
+<td align="center" width="20%">
+<strong>hackerman</strong><br/><img src="docs/theme-previews/tech/hackerman.png" alt="Hackerman theme" width="200" height="20"/>
+</td>
+<td align="center" width="20%">
+<strong>quantum</strong><br/><img src="docs/theme-previews/tech/quantum.png" alt="Quantum theme" width="200" height="20"/>
+</td>
+</tr>
+</table>
 
-### Aesthetic Themes
+### 🎭 Aesthetic Themes
 
-- `pastel` - Soft, muted colors
-- `neon` - Bright, vibrant colors that pop
-- `retrowave` - 80s-inspired synthwave aesthetic
-- `vaporwave` - 90s-inspired aesthetic
+Stylish gradients perfect for creative and artistic applications.
 
-### Party Themes
+<table>
+<tr>
+<td align="center" width="25%">
+<strong>pastel</strong><br/><img src="docs/theme-previews/aesthetic/pastel.png" alt="Pastel theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>neon</strong><br/><img src="docs/theme-previews/aesthetic/neon.png" alt="Neon theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>retrowave</strong><br/><img src="docs/theme-previews/aesthetic/retrowave.png" alt="Retrowave theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>vaporwave</strong><br/><img src="docs/theme-previews/aesthetic/vaporwave.png" alt="Vaporwave theme" width="200" height="20"/>
+</td>
+</tr>
+</table>
 
-- `rave` - Intense party colors that pulse
-- `disco` - 70s disco-inspired colors
-- `festival` - Vibrant festival color palette
-- `carnival` - Bright carnival celebration colors
+### 🎉 Party Themes
 
-### Abstract Themes
+Vibrant, energetic themes that bring celebration to your terminal.
 
-- `heat` - Warm colors transitioning from red to yellow
-- `ice` - Cool, frozen tones
-- `fire` - Hot, intense flames
-- `toxic` - Radioactive greens and acid colors
-- `plasma` - Electric plasma-like effect
+<table>
+<tr>
+<td align="center" width="25%">
+<strong>rave</strong><br/><img src="docs/theme-previews/party/rave.png" alt="Rave theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>disco</strong><br/><img src="docs/theme-previews/party/disco.png" alt="Disco theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>festival</strong><br/><img src="docs/theme-previews/party/festival.png" alt="Festival theme" width="200" height="20"/>
+</td>
+<td align="center" width="25%">
+<strong>carnival</strong><br/><img src="docs/theme-previews/party/carnival.png" alt="Carnival theme" width="200" height="20"/>
+</td>
+</tr>
+</table>
 
-### Pride Themes
-- `trans` - Transgender pride flag colors
-- `pan` - Pansexual pride flag colors
-- `nonbinary` - Non-binary pride flag colors
-- `lesbian` - Lesbian pride flag colors
-- `progress` - Progress pride flag with inclusive colors
+### 🎓 Abstract Themes
+
+Experimental and artistic gradients for unique visual effects.
+
+<table>
+<tr>
+<td align="center" width="16.66%">
+<strong>fire</strong><br/><img src="docs/theme-previews/abstract/fire.png" alt="Fire theme" width="200" height="20"/>
+</td>
+<td align="center" width="16.66%">
+<strong>toxic</strong><br/><img src="docs/theme-previews/abstract/toxic.png" alt="Toxic theme" width="200" height="20"/>
+</td>
+<td align="center" width="16.66%">
+<strong>glitch</strong><br/><img src="docs/theme-previews/abstract/glitch.png" alt="Glitch theme" width="200" height="20"/>
+</td>
+<td align="center" width="16.66%">
+<strong>plasma</strong><br/><img src="docs/theme-previews/abstract/plasma.png" alt="Plasma theme" width="200" height="20"/>
+</td>
+</tr>
+</table>
+
+### 🌈 Pride Themes
+
+Celebrate diversity with these pride flag-inspired gradients.
+
+<table>
+<tr>
+<td align="center" width="14.28%">
+<strong>lesbian</strong><br/><img src="docs/theme-previews/pride/lesbian.png" alt="Lesbian theme" width="200" height="20"/>
+</td>
+<td align="center" width="14.28%">
+<strong>trans</strong><br/><img src="docs/theme-previews/pride/trans.png" alt="Trans theme" width="200" height="20"/>
+</td>
+<td align="center" width="14.28%">
+<strong>nonbinary</strong><br/><img src="docs/theme-previews/pride/nonbinary.png" alt="Nonbinary theme" width="200" height="20"/>
+</td>
+<td align="center" width="14.28%">
+<strong>progress</strong><br/><img src="docs/theme-previews/pride/progress.png" alt="Progress theme" width="200" height="20"/>
+</td>
+</tr>
+</table>
 
 ## 💫 Usage Examples
 
@@ -135,8 +209,8 @@ ChromaCat includes many themed gradients organized by category:
 # Simple gradient
 echo "Hello, World!" | chromacat
 
-# Using a specific theme
-echo "Ocean vibes" | chromacat -t ocean
+# Use the cyberpunk theme
+echo "Hello, ChromaCat!" | chromacat -t cyberpunk
 
 # Multiple files
 chromacat file1.txt file2.txt

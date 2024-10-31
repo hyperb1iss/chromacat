@@ -1,54 +1,61 @@
 - name: complementary
-  desc: Opposite colors on the color wheel
+  desc: High-contrast opposite colors on the color wheel
   colors:
     - [1.0, 0.0, 0.0, 0.0, red]
-    - [0.5, 0.0, 0.0, 0.3, dark-red]
-    - [0.0, 1.0, 0.0, 0.7, green]
-    - [0.0, 0.5, 0.0, 1.0, dark-green]
+    - [0.5, 0.0, 0.0, 0.25, dark-red]
+    - [0.0, 1.0, 0.0, 0.5, green]
+    - [0.0, 0.5, 0.0, 0.75, dark-green]
+    - [1.0, 0.0, 0.0, 1.0, red]
   dist: center
   repeat: mirror
   speed: 0.8
   ease: smooth
 
 - name: analogous
-  desc: Adjacent colors on the color wheel
+  desc: Harmonious colors adjacent on the color wheel
   colors:
     - [1.0, 0.0, 0.0, 0.0, red]
-    - [1.0, 0.5, 0.0, 0.5, orange]
-    - [1.0, 0.0, 0.5, 1.0, pink]
+    - [1.0, 0.5, 0.0, 0.25, orange]
+    - [1.0, 1.0, 0.0, 0.5, yellow]
+    - [1.0, 0.5, 0.0, 0.75, orange]
+    - [1.0, 0.0, 0.0, 1.0, red]
   dist: even
   repeat: pulse(0.3)
   speed: 0.7
   ease: sine
 
 - name: triadic
-  desc: Three colors equally spaced on the color wheel
+  desc: Three equally spaced colors on the color wheel
   colors:
     - [1.0, 0.0, 0.0, 0.0, red]
     - [0.0, 1.0, 0.0, 0.33, green]
-    - [0.0, 0.0, 1.0, 0.67, blue]
+    - [0.0, 0.0, 1.0, 0.66, blue]
+    - [1.0, 0.0, 0.0, 1.0, red]
   dist: alt
   repeat: rotate(0.4)
   speed: 0.9
-  ease: smooth
+  ease: smoother
 
 - name: monochrome
-  desc: Single color in varying intensities
+  desc: Shades of a single color for a sleek look
   colors:
-    - [0.0, 0.0, 0.8, 0.0, bright]
-    - [0.0, 0.0, 0.4, 0.5, medium]
-    - [0.0, 0.0, 0.1, 1.0, dark]
+    - [0.0, 0.0, 0.8, 0.0, bright-blue]
+    - [0.0, 0.0, 0.6, 0.25, medium-blue]
+    - [0.0, 0.0, 0.4, 0.5, blue]
+    - [0.0, 0.0, 0.2, 0.75, dark-blue]
+    - [0.0, 0.0, 0.1, 1.0, navy]
   dist: even
   repeat: mirror
   speed: 0.5
-  ease: smooth
+  ease: smoother
 
 - name: split-complementary
-  desc: Main color plus two adjacent to its complement
+  desc: Main color plus two adjacent to its complement for contrast
   colors:
     - [1.0, 0.0, 0.0, 0.0, red]
-    - [0.0, 0.8, 0.2, 0.5, green-yellow]
-    - [0.0, 0.2, 0.8, 1.0, blue-green]
+    - [0.0, 0.8, 0.2, 0.33, yellow-green]
+    - [0.0, 0.2, 0.8, 0.66, blue-green]
+    - [1.0, 0.0, 0.0, 1.0, red]
   dist: center
   repeat: rotate(0.3)
   speed: 0.8

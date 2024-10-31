@@ -4,12 +4,10 @@
 //! and website use. Can be run as a standalone binary.
 
 use anyhow::{Context, Result};
-use chromacat::themes;
 use clap::Parser;
 use colorgrad::Color;
 use image::{ImageBuffer, Rgb};
 use log::{debug, info};
-use std::f32::consts::PI;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -26,13 +24,17 @@ pub struct Args {
     #[arg(short, long, default_value = "docs/theme-previews")]
     pub output_dir: PathBuf,
 
-    /// Preview image width
-    #[arg(short = 'W', long, default_value_t = 400)]
-    pub width: u32,
+    /// Number of color blocks in the preview
+    #[arg(short = 'B', long, default_value_t = 30)]
+    pub blocks: u32,
 
-    /// Preview image height
-    #[arg(short = 'H', long, default_value_t = 100)]
+    /// Height of the preview image
+    #[arg(short = 'H', long, default_value_t = 50)]
     pub height: u32,
+
+    /// Width of the preview image (calculated based on blocks if not provided)
+    #[arg(short = 'W', long)]
+    pub width: Option<u32>,
 
     /// Skip generating combined category previews
     #[arg(long)]
@@ -111,44 +113,32 @@ impl ThemePreviewGenerator {
             .create_gradient()
             .with_context(|| format!("Failed to create gradient for theme '{}'", theme.name))?;
 
+        // Determine image dimensions
+        let blocks = self.args.blocks;
+        let img_height = self.args.height;
+        let img_width = self.args.width.unwrap_or(blocks * 10); // Default block width is 10 pixels
+        let block_width = img_width / blocks;
+
         // Create image buffer
-        let mut img = ImageBuffer::new(self.args.width, self.args.height);
+        let mut img = ImageBuffer::new(img_width, img_height);
 
-        // Render horizontal gradient with theme's distribution and easing
-        for x in 0..self.args.width {
-            let raw_t = x as f32 / self.args.width as f32;
+        // Generate the preview by rendering blocks of colors
+        for i in 0..blocks {
+            let t = i as f32 / (blocks - 1) as f32;
+            let color = gradient.at(t);
+            let rgb = color_to_rgb(&color);
 
-            // Apply theme's distribution and easing
-            let t = theme.apply_easing(theme.apply_distribution(raw_t));
-
-            // Handle repeat modes
-            let t = match theme.repeat {
-                themes::Repeat::Named(themes::RepeatMode::None) => t,
-                themes::Repeat::Named(themes::RepeatMode::Mirror) => {
-                    if (raw_t * 2.0) % 2.0 >= 1.0 {
-                        1.0 - t
-                    } else {
-                        t
-                    }
-                }
-                themes::Repeat::Named(themes::RepeatMode::Repeat) => t % 1.0,
-                themes::Repeat::Function(ref name, rate) => {
-                    match name.as_str() {
-                        "rotate" => (t + 0.0 * rate).fract(), // time is 0 for static preview
-                        "pulse" => {
-                            let phase = (0.0 * rate * PI).sin(); // time is 0 for static preview
-                            (t + phase) * 0.5
-                        }
-                        _ => t, // fallback
-                    }
-                }
+            let x_start = i * block_width;
+            let x_end = if i == blocks - 1 {
+                img_width
+            } else {
+                (i + 1) * block_width
             };
 
-            let color = gradient.at(t);
-
-            // Apply color to entire column
-            for y in 0..self.args.height {
-                img.put_pixel(x, y, color_to_rgb(&color));
+            for x in x_start..x_end {
+                for y in 0..img_height {
+                    img.put_pixel(x, y, rgb);
+                }
             }
         }
 
@@ -189,52 +179,37 @@ impl ThemePreviewGenerator {
                     continue;
                 }
 
-                // Create combined image
-                let combined_height = self.args.height * theme_count as u32;
-                let mut combined_img = ImageBuffer::new(self.args.width, combined_height);
+                // Determine image dimensions
+                let blocks = self.args.blocks;
+                let img_height = self.args.height * theme_count as u32;
+                let img_width = self.args.width.unwrap_or(blocks * 10); // Default block width is 10 pixels
+                let block_width = img_width / blocks;
 
-                // Add each theme preview
+                let mut combined_img = ImageBuffer::new(img_width, img_height);
+
+                // Generate each theme preview and add it to the combined image
                 for (i, theme_name) in themes.iter().enumerate() {
                     let theme = chromacat::themes::get_theme(theme_name)?;
                     let gradient = theme.create_gradient()?;
 
-                    // Calculate y position for this theme
                     let y_offset = i as u32 * self.args.height;
 
-                    // Render theme gradient with proper settings
-                    for x in 0..self.args.width {
-                        let raw_t = x as f32 / self.args.width as f32;
+                    for j in 0..blocks {
+                        let t = j as f32 / (blocks - 1) as f32;
+                        let color = gradient.at(t);
+                        let rgb = color_to_rgb(&color);
 
-                        // Apply theme's distribution and easing
-                        let t = theme.apply_easing(theme.apply_distribution(raw_t));
-
-                        // Handle repeat modes
-                        let t = match theme.repeat {
-                            themes::Repeat::Named(themes::RepeatMode::None) => t,
-                            themes::Repeat::Named(themes::RepeatMode::Mirror) => {
-                                if (raw_t * 2.0) % 2.0 >= 1.0 {
-                                    1.0 - t
-                                } else {
-                                    t
-                                }
-                            }
-                            themes::Repeat::Named(themes::RepeatMode::Repeat) => t % 1.0,
-                            themes::Repeat::Function(ref name, rate) => {
-                                match name.as_str() {
-                                    "rotate" => (t + 0.0 * rate).fract(), // time is 0 for static preview
-                                    "pulse" => {
-                                        let phase = (0.0 * rate * PI).sin(); // time is 0 for static preview
-                                        (t + phase) * 0.5
-                                    }
-                                    _ => t, // fallback
-                                }
-                            }
+                        let x_start = j * block_width;
+                        let x_end = if j == blocks - 1 {
+                            img_width
+                        } else {
+                            (j + 1) * block_width
                         };
 
-                        let color = gradient.at(t);
-
-                        for y in 0..self.args.height {
-                            combined_img.put_pixel(x, y + y_offset, color_to_rgb(&color));
+                        for x in x_start..x_end {
+                            for y in y_offset..(y_offset + self.args.height) {
+                                combined_img.put_pixel(x, y, rgb);
+                            }
                         }
                     }
                 }
@@ -272,9 +247,9 @@ impl ThemePreviewGenerator {
 /// Convert colorgrad Color to image::Rgb
 fn color_to_rgb(color: &Color) -> Rgb<u8> {
     Rgb([
-        (color.r * 255.0) as u8,
-        (color.g * 255.0) as u8,
-        (color.b * 255.0) as u8,
+        (color.r * 255.0).clamp(0.0, 255.0) as u8,
+        (color.g * 255.0).clamp(0.0, 255.0) as u8,
+        (color.b * 255.0).clamp(0.0, 255.0) as u8,
     ])
 }
 

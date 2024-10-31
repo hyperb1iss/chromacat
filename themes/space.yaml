@@ -1,21 +1,23 @@
 - name: nebula
-  desc: Cosmic nebula colors
+  desc: Cosmic nebula colors with vibrant purples and blues
   colors:
     - [0.29, 0.0, 0.51, 0.0, deep-purple]
-    - [0.86, 0.0, 1.0, 0.3, bright-purple]
-    - [0.0, 0.72, 1.0, 0.7, bright-blue]
-    - [1.0, 0.0, 0.5, 1.0, pink]
+    - [0.58, 0.0, 0.83, 0.2, violet]
+    - [0.86, 0.0, 1.0, 0.4, bright-purple]
+    - [0.0, 0.72, 1.0, 0.6, bright-blue]
+    - [1.0, 0.0, 0.5, 0.8, pink]
+    - [0.29, 0.0, 0.51, 1.0, deep-purple]
   dist: center
   repeat: mirror
   speed: 0.7
   ease: smoother
 
 - name: cosmos
-  desc: Deep space with stars
+  desc: Deep space with twinkling stars
   colors:
     - [0.0, 0.0, 0.1, 0.0, space]
-    - [0.2, 0.0, 0.4, 0.4, deep-space]
-    - [0.4, 0.0, 0.6, 0.7, star-field]
+    - [0.2, 0.0, 0.4, 0.3, deep-space]
+    - [0.4, 0.0, 0.6, 0.6, star-field]
     - [1.0, 1.0, 1.0, 1.0, star]
   dist: back
   repeat: pulse(0.1)
@@ -23,26 +25,29 @@
   ease: sine
 
 - name: aurora
-  desc: Northern lights in motion
+  desc: Northern lights with flowing colors
   colors:
     - [0.0, 0.3, 0.1, 0.0, night-sky]
-    - [0.0, 0.8, 0.4, 0.3, green-aurora]
-    - [0.0, 0.6, 0.8, 0.6, blue-aurora]
-    - [0.3, 0.0, 0.6, 0.8, purple-aurora]
-    - [0.7, 0.0, 0.3, 1.0, pink-aurora]
+    - [0.0, 0.8, 0.4, 0.2, green-aurora]
+    - [0.0, 0.6, 0.8, 0.4, blue-aurora]
+    - [0.3, 0.0, 0.6, 0.6, purple-aurora]
+    - [0.7, 0.0, 0.3, 0.8, pink-aurora]
+    - [0.0, 0.3, 0.1, 1.0, night-sky]
   dist: alt
   repeat: rotate(0.3)
   speed: 0.8
   ease: smooth
 
 - name: galaxy
-  desc: Spiral galaxy with star clusters
+  desc: Spiral galaxy with luminous star clusters
   colors:
     - [0.0, 0.0, 0.2, 0.0, void]
-    - [0.3, 0.0, 0.5, 0.3, galactic-core]
-    - [0.7, 0.4, 1.0, 0.7, stellar-clouds]
-    - [1.0, 0.8, 1.0, 1.0, star-cluster]
-  dist: front
+    - [0.3, 0.0, 0.5, 0.2, galactic-core]
+    - [0.7, 0.4, 1.0, 0.4, stellar-clouds]
+    - [1.0, 0.8, 1.0, 0.6, star-cluster]
+    - [1.0, 1.0, 1.0, 0.8, bright-star]
+    - [0.0, 0.0, 0.2, 1.0, void]
+  dist: center
   repeat: mirror
   speed: 0.4
   ease: exp

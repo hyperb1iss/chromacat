@@ -1,45 +1,51 @@
 - name: calm
-  desc: Soothing blues and greens
+  desc: Soothing blues and greens with gentle shifts
   colors:
     - [0.53, 0.81, 0.92, 0.0, light-blue]
-    - [0.53, 0.81, 0.76, 0.3, turquoise]
-    - [0.53, 0.81, 0.61, 1.0, sea-green]
+    - [0.53, 0.81, 0.76, 0.2, turquoise]
+    - [0.53, 0.81, 0.61, 0.4, sea-green]
+    - [0.6, 0.87, 0.70, 0.6, pale-green]
+    - [0.74, 0.93, 0.80, 0.8, mint]
+    - [0.9, 0.98, 0.90, 1.0, light-mint]
   dist: even
   repeat: pulse(0.1)
   speed: 0.4
   ease: smooth
 
 - name: energy
-  desc: Vibrant, energetic colors
+  desc: Vibrant, energetic colors with strong contrasts
   colors:
     - [1.0, 0.0, 0.0, 0.0, red]
-    - [1.0, 0.5, 0.0, 0.3, orange]
-    - [1.0, 1.0, 0.0, 0.7, yellow]
-    - [1.0, 0.0, 0.5, 1.0, pink]
+    - [1.0, 0.5, 0.0, 0.2, orange]
+    - [1.0, 1.0, 0.0, 0.4, yellow]
+    - [0.0, 1.0, 0.0, 0.6, green]
+    - [0.0, 1.0, 1.0, 0.8, cyan]
+    - [1.0, 0.0, 1.0, 1.0, magenta]
   dist: alt
   repeat: rotate(0.8)
   speed: 1.5
   ease: exp
 
 - name: dream
-  desc: Soft, dreamy pastels with purple
+  desc: Soft, dreamy pastels with gentle purples and blues
   colors:
     - [0.86, 0.0, 1.0, 0.0, purple]
     - [0.53, 0.81, 0.92, 0.3, light-blue]
-    - [1.0, 0.71, 0.76, 0.7, pink]
-    - [0.86, 0.0, 0.5, 1.0, dark-pink]
+    - [1.0, 0.71, 0.76, 0.5, pink]
+    - [0.86, 0.0, 0.5, 0.7, dark-pink]
+    - [0.9, 0.9, 0.98, 1.0, lavender]
   dist: center
   repeat: pulse(0.2)
   speed: 0.6
   ease: smoother
 
 - name: serenity
-  desc: Ultra-calming meditation colors
+  desc: Ultra-calming meditation colors with soft hues
   colors:
     - [0.9, 0.95, 1.0, 0.0, dawn-white]
-    - [0.7, 0.85, 0.9, 0.3, morning-blue]
-    - [0.6, 0.8, 0.7, 0.6, sage-green]
-    - [0.8, 0.9, 0.95, 0.8, cloud-white]
+    - [0.7, 0.85, 0.9, 0.25, morning-blue]
+    - [0.6, 0.8, 0.7, 0.5, sage-green]
+    - [0.8, 0.9, 0.95, 0.75, cloud-white]
     - [0.5, 0.7, 0.8, 1.0, twilight-blue]
   dist: even
   repeat: pulse(0.15)
