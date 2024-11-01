@@ -39,8 +39,6 @@ impl PatternMetadata {
 macro_rules! define_pattern_registry {
     ($(
         $id:expr => {
-            name: $name:expr,
-            description: $desc:expr,
             variant: $variant:ident,
             params: $params:ident
         }
@@ -49,11 +47,12 @@ macro_rules! define_pattern_registry {
             fn create_default() -> HashMap<String, PatternMetadata> {
                 let mut patterns = HashMap::new();
                 $(
+                    let default_params = Box::new($params::default());
                     patterns.insert($id.to_string(), PatternMetadata {
                         id: $id,
-                        name: $name,
-                        description: $desc,
-                        default_params: Arc::new(Box::new($params::default())),
+                        name: default_params.name(),
+                        description: default_params.description(),
+                        default_params: Arc::new(default_params),
                     });
                 )*
                 patterns
@@ -72,81 +71,64 @@ macro_rules! define_pattern_registry {
                     _ => Err(format!("Unknown pattern: {}", id))
                 }
             }
+
+            /// Gets the pattern ID corresponding to the given parameters
+            pub fn get_pattern_id(&self, params: &PatternParams) -> Option<&str> {
+                match params {
+                    $(PatternParams::$variant(_) => Some($id),)*
+                }
+            }
         }
     };
 }
 
-// Define all available patterns
+// Define all available patterns with simplified entries
 define_pattern_registry! {
     "horizontal" => {
-        name: "Horizontal",
-        description: "Simple horizontal gradient pattern",
         variant: Horizontal,
         params: HorizontalParams
     },
     "diagonal" => {
-        name: "Diagonal",
-        description: "Gradient at an angle with wave animation",
         variant: Diagonal,
         params: DiagonalParams
     },
     "plasma" => {
-        name: "Plasma",
-        description: "Psychedelic plasma effect with multiple wave components",
         variant: Plasma,
         params: PlasmaParams
     },
     "ripple" => {
-        name: "Ripple",
-        description: "Ripple effect emanating from a center point",
         variant: Ripple,
         params: RippleParams
     },
     "wave" => {
-        name: "Wave",
-        description: "Wave pattern with configurable properties",
         variant: Wave,
         params: WaveParams
     },
     "spiral" => {
-        name: "Spiral",
-        description: "Spiral pattern rotating from center",
         variant: Spiral,
         params: SpiralParams
     },
     "checkerboard" => {
-        name: "Checkerboard",
-        description: "Checkerboard pattern with rotation and blur",
         variant: Checkerboard,
         params: CheckerboardParams
     },
     "diamond" => {
-        name: "Diamond",
-        description: "Diamond-shaped pattern with rotation and sharpness control",
         variant: Diamond,
         params: DiamondParams
     },
     "perlin" => {
-        name: "Perlin",
-        description: "Perlin noise-based pattern with multiple octaves",
         variant: Perlin,
         params: PerlinParams
     },
     "pixel_rain" => {
-        name: "Pixel Rain",
-        description: "Matrix-style digital rain effect",
         variant: PixelRain,
         params: PixelRainParams
     },
     "fire" => {
-        name: "Fire",
-        description: "Dynamic fire effect with realistic flame movement",
         variant: Fire,
         params: FireParams
     },
     "aurora" => {
-        name: "Aurora",
-        description: "Aurora Borealis effect with flowing bands of light",
         variant: Aurora,
         params: AuroraParams
     },
@@ -205,24 +187,6 @@ impl PatternRegistry {
             self.pattern_to_params(id, parsed)
         } else {
             Err(format!("Unknown pattern: {}", id))
-        }
-    }
-
-    /// Gets the pattern ID corresponding to the given parameters
-    pub fn get_pattern_id(&self, params: &PatternParams) -> Option<&str> {
-        match params {
-            PatternParams::Horizontal(_) => Some("horizontal"),
-            PatternParams::Diagonal(_) => Some("diagonal"),
-            PatternParams::Plasma(_) => Some("plasma"),
-            PatternParams::Ripple(_) => Some("ripple"),
-            PatternParams::Wave(_) => Some("wave"),
-            PatternParams::Spiral(_) => Some("spiral"),
-            PatternParams::Checkerboard(_) => Some("checkerboard"),
-            PatternParams::Diamond(_) => Some("diamond"),
-            PatternParams::Perlin(_) => Some("perlin"),
-            PatternParams::PixelRain(_) => Some("pixel_rain"),
-            PatternParams::Fire(_) => Some("fire"),
-            PatternParams::Aurora(_) => Some("aurora"),
         }
     }
 }
