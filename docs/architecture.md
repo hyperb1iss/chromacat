@@ -1,317 +1,480 @@
-# ChromaCat Architecture Overview
+# ChromaCat: System Architecture & Technical Reference 🎨
+
+> _Building a performant, extensible terminal colorizer_ ✨
+
+## Table of Contents
+
+1. [Introduction](#introduction)
+2. [System Overview](#system-overview)
+3. [Pattern System Architecture](#pattern-system-architecture)
+4. [Rendering Pipeline](#rendering-pipeline)
+5. [Theme System](#theme-system)
+6. [Terminal Integration](#terminal-integration)
+7. [Animation Framework](#animation-framework)
+8. [Performance Optimization](#performance-optimization)
+9. [Error Handling](#error-handling)
+10. [Testing Strategy](#testing-strategy)
+11. [Development Guide](#development-guide)
 
 ## Introduction
 
-ChromaCat is a versatile terminal colorization tool designed with a focus on modularity, extensibility, and performance. Written in Rust, it transforms plain text output into vibrant, gradient-colored displays while maintaining high performance and reliability. This document outlines the architectural decisions, component interactions, and future development plans.
+ChromaCat represents a sophisticated approach to terminal colorization, blending high performance with artistic expression. This document details the architectural decisions, implementation strategies, and technical considerations that power ChromaCat's capabilities.
 
-## Core Architecture
+### Design Philosophy
 
-### Component Overview
+Our architecture embraces three core principles:
 
+1. **Performance**: Every component is optimized for minimal overhead and maximum efficiency
+2. **Extensibility**: The system is designed for easy addition of new patterns and features
+3. **Reliability**: Robust error handling and graceful degradation ensure stable operation
+
+## System Overview
+
+At its heart, ChromaCat operates through a pipeline of specialized components:
+
+```mermaid
+graph TD
+    CLI[CLI Interface] --> InputHandler[Input Handler]
+    CLI --> PatternEngine[Pattern Engine]
+    CLI --> Renderer[Renderer]
+    InputHandler --> RenderBuffer[Render Buffer]
+    PatternEngine --> RenderBuffer
+    ThemeSystem[Theme System] --> PatternEngine
+    RenderBuffer --> Renderer
+    Renderer --> Terminal[Terminal Output]
+
+    subgraph "Pattern System"
+        PatternEngine --> Patterns[Pattern Registry]
+        PatternEngine --> Utils[Pattern Utils]
+        Patterns --> Effects[Effect Implementations]
+    end
+
+    style CLI fill:#f9f,stroke:#333,stroke-width:2px
+    style PatternEngine fill:#bbf,stroke:#333,stroke-width:2px
+    style Renderer fill:#bfb,stroke:#333,stroke-width:2px
+    style ThemeSystem fill:#fbb,stroke:#333,stroke-width:2px
 ```
-┌─────────────────┐      ┌──────────────┐      ┌────────────────┐
-│  Input Handler  │────▶│ Pattern Engine│────▶│    Renderer    │
-└─────────────────┘      └──────────────┘      └────────────────┘
-         ▲                      ▲                     ▲
-         │                      │                     │
-         │                ┌──────────┐                │
-         └────────────────│   CLI    │────────────────┘
-                          └──────────┘
-```
 
-The system is built around five primary components:
+### Core Components
 
-1. **CLI (Command Line Interface)**
-
-   - Handles argument parsing and validation
-   - Manages configuration settings
-   - Provides user feedback and help documentation
-   - Uses `clap` for robust argument handling
-
-2. **Input Handler**
-
-   - Manages input from files and stdin
-   - Handles buffered reading for efficiency
-   - Processes Unicode text correctly
-   - Implements proper error handling for I/O operations
-
-3. **Pattern Engine**
-
-   - Generates color patterns and gradients
-   - Supports multiple pattern types (horizontal, diagonal, plasma, etc.)
-   - Handles animation calculations
-   - Uses lookup tables for performance optimization
-
-4. **Gradient System**
-
-   - Manages color interpolation and transitions
-   - Supports multiple color spaces and blending modes
-   - Handles theme definitions and loading
-   - Provides efficient color calculations
-
-5. **Renderer**
-   - Manages terminal output and state
-   - Handles color application and ANSI codes
-   - Manages animation frames and timing
-   - Implements efficient buffer management
-
-### Data Flow
-
-1. **Input Phase**
-
-   ```
-   User Input → CLI Parsing → Configuration Validation → Input Reading
-   ```
-
-2. **Processing Phase**
-
-   ```
-   Text Content → Pattern Generation → Color Calculation → Buffer Population
-   ```
-
-3. **Output Phase**
-   ```
-   Buffer → ANSI Color Codes → Terminal Output → Screen Display
-   ```
-
-## Design Decisions
-
-### 1. Modularity
-
-ChromaCat employs a modular architecture where each component has a clear, single responsibility:
-
-- **Separation of Concerns**: Each module handles a specific aspect of the application
-- **Interface-Based Design**: Components communicate through well-defined interfaces
-- **Pluggable Components**: Pattern types and themes can be easily added or modified
-
-### 2. Performance Optimization
-
-Several strategies ensure high performance:
-
-- **Lookup Tables**: Pre-computed values for common calculations
-- **Buffer Management**: Efficient memory usage and minimal allocations
-- **Lazy Evaluation**: Calculations performed only when necessary
-- **SIMD Opportunities**: Architecture allows for future SIMD optimizations
-
-### 3. Error Handling
-
-Robust error handling throughout the system:
-
-- **Custom Error Types**: Well-defined error hierarchy using `thiserror`
-- **Error Propagation**: Consistent error handling patterns
-- **Graceful Degradation**: Fallback behaviors when features are unavailable
-- **User-Friendly Messages**: Clear error reporting to users
-
-### 4. Memory Management
-
-Careful attention to memory usage:
-
-- **Stack Allocation**: Preference for stack allocation where appropriate
-- **Buffer Reuse**: Minimizing allocations during rendering
-- **Smart Pointers**: Strategic use of `Arc` for shared resources
-- **Memory Limits**: Configurable limits for large inputs
-
-## Current Implementation State
-
-### Completed Features
-
-- ✅ Basic gradient rendering
-- ✅ Multiple pattern types
-- ✅ Theme system
-- ✅ Animation support
-- ✅ Unicode handling
-- ✅ Terminal compatibility
-- ✅ Performance optimizations
-- ✅ Error handling
-- ✅ Documentation
-
-### In Progress
-
-- 🔄 Additional pattern types
-- 🔄 Performance profiling
-- 🔄 Theme customization
-- 🔄 Animation improvements
-
-## Future Development Plans
-
-### Short-term Goals
-
-1. **Performance Enhancements**
-
-   - Implement SIMD optimizations
-   - Add parallel processing for large inputs
-   - Optimize memory usage patterns
-   - Profile and optimize hot paths
-
-2. **Feature Additions**
-
-   - Custom gradient definitions
-   - Advanced animation controls
-   - Interactive mode
-   - Configuration file support
-
-3. **User Experience**
-   - Improved error messages
-   - Progress indicators
-   - Better documentation
-   - Installation improvements
-
-### Long-term Vision
-
-1. **Pattern System Evolution**
-
-   - Plugin architecture for custom patterns
-   - Real-time pattern modification
-   - Pattern composition
-   - Advanced effects system
-
-2. **Integration Capabilities**
-
-   - API for programmatic use
-   - Shell integration
-   - Pipeline optimization
-   - Remote terminal support
-
-3. **Tool Ecosystem**
-   - Pattern designer UI
-   - Theme marketplace
-   - Integration with other tools
-   - Community contributions
-
-## Technical Specifications
-
-### Pattern Engine
-
-The pattern engine uses several optimization techniques:
+The system is built around several key components, each with specific responsibilities:
 
 ```rust
-struct PatternEngine {
-    config: PatternConfig,
-    gradient: Arc<Box<dyn Gradient + Send + Sync>>,
-    time: f64,
-    width: usize,
-    height: usize,
-    sin_table: Arc<Vec<f64>>,
-    cos_table: Arc<Vec<f64>>,
-    perm_table: Arc<Vec<u8>>,
+pub struct ChromaCat {
+    cli: Cli,
+    engine: PatternEngine,
+    renderer: Renderer,
+    theme_system: ThemeSystem,
 }
 ```
 
-Key features:
+## Pattern System Architecture
 
-- Pre-computed trigonometric tables
-- Thread-safe gradient sharing
-- Efficient time management
-- Flexible configuration
+The pattern system represents ChromaCat's artistic core, transforming mathematical expressions into stunning visual effects.
 
-### Renderer Architecture
+### Pattern Registry
 
-The renderer balances performance and flexibility:
+The registry serves as the central orchestrator for all visual effects:
 
 ```rust
-pub struct Renderer {
-    engine: PatternEngine,
-    config: AnimationConfig,
+pub struct PatternRegistry {
+    patterns: HashMap<String, PatternMetadata>,
+}
+
+pub struct PatternMetadata {
+    id: &'static str,
+    name: &'static str,
+    description: &'static str,
+    default_params: Arc<Box<dyn PatternParam + Send + Sync>>,
+}
+```
+
+Pattern registration happens through a declarative macro system:
+
+```rust
+define_pattern_registry! {
+    "horizontal" => {
+        variant: Horizontal,
+        params: HorizontalParams
+    },
+    "plasma" => {
+        variant: Plasma,
+        params: PlasmaParams
+    },
+    // Additional patterns...
+}
+```
+
+### Pattern Implementation
+
+Each pattern implements a trait that defines its behavior:
+
+```rust
+pub trait Pattern {
+    fn generate(&self, x: f64, y: f64, time: f64, params: &PatternParams) -> f64;
+    fn validate_params(&self, params: &str) -> Result<(), String>;
+    fn default_params(&self) -> PatternParams;
+}
+```
+
+For example, here's how the plasma pattern creates its psychedelic effect:
+
+```rust
+impl Pattern for PlasmaPattern {
+    fn generate(&self, x: f64, y: f64, time: f64, params: &PlasmaParams) -> f64 {
+        let time_sin = self.utils.fast_sin(time * PI);
+
+        // Calculate primary wave components
+        let wave1 = self.calculate_primary_wave(x, y, time_sin, params.frequency);
+        let wave2 = self.calculate_secondary_wave(x, y, time_sin, params.scale);
+
+        // Combine waves with complexity factor
+        self.combine_waves(wave1, wave2, params.complexity)
+    }
+}
+```
+
+## Rendering Pipeline
+
+The rendering system transforms pattern values into vibrant terminal output through several sophisticated stages.
+
+### Double-Buffered Architecture
+
+ChromaCat employs an advanced double-buffering strategy:
+
+```rust
+pub struct RenderBuffer {
+    front: Vec<Vec<BufferCell>>,
+    back: Vec<Vec<BufferCell>>,
     term_size: (u16, u16),
-    line_buffer: Vec<String>,
-    color_buffer: Vec<Vec<Color>>,
+    line_info: Vec<(usize, usize)>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct BufferCell {
+    ch: char,
+    color: Color,
+    dirty: bool,
+}
+```
+
+### Color Pipeline
+
+The color transformation process follows a sophisticated pipeline:
+
+```mermaid
+graph LR
+    A[Pattern Value] --> B[Gradient Mapping]
+    B --> C[Color Space Conversion]
+    C --> D[Terminal Color Codes]
+    D --> E[ANSI Output]
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#ddf,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style E fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### Frame Generation
+
+The animation system produces smooth transitions through careful timing:
+
+```rust
+impl Renderer {
+    pub fn render_frame(&mut self, text: &str, delta: f64) -> Result<()> {
+        // Calculate precise frame timing
+        let frame_time = self.calculate_frame_time(delta);
+
+        // Update pattern state
+        self.engine.update(frame_time);
+
+        // Update visible buffer region
+        self.update_visible_region()?;
+
+        // Render to terminal
+        self.draw_frame()?;
+
+        Ok(())
+    }
+}
+```
+
+## Theme System
+
+ChromaCat's theme system provides rich color manipulation capabilities:
+
+```rust
+pub struct ThemeDefinition {
+    name: String,
+    desc: String,
+    colors: Vec<ColorStop>,
+    dist: Distribution,
+    repeat: Repeat,
+    speed: f32,
+    ease: Easing,
+}
+```
+
+### Color Distribution
+
+Themes support various distribution patterns:
+
+```mermaid
+graph LR
+    A[Even] --> B[Front-loaded]
+    B --> C[Back-loaded]
+    C --> D[Center-focused]
+    D --> E[Alternating]
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#ddf,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style E fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### Gradient Generation
+
+The gradient system creates smooth color transitions:
+
+```rust
+impl ThemeDefinition {
+    pub fn create_gradient(&self) -> Result<Box<dyn Gradient + Send + Sync>> {
+        let mut builder = GradientBuilder::new();
+
+        // Configure color stops
+        for color in &self.colors {
+            builder.add_color(color.position, color.to_rgb());
+        }
+
+        // Apply distribution and easing
+        builder.distribution(self.dist)
+               .easing(self.ease)
+               .build()
+    }
+}
+```
+
+## Terminal Integration
+
+The terminal integration layer provides robust handling of terminal capabilities:
+
+```rust
+pub struct TerminalState {
+    term_size: (u16, u16),
     colors_enabled: bool,
     alternate_screen: bool,
-    scroll_state: ScrollState,
-    original_text: String,
+    raw_mode: bool,
+    cursor_hidden: bool,
+    is_tty: bool,
 }
 ```
 
-Features:
+### Terminal Management
 
-- Double-buffering support
-- Efficient color caching
-- Terminal state management
-- Scroll position tracking
+The system carefully manages terminal state:
 
-## Performance Considerations
+```rust
+impl TerminalState {
+    pub fn setup(&mut self) -> Result<()> {
+        // Enable raw mode if needed
+        if !self.raw_mode {
+            enable_raw_mode()?;
+            self.raw_mode = true;
+        }
 
-### Current Metrics
+        // Configure terminal state
+        queue!(
+            stdout(),
+            EnterAlternateScreen,
+            Hide,
+            SetTitle("ChromaCat")
+        )?;
 
-- Processing Speed: ~1MB/s text throughput
-- Memory Usage: ~2x input size
-- Animation Performance: 60 FPS capable
-- Startup Time: <100ms
+        Ok(())
+    }
+}
+```
 
-### Optimization Targets
+## Animation Framework
 
-1. **CPU Usage**
+The animation system provides smooth visual transitions:
 
-   - Target: <5% CPU at 60 FPS
-   - Current: ~10-15% CPU at 60 FPS
-   - Strategy: SIMD optimization
+```rust
+pub struct AnimationConfig {
+    fps: u32,
+    cycle_duration: Duration,
+    infinite: bool,
+    smooth: bool,
+    frame_metrics: FrameMetrics,
+}
+```
 
-2. **Memory Usage**
+### Frame Timing
 
-   - Target: 1.5x input size
-   - Current: 2x input size
-   - Strategy: Buffer optimization
+Precise frame timing ensures smooth animation:
 
-3. **Latency**
-   - Target: <16ms frame time
-   - Current: ~20ms frame time
-   - Strategy: Parallel processing
+```rust
+impl Renderer {
+    fn calculate_frame_time(&self, delta: f64) -> f64 {
+        let target_duration = Duration::from_secs_f64(1.0 / self.config.fps as f64);
+        let actual_duration = Duration::from_secs_f64(delta);
 
-## Best Practices and Conventions
+        if actual_duration < target_duration {
+            thread::sleep(target_duration - actual_duration);
+        }
 
-### Code Organization
+        actual_duration.as_secs_f64()
+    }
+}
+```
 
-- Modules follow single responsibility principle
-- Clear separation between public and private APIs
-- Consistent error handling patterns
-- Comprehensive documentation
+## Performance Optimization
 
-### Testing Strategy
+ChromaCat employs several optimization strategies:
 
-- Unit tests for individual components
-- Integration tests for component interaction
-- Performance benchmarks
-- Property-based testing
+### Pattern Optimization
 
-### Documentation Standards
+```rust
+impl PatternUtils {
+    #[inline(always)]
+    pub fn fast_sin(&self, angle: f64) -> f64 {
+        let normalized_angle = angle.rem_euclid(2.0 * PI);
+        let index = ((normalized_angle * 180.0 / PI) as usize) % 360;
+        self.sin_table[index]
+    }
+}
+```
 
-- All public APIs documented
-- Example code provided
-- Error conditions described
-- Performance characteristics noted
+### Render Optimization
 
-## Contributing
+```rust
+impl RenderBuffer {
+    #[inline]
+    fn update_region(&mut self, start: usize, end: usize) -> Result<()> {
+        for y in start..end {
+            if y >= self.back.len() { break; }
+            for x in 0..self.term_size.0 as usize {
+                let cell = &mut self.back[y][x];
+                if cell.dirty {
+                    self.update_cell(x, y)?;
+                    cell.dirty = false;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+```
+
+## Error Handling
+
+ChromaCat implements a comprehensive error handling strategy:
+
+```rust
+pub enum ChromaCatError {
+    IoError(io::Error),
+    InvalidParameter { name: String, value: f64, min: f64, max: f64 },
+    InvalidTheme(String),
+    GradientError(String),
+    PatternError { pattern: String, param: String, message: String },
+    RenderError(String),
+    TerminalError(String),
+}
+```
+
+### Error Recovery
+
+The system implements graceful degradation:
+
+```rust
+impl ChromaCat {
+    fn handle_error(&mut self, error: ChromaCatError) -> Result<()> {
+        match error {
+            ChromaCatError::TerminalError(_) => self.terminal.try_recover()?,
+            ChromaCatError::RenderError(_) => self.renderer.reset()?,
+            _ => self.fallback_mode()?,
+        }
+        Ok(())
+    }
+}
+```
+
+## Testing Strategy
+
+ChromaCat employs a comprehensive testing approach:
+
+### Unit Testing
+
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_pattern_generation() {
+        let pattern = PlasmaPattern::new();
+        let params = PlasmaParams::default();
+
+        // Test pattern values
+        let value = pattern.generate(0.5, 0.5, 0.0, &params);
+        assert!((0.0..=1.0).contains(&value));
+    }
+}
+```
+
+### Integration Testing
+
+```rust
+#[test]
+fn test_animation_pipeline() {
+    let mut cat = ChromaCat::new(test_config());
+
+    // Test full animation cycle
+    for frame in 0..60 {
+        assert!(cat.render_frame(frame as f64 / 60.0).is_ok());
+    }
+}
+```
+
+## Development Guide
 
 ### Getting Started
 
-1. Fork the repository
-2. Set up development environment
-3. Choose an issue to work on
-4. Submit pull request
+1. Clone the repository:
 
-### Development Guidelines
+   ```bash
+   git clone https://github.com/hyperb1iss/chromacat
+   cd chromacat
+   ```
 
-- Follow Rust coding standards
-- Maintain test coverage
-- Document new features
-- Consider performance implications
+2. Build the project:
+
+   ```bash
+   cargo build --release
+   ```
+
+3. Run tests:
+   ```bash
+   cargo test
+   ```
+
+### Contributing
+
+When contributing to ChromaCat:
+
+1. Follow the Rust style guide
+2. Maintain test coverage
+3. Document public APIs
+4. Consider performance implications
 
 ## Conclusion
 
-ChromaCat's architecture provides a solid foundation for current features while allowing for future expansion. The modular design and focus on performance create a maintainable and efficient system that can evolve with user needs.
+ChromaCat's architecture provides a robust foundation for terminal colorization while maintaining extensibility and performance. The modular design allows for easy addition of new patterns and features while ensuring maintainable code and reliable operation.
 
-Key strengths:
+---
 
-- Modular and extensible design
-- Strong performance characteristics
-- Comprehensive error handling
-- Well-documented codebase
+<div align="center">
 
-Future focus areas:
+For more information, visit our [GitHub repository](https://github.com/hyperb1iss/chromacat)
 
-- Performance optimization
-- Feature expansion
-- User experience improvements
-- Community engagement
-
-The architecture will continue to evolve while maintaining its core principles of modularity, performance, and reliability.
+</div>
