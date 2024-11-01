@@ -10,6 +10,7 @@ mod spiral;
 mod wave;
 mod pixel_rain;
 mod aurora;
+mod kaleidoscope;
 
 pub use checkerboard::CheckerboardParams;
 pub use diagonal::DiagonalParams;
@@ -23,6 +24,7 @@ pub use spiral::SpiralParams;
 pub use wave::WaveParams;
 pub use pixel_rain::PixelRainParams;
 pub use aurora::AuroraParams;
+pub use kaleidoscope::KaleidoscopeParams;
 
 use crate::pattern::utils::PatternUtils;
 use crate::pattern::config::PatternParams;
@@ -99,6 +101,7 @@ impl Patterns {
             PatternParams::PixelRain(p) => self.pixel_rain(x_norm, y_norm, p.clone()),
             PatternParams::Fire(p) => self.fire(x_norm, y_norm, p.clone()),
             PatternParams::Aurora(p) => self.aurora(x_norm, y_norm, p.clone()),
+            PatternParams::Kaleidoscope(p) => self.kaleidoscope(x_norm, y_norm, p.clone()),
         }
     }
 }

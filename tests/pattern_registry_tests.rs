@@ -14,6 +14,7 @@ fn test_registry_initialization() {
     assert!(patterns.contains(&"diamond"));
     assert!(patterns.contains(&"perlin"));
     assert!(patterns.contains(&"rain"));
+    assert!(patterns.contains(&"kaleidoscope"));
 }
 
 #[test]
@@ -68,6 +69,7 @@ fn test_pattern_parameter_creation() {
             ("rain", PatternParams::PixelRain(_)) => (),
             ("fire", PatternParams::Fire(_)) => (),
             ("aurora", PatternParams::Aurora(_)) => (),
+            ("kaleidoscope", PatternParams::Kaleidoscope(_)) => (),
             _ => panic!("Unexpected pattern type for {}", pattern_id),
         }
     }
@@ -104,6 +106,10 @@ fn test_parameter_validation() {
             "rain",
             "speed=1.0,density=1.0,length=3.0,glitch=true,glitch_freq=1.0",
         ),
+        (
+            "kaleidoscope",
+            "segments=6,rotation_speed=1.0,zoom=1.5,complexity=2.0,color_flow=1.0,distortion=0.3",
+        ),
     ];
 
     for (pattern_id, valid_params) in test_cases {
@@ -139,6 +145,7 @@ fn test_parameter_parsing() {
         ("diamond", "size=1.0,offset=0.5"),
         ("perlin", "octaves=4,persistence=0.5"),
         ("rain", "speed=1.0,density=1.0"),
+        ("kaleidoscope", "segments=6,rotation_speed=1.0,zoom=1.5"),
     ];
 
     for (pattern_id, params) in test_cases {

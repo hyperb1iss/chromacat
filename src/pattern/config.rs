@@ -1,7 +1,7 @@
 use crate::pattern::patterns::{
     CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
     PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
-    PixelRainParams, FireParams, AuroraParams,
+    PixelRainParams, FireParams, AuroraParams, KaleidoscopeParams,
 };
 
 /// Common parameters that apply to all pattern types
@@ -60,6 +60,8 @@ pub enum PatternParams {
     Fire(FireParams),
     /// Aurora Borealis effect
     Aurora(AuroraParams),
+    /// Kaleidoscope pattern
+    Kaleidoscope(KaleidoscopeParams),
 }
 
 impl Default for PatternParams {

@@ -132,6 +132,10 @@ define_pattern_registry! {
         variant: Aurora,
         params: AuroraParams
     },
+    "kaleidoscope" => {
+        variant: Kaleidoscope,
+        params: KaleidoscopeParams
+    },
 }
 
 /// Registry for managing available patterns

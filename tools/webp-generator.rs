@@ -100,6 +100,7 @@ impl WebPGenerator {
                 "rain".to_string(),
                 "fire".to_string(),
                 "aurora".to_string(),
+                "kaleidoscope".to_string(),
             ]
         };
 
@@ -320,9 +321,9 @@ fn get_recommended_theme(pattern: &str) -> &'static str {
         "perlin" => "nebula", // Organic noise works well with nebula colors
 
         // Dynamic patterns
-        "rain" => "matrix",   // Digital rain effect with matrix colors
+        "rain" => "hackerman",   // Digital rain effect with matrix colors
         "fire" => "fire",     // Fire pattern with matching heat colors
-        "aurora" => "aurora", // Aurora pattern with matching colors
+        "aurora" => "neon", // Aurora pattern with matching colors
 
         // Default to rainbow if no specific recommendation
         _ => "rainbow",
