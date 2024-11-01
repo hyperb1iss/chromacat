@@ -3,14 +3,16 @@ use crate::pattern::params::{ParamType, PatternParam};
 use std::any::Any;
 
 // Define parameters with proper CLI names and bounds
-define_param!(num Fire, IntensityParam, "intensity", "Intensity of the flames", 0.1, 2.0, 1.0);
-define_param!(num Fire, SpeedParam, "speed", "Speed of flame movement", 0.1, 5.0, 1.0);
-define_param!(num Fire, TurbulenceParam, "turbulence", "Amount of flame turbulence", 0.0, 1.0, 0.5);
-define_param!(num Fire, HeightParam, "height", "Height of the flames", 0.1, 2.0, 1.0);
-define_param!(bool Fire, WindParam, "wind", "Enable wind effect", true);
-define_param!(num Fire, WindStrengthParam, "wind_strength", "Strength of wind effect", 0.0, 1.0, 0.3);
+define_param!(num Fire, IntensityParam, "intensity", "Controls the brightness and strength of the flames", 0.1, 2.0, 1.0);
+define_param!(num Fire, SpeedParam, "speed", "Controls the animation speed of the flames", 0.1, 5.0, 1.0);
+define_param!(num Fire, TurbulenceParam, "turbulence", "Controls the amount of flame distortion and detail", 0.0, 1.0, 0.5);
+define_param!(num Fire, HeightParam, "height", "Controls the maximum height of the flames", 0.1, 2.0, 1.0);
+define_param!(bool Fire, WindParam, "wind", "Enables horizontal wind effect on flames", true);
+define_param!(num Fire, WindStrengthParam, "wind_strength", "Controls the intensity of the wind effect", 0.0, 1.0, 0.3);
 
-/// Parameters for configuring fire pattern effects
+/// Parameters for configuring the fire pattern effect.
+/// Creates a dynamic flame simulation with configurable properties
+/// including intensity, movement speed, turbulence, and wind effects.
 #[derive(Debug, Clone)]
 pub struct FireParams {
     /// Intensity of the flames (0.1-2.0)
@@ -147,75 +149,95 @@ impl PatternParam for FireParams {
 }
 
 impl super::Patterns {
-    /// Generates a dynamic fire pattern effect
+    /// Generates a dynamic fire pattern effect.
+    ///
+    /// # Arguments
+    /// * `x_norm` - Normalized x coordinate (-0.5 to 0.5)
+    /// * `y_norm` - Normalized y coordinate (-0.5 to 0.5)
+    /// * `params` - Configuration parameters for the fire effect
+    ///
+    /// # Returns
+    /// A value between 0.0 and 1.0 representing the fire intensity at the given point
     #[inline(always)]
     pub fn fire(&self, x_norm: f64, y_norm: f64, params: FireParams) -> f64 {
-        // Pre-calculate time-based values
+        // Calculate time-based animation value
         let time = self.time * params.speed;
 
-        // Base coordinates (keep y inverted for fire rising up)
+        // Transform coordinates to 0.0-1.0 range, with y inverted for upward flames
         let x_pos = x_norm + 0.5;
 
-        // Handle y coordinate differently for static vs animated mode
+        // Handle y coordinate:
+        // - For static preview (time == 0.0): create repeating pattern
+        // - For animation: invert y so flames rise upward
         let y_pos = if self.time == 0.0 {
-            // Static mode: map each line to a portion of the flame
-            // This ensures the entire document shows fire effects
-            (y_norm + 0.5).rem_euclid(0.3) * 3.0 // Repeat every 30% of height
+            (y_norm + 0.5).rem_euclid(0.3) * 3.0
         } else {
-            // Animation mode: keep original mapping
             1.0 - (y_norm + 0.5)
         };
 
-        // Early exit if above max height
+        // Skip calculation if point is above maximum flame height
         if y_pos > params.height {
             return 0.0;
         }
 
-        // Create base fire shape
-        let base_intensity = (1.0 - y_pos / params.height).powf(0.5);
+        // Calculate base intensity that decreases with height
+        let base_intensity = (1.0 - y_pos / params.height).powf(0.35);
 
-        // Add noise-based turbulence
+        // Generate multi-layered noise for realistic flame movement
         let turbulence = {
+            // Large-scale flame movement
             let noise1 = self
                 .utils
-                .noise2d(x_pos * 4.0 + time * 2.0, y_pos * 4.0 + time * 3.0);
+                .noise2d(x_pos * 6.0 + time * 2.0, y_pos * 6.0 + time * 3.0);
+            // Medium-scale detail
             let noise2 = self
                 .utils
-                .noise2d(x_pos * 8.0 - time * 1.5, y_pos * 8.0 + time * 2.5);
+                .noise2d(x_pos * 12.0 - time * 1.5, y_pos * 12.0 + time * 2.5);
+            // Fine detail for added realism
+            let noise3 = self
+                .utils
+                .noise2d(x_pos * 18.0 + time * 3.0, y_pos * 15.0 - time * 4.0);
 
-            (noise1 * 0.6 + noise2 * 0.4) * params.turbulence
+            // Combine noises with emphasis on vertical movement
+            let combined = noise1 * 0.5 + noise2 * 0.3 + noise3 * 0.2;
+
+            // Make turbulence more pronounced in vertical direction
+            combined * params.turbulence * (1.0 + y_pos * 0.5)
         };
 
-        // Calculate final intensity with turbulence
+        // Calculate final intensity with enhanced sharpness
         let mut intensity = base_intensity * (1.0 + turbulence);
 
-        // Add hot spots near the bottom
+        // Add sharper peaks
+        intensity = intensity.powf(0.8);
+
+        // Add more defined hot spots near the bottom
         if y_pos < 0.3 {
             let spot_noise = self
                 .utils
-                .noise2d(x_pos * 12.0 + time * 4.0, y_pos * 8.0 - time * 3.0);
+                .noise2d(x_pos * 15.0 + time * 4.0, y_pos * 10.0 - time * 3.0);
 
-            if spot_noise > 0.6 {
-                intensity = intensity.max(0.8);
+            if spot_noise > 0.5 {
+                intensity = intensity.max(0.85);
             }
         }
 
-        // Map intensity to color ranges
+        // Rest of the color mapping remains the same
         intensity = match intensity {
-            i if i < 0.2 => i,                     // Keep dark reds
-            i if i < 0.4 => 0.2 + (i - 0.2) * 2.0, // Expand bright reds
-            i if i < 0.6 => 0.4 + (i - 0.4) * 2.0, // Expand oranges
-            i if i < 0.8 => 0.6 + (i - 0.6) * 2.0, // Expand yellows
-            i => 0.8 + (i - 0.8) * 2.0,            // Expand whites
+            i if i < 0.2 => i,
+            i if i < 0.4 => 0.2 + (i - 0.2) * 2.0,
+            i if i < 0.6 => 0.4 + (i - 0.4) * 2.0,
+            i if i < 0.8 => 0.6 + (i - 0.6) * 2.0,
+            i => 0.8 + (i - 0.8) * 2.0,
         };
 
-        // Add wind effect
+        // Add wind effect with sharper transitions
         if params.wind {
             let wind_time = time * 1.5;
-            let wind_offset =
-                self.utils.noise2d(x_pos + wind_time, y_pos * 2.0) * params.wind_strength * y_pos;
+            let wind_offset = self.utils.noise2d(x_pos + wind_time, y_pos * 2.5)
+                * params.wind_strength
+                * y_pos.powf(0.8);
 
-            // Sample intensity at wind-offset position
             let x_sample = (x_pos + wind_offset).rem_euclid(1.0);
             intensity = self.fire(
                 x_sample - 0.5,
