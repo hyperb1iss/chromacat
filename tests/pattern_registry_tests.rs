@@ -13,7 +13,7 @@ fn test_registry_initialization() {
     assert!(patterns.contains(&"checkerboard"));
     assert!(patterns.contains(&"diamond"));
     assert!(patterns.contains(&"perlin"));
-    assert!(patterns.contains(&"pixel_rain"));
+    assert!(patterns.contains(&"rain"));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn test_pattern_parameter_creation() {
             ("checkerboard", PatternParams::Checkerboard(_)) => (),
             ("diamond", PatternParams::Diamond(_)) => (),
             ("perlin", PatternParams::Perlin(_)) => (),
-            ("pixel_rain", PatternParams::PixelRain(_)) => (),
+            ("rain", PatternParams::PixelRain(_)) => (),
             ("fire", PatternParams::Fire(_)) => (),
             ("aurora", PatternParams::Aurora(_)) => (),
             _ => panic!("Unexpected pattern type for {}", pattern_id),
@@ -101,7 +101,7 @@ fn test_parameter_validation() {
         ),
         ("perlin", "octaves=4,persistence=0.5,scale=1.0,seed=0"),
         (
-            "pixel_rain",
+            "rain",
             "speed=1.0,density=1.0,length=3.0,glitch=true,glitch_freq=1.0",
         ),
     ];
@@ -138,7 +138,7 @@ fn test_parameter_parsing() {
         ("checkerboard", "size=2,blur=0.1"),
         ("diamond", "size=1.0,offset=0.5"),
         ("perlin", "octaves=4,persistence=0.5"),
-        ("pixel_rain", "speed=1.0,density=1.0"),
+        ("rain", "speed=1.0,density=1.0"),
     ];
 
     for (pattern_id, params) in test_cases {
