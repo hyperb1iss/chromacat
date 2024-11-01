@@ -27,7 +27,7 @@ pub use status_bar::StatusBar;
 pub use terminal::TerminalState;
 
 use crate::pattern::PatternEngine;
-use crate::pattern::{PatternConfig, PatternParams, REGISTRY};
+use crate::pattern::{PatternConfig, REGISTRY};
 use crate::themes;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -100,21 +100,9 @@ impl Renderer {
             .position(|t| t == initial_theme)
             .unwrap_or(0);
 
-        // Determine initial pattern index based on current config
-        let initial_pattern = match &engine.config().params {
-            PatternParams::Horizontal(_) => "horizontal",
-            PatternParams::Diagonal(_) => "diagonal",
-            PatternParams::Plasma(_) => "plasma",
-            PatternParams::Ripple(_) => "ripple",
-            PatternParams::Wave(_) => "wave",
-            PatternParams::Spiral(_) => "spiral",
-            PatternParams::Checkerboard(_) => "checkerboard",
-            PatternParams::Diamond(_) => "diamond",
-            PatternParams::Perlin(_) => "perlin",
-            PatternParams::PixelRain(_) => "pixel_rain",
-            PatternParams::Fire(_) => "fire",
-            PatternParams::Aurora(_) => "aurora",
-        };
+        // Get pattern ID from registry based on current params
+        let initial_pattern = REGISTRY.get_pattern_id(&engine.config().params)
+            .unwrap_or("horizontal"); // fallback to horizontal if pattern not found
 
         let current_pattern_index = available_patterns
             .iter()

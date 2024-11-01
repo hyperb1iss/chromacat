@@ -207,6 +207,24 @@ impl PatternRegistry {
             Err(format!("Unknown pattern: {}", id))
         }
     }
+
+    /// Gets the pattern ID corresponding to the given parameters
+    pub fn get_pattern_id(&self, params: &PatternParams) -> Option<&str> {
+        match params {
+            PatternParams::Horizontal(_) => Some("horizontal"),
+            PatternParams::Diagonal(_) => Some("diagonal"),
+            PatternParams::Plasma(_) => Some("plasma"),
+            PatternParams::Ripple(_) => Some("ripple"),
+            PatternParams::Wave(_) => Some("wave"),
+            PatternParams::Spiral(_) => Some("spiral"),
+            PatternParams::Checkerboard(_) => Some("checkerboard"),
+            PatternParams::Diamond(_) => Some("diamond"),
+            PatternParams::Perlin(_) => Some("perlin"),
+            PatternParams::PixelRain(_) => Some("pixel_rain"),
+            PatternParams::Fire(_) => Some("fire"),
+            PatternParams::Aurora(_) => Some("aurora"),
+        }
+    }
 }
 
 // Create a lazy static instance for global access
