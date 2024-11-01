@@ -210,6 +210,7 @@ const MOOD_THEMES: &str = include_str!("../themes/mood.yaml");
 const PARTY_THEMES: &str = include_str!("../themes/party.yaml");
 const ABSTRACT_THEMES: &str = include_str!("../themes/abstract.yaml");
 const PRIDE_THEMES: &str = include_str!("../themes/pride.yaml");
+const THEORY_THEMES: &str = include_str!("../themes/theory.yaml");
 
 lazy_static! {
     static ref THEME_REGISTRY: RwLock<ThemeRegistry> = RwLock::new(ThemeRegistry::new());
@@ -298,6 +299,7 @@ impl ThemeRegistry {
         registry.load_category("party", PARTY_THEMES);
         registry.load_category("abstract", ABSTRACT_THEMES);
         registry.load_category("pride", PRIDE_THEMES);
+        registry.load_category("theory", THEORY_THEMES);
 
         registry
     }
