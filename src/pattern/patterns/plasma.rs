@@ -167,65 +167,66 @@ impl super::Patterns {
         let time_sin04 = self.utils.fast_sin(time * 0.4);
         let time_cos043 = self.utils.fast_cos(time * 0.43);
 
-        let cx = 0.5 + 0.4 * time_sin04;
-        let cy = 0.5 + 0.4 * time_cos043;
+        // Moving center points for wave origins
+        let cx = 0.5 + 0.3 * time_sin04;
+        let cy = 0.5 + 0.3 * time_cos043;
 
-        // Calculate distance components once
+        // Calculate distance components with reduced intensity
         let dx1 = x_pos - cx;
         let dy1 = y_pos - cy;
-        let dist1_sq = dx1 * dx1 + dy1 * dy1;
+        let dist1 = (dx1 * dx1 + dy1 * dy1).sqrt();
 
         // Accumulate values with minimal divisions
         let mut sum = 0.0;
         let mut divisor = 0.0;
 
-        // First component
-        sum += self
-            .utils
-            .fast_sin(dist1_sq.sqrt() * 8.0 * base_freq + time * 0.6)
-            * 1.2;
-        divisor += 1.2;
+        // First component - reduced distance influence
+        sum += self.utils.fast_sin(dist1 * 6.0 * base_freq + time * 0.6) * 0.8;
+        divisor += 0.8;
 
-        // Combine similar operations
+        // Combine similar operations - increased weight of directional waves
         let x_freq = x_pos * 5.0 * base_freq;
         let y_freq = y_pos * 5.0 * base_freq;
-        sum += self.utils.fast_sin(x_freq + time * 0.4) * 0.8
-            + self.utils.fast_sin(y_freq + time * 0.47) * 0.8;
-        divisor += 1.6;
+        sum += self.utils.fast_sin(x_freq + time * 0.4) * 1.2
+            + self.utils.fast_sin(y_freq + time * 0.47) * 1.2;
+        divisor += 2.4;
 
-        // Pre-calculate rotation values
+        // Pre-calculate rotation values - increased weight
         let angle = time * 0.2;
         let (sin_angle, cos_angle) = (self.utils.fast_sin(angle), self.utils.fast_cos(angle));
         let rx = x_pos * cos_angle - y_pos * sin_angle;
         let ry = x_pos * sin_angle + y_pos * cos_angle;
-        sum += self.utils.fast_sin((rx + ry) * 4.0 * base_freq) * 1.0;
-        divisor += 1.0;
+        sum += self.utils.fast_sin((rx + ry) * 4.0 * base_freq) * 1.4;
+        divisor += 1.4;
 
-        // Center distance calculation
-        let dx2 = x_pos - 0.5;
-        let dy2 = y_pos - 0.5;
-        let dist2_sq = dx2 * dx2 + dy2 * dy2;
-        let angle2 = dy2.atan2(dx2) + time * 0.3;
-        sum += self.utils.fast_sin(dist2_sq.sqrt() * 6.0 + angle2 * 2.0) * 0.8;
-        divisor += 0.8;
+        // Replace center distance calculation with diagonal waves
+        sum += self
+            .utils
+            .fast_sin((x_pos + y_pos) * 4.0 * base_freq + time * 0.3)
+            * 1.0
+            + self
+                .utils
+                .fast_sin((x_pos - y_pos) * 4.0 * base_freq + time * 0.35)
+                * 1.0;
+        divisor += 2.0;
 
-        // Complexity-based components
+        // Complexity-based components with reduced center dependency
         let complexity = params.complexity as u32;
         if complexity > 0 {
             let mut fi = 0.0;
             for _ in 0..complexity {
                 let speed = 0.2 + fi * 0.04;
 
-                // Pre-calculate position
-                let cx = 0.5 + 0.3 * self.utils.fast_sin(time * speed);
-                let cy = 0.5 + 0.3 * self.utils.fast_cos(time * speed + PI * 0.3);
+                // Wider movement range for wave origins
+                let cx = 0.5 + 0.4 * self.utils.fast_sin(time * speed);
+                let cy = 0.5 + 0.4 * self.utils.fast_cos(time * speed + PI * 0.3);
 
                 let dx = x_pos - cx;
                 let dy = y_pos - cy;
                 let dist = (dx * dx + dy * dy).sqrt();
 
-                let freq = (3.0 + fi) * base_freq;
-                let weight = 1.2 / (fi + 1.0);
+                let freq = (2.5 + fi) * base_freq; // Reduced base frequency
+                let weight = 1.0 / (fi + 1.0);
                 sum += self.utils.fast_sin(dist * freq + time * (0.4 + fi * 0.1)) * weight;
                 divisor += weight;
 
@@ -233,8 +234,8 @@ impl super::Patterns {
             }
         }
 
-        // Final normalization
-        let normalized = (sum / divisor) * 1.2;
+        // Final normalization with slightly reduced contrast
+        let normalized = (sum / divisor) * 1.1;
         (self.utils.fast_sin(normalized * PI * 0.8) + 1.0) * 0.5
     }
 }
