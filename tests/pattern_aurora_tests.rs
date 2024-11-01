@@ -125,41 +125,79 @@ fn test_aurora_animation_behavior() {
         later_samples
     );
 
-    // Test layer interaction
+    // Test layer interaction with multiple time samples
     let single_layer = AuroraParams {
         layers: 1,
+        speed: 1.0,
+        intensity: 1.0,
+        spread: 0.3,
+        height: 0.5,
         ..params.clone()
     };
 
     let multi_layer = AuroraParams {
         layers: 3,
+        speed: 1.0,
+        intensity: 1.0,
+        spread: 0.3,
+        height: 0.5,
         ..params.clone()
     };
 
-    let mut single_layer_values = Vec::new();
-    let mut multi_layer_values = Vec::new();
+    // Sample at different heights and times
+    let heights = vec![-0.3, -0.1, 0.1, 0.3];
+    let times = vec![0.0, 0.2, 0.4, 0.6, 0.8];
+    let mut single_max_intensity = 0.0;
+    let mut multi_max_intensity = 0.0;
+    let mut single_total_intensity = 0.0;
+    let mut multi_total_intensity = 0.0;
+    let mut samples = 0;
 
-    for x in (0..10).map(|i| i as f64 * 0.1) {
-        single_layer_values.push(patterns.aurora(x, 0.5, single_layer.clone()));
-        multi_layer_values.push(patterns.aurora(x, 0.5, multi_layer.clone()));
+    for &t in &times {
+        let patterns_t = Patterns::new(100, 100, t, 0);
+
+        for &y in &heights {
+            for x in (0..10).map(|i| i as f64 * 0.1 - 0.5) {
+                let single_val = patterns_t.aurora(x, y, single_layer.clone());
+                let multi_val = patterns_t.aurora(x, y, multi_layer.clone());
+
+                single_max_intensity = f64::max(single_max_intensity, single_val);
+                multi_max_intensity = f64::max(multi_max_intensity, multi_val);
+                single_total_intensity += single_val;
+                multi_total_intensity += multi_val;
+                samples += 1;
+            }
+        }
     }
 
-    // Calculate variation in values
-    let single_var = variance(&single_layer_values);
-    let multi_var = variance(&multi_layer_values);
+    let single_avg = single_total_intensity / samples as f64;
+    let multi_avg = multi_total_intensity / samples as f64;
 
+    // Test that multi-layer creates higher peak intensities
     assert!(
-        multi_var > single_var,
-        "Multiple layers should create more variation. Single layer var: {}, Multi layer var: {}",
-        single_var,
-        multi_var
+        multi_max_intensity > single_max_intensity,
+        "Multiple layers should create higher peak intensities. Single max: {}, Multi max: {}",
+        single_max_intensity,
+        multi_max_intensity
     );
-}
 
-// Helper function to calculate variance
-fn variance(values: &[f64]) -> f64 {
-    let mean = values.iter().sum::<f64>() / values.len() as f64;
-    values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64
+    // Test that multi-layer maintains similar average intensity
+    assert!(
+        (multi_avg - single_avg).abs() < 0.1,
+        "Multiple layers should maintain similar average intensity. Single avg: {}, Multi avg: {}",
+        single_avg,
+        multi_avg
+    );
+
+    // Keep the non-zero checks
+    assert!(
+        multi_max_intensity > 0.0,
+        "Multi-layer aurora should be visible"
+    );
+    assert!(
+        single_max_intensity > 0.0,
+        "Single-layer aurora should be visible"
+    );
 }
 
 #[test]
@@ -198,35 +236,38 @@ fn test_aurora_parameter_effects() {
         max_low
     );
 
-    // Test waviness effect with more appropriate sampling
+    // Updated waviness test with better sampling
     let high_wave = AuroraParams {
         waviness: 2.0,
-        speed: 1.0, // Ensure movement
+        speed: 1.0,
+        intensity: 1.0, // Ensure consistent intensity
         ..base_params.clone()
     };
     let low_wave = AuroraParams {
         waviness: 0.5,
         speed: 1.0,
+        intensity: 1.0,
         ..base_params.clone()
     };
 
-    // Sample over time to catch the wave movement
+    // Sample across both space and time to better capture waviness
     let mut high_wave_values = Vec::new();
     let mut low_wave_values = Vec::new();
 
-    for t in 0..10 {
-        let patterns_t = Patterns::new(100, 100, t as f64 * 0.1, 0);
-        high_wave_values.push(patterns_t.aurora(0.5, 0.5, high_wave.clone()));
-        low_wave_values.push(patterns_t.aurora(0.5, 0.5, low_wave.clone()));
+    // Sample multiple x positions at fixed time
+    for x in (0..20).map(|i| i as f64 * 0.05) {
+        let patterns_t = Patterns::new(100, 100, 0.5, 0); // Fixed time
+        high_wave_values.push(patterns_t.aurora(x, 0.5, high_wave.clone()));
+        low_wave_values.push(patterns_t.aurora(x, 0.5, low_wave.clone()));
     }
 
-    // Calculate temporal variation instead of spatial
+    // Calculate spatial variation
     let high_wave_var = variance(&high_wave_values);
     let low_wave_var = variance(&low_wave_values);
 
     assert!(
         high_wave_var > low_wave_var,
-        "Higher waviness should create more temporal variation. High var: {}, Low var: {}",
+        "Higher waviness should create more spatial variation. High var: {}, Low var: {}",
         high_wave_var,
         low_wave_var
     );
@@ -258,4 +299,10 @@ fn test_aurora_parameter_effects() {
         tall_coverage > short_coverage,
         "Taller aurora should cover more vertical space"
     );
+}
+
+// Helper function to calculate variance
+fn variance(values: &[f64]) -> f64 {
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64
 }

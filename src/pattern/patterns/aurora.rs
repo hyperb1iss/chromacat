@@ -4,27 +4,27 @@ use std::any::Any;
 use std::f64::consts::PI;
 
 // Define parameters with proper CLI names and bounds
-define_param!(num Aurora, IntensityParam, "intensity", "Intensity of the aurora", 0.1, 2.0, 1.0);
-define_param!(num Aurora, SpeedParam, "speed", "Speed of aurora movement", 0.1, 5.0, 1.0);
-define_param!(num Aurora, WavinessParam, "waviness", "Amount of wave distortion", 0.1, 2.0, 1.0);
-define_param!(num Aurora, LayersParam, "layers", "Number of aurora layers", 1.0, 5.0, 3.0);
-define_param!(num Aurora, HeightParam, "height", "Height of the aurora bands", 0.1, 1.0, 0.5);
-define_param!(num Aurora, SpreadParam, "spread", "Vertical spread of bands", 0.1, 1.0, 0.3);
+define_param!(num Aurora, IntensityParam, "intensity", "Overall brightness and contrast of the aurora", 0.1, 2.0, 1.0);
+define_param!(num Aurora, SpeedParam, "speed", "Rate of aurora movement and animation", 0.1, 5.0, 1.0);
+define_param!(num Aurora, WavinessParam, "waviness", "Intensity of wave-like distortions", 0.1, 2.0, 1.0);
+define_param!(num Aurora, LayersParam, "layers", "Number of overlapping aurora curtains", 1.0, 5.0, 3.0);
+define_param!(num Aurora, HeightParam, "height", "Vertical thickness of aurora bands", 0.1, 1.0, 0.5);
+define_param!(num Aurora, SpreadParam, "spread", "Vertical spacing between bands", 0.1, 1.0, 0.3);
 
-/// Parameters for configuring aurora pattern effects
+/// Configuration parameters for the Aurora Borealis effect
 #[derive(Debug, Clone)]
 pub struct AuroraParams {
-    /// Intensity of the aurora (0.1-2.0)
+    /// Controls overall brightness and contrast (0.1-2.0)
     pub intensity: f64,
-    /// Speed of aurora movement (0.1-5.0)
+    /// Controls animation speed (0.1-5.0)
     pub speed: f64,
-    /// Amount of wave distortion (0.1-2.0)
+    /// Controls wave distortion amount (0.1-2.0)
     pub waviness: f64,
-    /// Number of aurora layers (1-5)
+    /// Number of overlapping aurora curtains (1-5)
     pub layers: u32,
-    /// Height of the aurora bands (0.1-1.0)
+    /// Controls vertical thickness of bands (0.1-1.0)
     pub height: f64,
-    /// Vertical spread of bands (0.1-1.0)
+    /// Controls vertical spacing between bands (0.1-1.0)
     pub spread: f64,
 }
 
@@ -66,7 +66,7 @@ impl PatternParam for AuroraParams {
     }
 
     fn description(&self) -> &'static str {
-        "Aurora Borealis effect with flowing bands of light"
+        "Aurora Borealis effect with flowing curtains of light"
     }
 
     fn param_type(&self) -> ParamType {
@@ -148,125 +148,137 @@ impl PatternParam for AuroraParams {
 }
 
 impl super::Patterns {
-    /// Generates an Aurora Borealis effect
+    /// Generates an Aurora Borealis effect with flowing curtains of light
+    ///
+    /// The effect simulates the natural phenomenon using multiple overlapping layers
+    /// of animated waves with dynamic distortion and shimmer effects.
     #[inline(always)]
     pub fn aurora(&self, x_norm: f64, y_norm: f64, params: AuroraParams) -> f64 {
-        // Pre-calculate time-based values with SIMD-friendly operations
-        let base_time = self.time * params.speed;
+        // Normalize all time values to keep them bounded
+        let base_time = self.time * params.speed * 0.35;
+        let time = base_time.rem_euclid(2.0 * PI);
+        let time_slow = (base_time * 0.23).rem_euclid(PI);
+        let time_very_slow = (base_time * 0.11).rem_euclid(PI / 2.0);
 
-        // Handle y coordinate differently for static vs animated mode
+        // Adjust vertical position based on animation state
         let y_pos = if self.time == 0.0 {
             (y_norm + 0.5).rem_euclid(0.3) * 3.0
         } else {
             y_norm + 0.5
         };
 
-        // Fast early exit for out-of-bounds positions
-        #[allow(clippy::collapsible_if)]
+        // Skip calculation for positions outside the aurora's vertical range
         if y_pos > 0.8 + params.height || y_pos < 0.1 {
             return 0.0;
         }
 
         let x_pos = x_norm + 0.5;
-        let time = base_time;
-        let time_slow = time * 0.3;
 
-        // Cache trigonometric values in contiguous memory
+        // Cache periodic values for repeated use
         let (base_sin_time, base_cos_time) = {
             let sin_val = self.utils.fast_sin(time_slow);
             let cos_val = self.utils.fast_cos(time_slow);
             (sin_val, cos_val)
         };
 
-        // Pre-calculate wave bases with vectorization potential
+        // Base wave motion coordinates
         let base_wave = {
-            let x = x_pos * 2.0 + time_slow;
-            let y = y_pos * 2.0 + time_slow * 0.8;
+            let x = x_pos * 2.0
+                + self.utils.fast_sin(time) * 0.6
+                + self.utils.fast_sin(time_slow) * 0.1;
+            let y = y_pos * 2.0
+                + self.utils.fast_cos(time) * 0.3
+                + self.utils.fast_cos(time_slow) * 0.15;
             (x, y)
         };
 
-        // Initialize accumulators with SIMD-friendly alignment
         let mut total_value = 0.0;
         let mut max_value = 0.0;
 
-        // Cache common parameters to reduce memory access
         let waviness_scale = params.waviness * 2.0;
-        let intensity_scale = params.intensity * 1.2; // Slightly boosted for better contrast
+        let intensity_scale = params.intensity * 1.2;
 
-        // Process layers with optimized memory access pattern
+        // Generate each layer of the aurora effect
         for i in 0..params.layers {
             let layer_offset = i as f64 / params.layers as f64;
             let layer_phase = layer_offset * PI;
 
-            // Combine wave calculations for better vectorization
+            // Calculate wave motion for this layer with more distinct phase offsets
             let wave = {
-                let x = base_wave.0 + layer_offset * time_slow * 0.8;
-                let y = base_wave.1 + layer_offset * time_slow * 0.6;
+                let x = (base_wave.0 + layer_offset).rem_euclid(10.0)
+                    + self.utils.fast_sin(time_slow + layer_phase) * (0.4 + layer_offset * 0.2);
+                let y = (base_wave.1 + layer_offset).rem_euclid(10.0)
+                    + self.utils.fast_cos(time_slow + layer_phase) * (0.2 + layer_offset * 0.3);
                 (x, y)
             };
 
-            // Optimize noise calculations with fewer memory accesses
+            // Generate flow distortion using layered noise
             let flow = {
-                let primary = self.utils.noise2d(
-                    wave.0 * waviness_scale * (1.0 + layer_offset * 0.5),
-                    wave.1 * waviness_scale * (1.0 + layer_offset * 0.3),
-                );
+                // Wrap noise coordinates to prevent accumulation
+                let noise_x =
+                    (wave.0 * waviness_scale * (0.8 + layer_offset * 0.3)).rem_euclid(100.0);
+                let noise_y =
+                    (wave.1 * waviness_scale * (0.8 + layer_offset * 0.2)).rem_euclid(100.0);
+                let primary = self.utils.noise2d(noise_x, noise_y);
 
-                let detail = self
-                    .utils
-                    .noise2d(wave.0 * waviness_scale * 2.0, wave.1 * waviness_scale * 2.0);
+                // Wrap detail noise coordinates too
+                let detail_x = (wave.0 * waviness_scale * 1.5).rem_euclid(100.0)
+                    + self.utils.fast_sin(time_very_slow) * 0.1;
+                let detail_y = (wave.1 * waviness_scale * 1.5).rem_euclid(100.0)
+                    + self.utils.fast_cos(time_very_slow) * 0.1;
+                let detail = self.utils.noise2d(detail_x, detail_y);
 
-                (primary * 2.0 - 1.0) + detail * 0.5 * (1.0 + base_sin_time * 0.3)
+                (primary * 2.0 - 1.0) + detail * 0.3 * (1.0 + base_sin_time * 0.2)
             };
 
-            // Optimize band calculations
+            // Calculate vertical band shape
             let band = {
-                let center = 0.3 + layer_offset * params.spread;
-                let y_wave = y_pos + flow * 0.3 * params.waviness;
+                let center = 0.3 + layer_offset * params.spread + base_sin_time * 0.03;
+                let y_wave = y_pos + flow * 0.25 * params.waviness;
                 let pos = (y_wave - center) / params.height;
                 (-pos * pos * 3.0).exp()
             };
 
-            // Combine wave movements with optimized math
+            // Generate horizontal wave pattern
             let wave_value = {
-                let x_wave = x_pos + flow * 0.15 * (1.0 - layer_offset * 0.3);
-                let phase = x_wave * 4.0 + time + layer_phase;
+                let x_wave = x_pos + flow * 0.1 * (1.0 - layer_offset * 0.3);
+                let phase = (x_wave * 3.0 + time + layer_phase).rem_euclid(2.0 * PI);
                 let base = self.utils.fast_sin(phase) * 0.5 + 0.5;
-                base * (1.0 + self.utils.fast_sin(time_slow * 1.5 + layer_phase) * 0.3)
+                base * (1.0 + self.utils.fast_sin(time_slow * 1.2 + layer_phase) * 0.2)
             };
 
-            // Optimize curtain effect calculation
-            let curtain = self
-                .utils
-                .fast_sin(x_pos * 3.0 + flow * 0.15 + time_slow + layer_phase)
-                * 0.5
-                + 0.5;
+            // Add curtain-like variation
+            let curtain = self.utils.fast_sin(
+                (x_pos * 2.5 + y_pos * 0.3 + flow * 0.1 + time_slow + layer_phase)
+                    .rem_euclid(2.0 * PI),
+            ) * 0.4
+                + 0.6;
 
-            // Combine all effects with minimal branching
-            let intensity = intensity_scale * (1.0 - layer_offset * 0.2) * (1.0 + curtain * 0.5);
+            let intensity = intensity_scale * 
+                (1.0 - layer_offset * 0.1) *  // Reduce layer falloff (was 0.2)
+                (1.0 + curtain * 0.5);
 
-            // Add shimmer and pulse with optimized calculations
+            // Add shimmer and pulsing effects
             let modulation = {
-                let pulse = self
-                    .utils
-                    .fast_sin(time_slow * (1.5 + layer_offset) + layer_phase)
-                    * 0.25
-                    + 0.85;
-                let shimmer = self
-                    .utils
-                    .noise2d(x_pos * 10.0 + time, y_pos * 10.0 - time * 0.5)
-                    * 0.15
-                    + 0.85;
+                let pulse = self.utils.fast_sin(
+                    time_slow * (1.5 + layer_offset * 0.5) + layer_phase  // Add layer-dependent speed variation
+                ) * (0.25 + layer_offset * 0.1) + 0.85;  // Vary pulse depth by layer
+                let shimmer = {
+                    let shimmer_x = (x_pos * (10.0 + layer_offset * 2.0)).rem_euclid(100.0)  // Vary frequency by layer
+                        + self.utils.fast_sin(time * 0.3) * 0.2;
+                    let shimmer_y = (y_pos * (10.0 + layer_offset * 2.0)).rem_euclid(100.0)
+                        + self.utils.fast_cos(time * 0.3) * 0.2;
+                    self.utils.noise2d(shimmer_x, shimmer_y) * 0.15 + 0.85
+                };
                 pulse * shimmer
             };
 
-            // Accumulate values with minimal operations
             let layer_value = band * wave_value * intensity * modulation;
             total_value += layer_value;
             max_value += intensity;
         }
 
-        // Final value calculation with optimized contrast
+        // Normalize and apply contrast adjustment
         if max_value > 0.0 {
             let base_result = (total_value / max_value) * params.intensity;
             let contrast = 1.2 + base_cos_time * 0.1;
