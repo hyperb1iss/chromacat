@@ -62,7 +62,7 @@ define_param!(validate PixelRainParams,
 
 impl PatternParam for PixelRainParams {
     fn name(&self) -> &'static str {
-        "pixel_rain"
+        "rain"
     }
 
     fn description(&self) -> &'static str {
@@ -156,7 +156,11 @@ impl super::Patterns {
 
         // Calculate base coordinates
         let x_pos = x_norm + 0.5;
-        let y_pos = y_norm + 0.5;
+        let y_pos = if self.time == 0.0 {
+            (y_norm + 0.5).rem_euclid(0.3) * 3.0 // This will make the pattern repeat every 0.3 units
+        } else {
+            y_norm + 0.5
+        };
 
         // More efficient column calculations
         let column_width = 0.015 * params.density;

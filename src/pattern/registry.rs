@@ -120,7 +120,7 @@ define_pattern_registry! {
         variant: Perlin,
         params: PerlinParams
     },
-    "pixel_rain" => {
+    "rain" => {
         variant: PixelRain,
         params: PixelRainParams
     },
