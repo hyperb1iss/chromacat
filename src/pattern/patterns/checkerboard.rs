@@ -343,7 +343,7 @@ impl super::Patterns {
             let y_smooth = PatternUtils::smoothstep(y_blend);
 
             let blur_value =
-                if (x_rot * size_scaled).floor() as i32 + (y_rot * size_scaled).floor() as i32 & 1
+                if ((x_rot * size_scaled).floor() as i32 + (y_rot * size_scaled).floor() as i32) & 1
                     == 0
                 {
                     (1.0 - x_smooth) * (1.0 - y_smooth) + x_smooth * y_smooth
