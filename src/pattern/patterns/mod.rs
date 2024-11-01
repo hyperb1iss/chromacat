@@ -1,6 +1,7 @@
 mod checkerboard;
 mod diagonal;
 mod diamond;
+mod fire;
 mod horizontal;
 mod perlin;
 mod plasma;
@@ -12,6 +13,7 @@ mod pixel_rain;
 pub use checkerboard::CheckerboardParams;
 pub use diagonal::DiagonalParams;
 pub use diamond::DiamondParams;
+pub use fire::FireParams;
 pub use horizontal::HorizontalParams;
 pub use perlin::PerlinParams;
 pub use plasma::{PlasmaParams, PlasmaBlendMode};
@@ -83,7 +85,7 @@ impl Patterns {
         let (x_norm, y_norm) = self.normalize_coords(x, y);
         
         match params {
-            PatternParams::Horizontal(p) => self.horizontal(x_norm + 0.5, p.clone()), // Convert to 0-1 range
+            PatternParams::Horizontal(p) => self.horizontal(x_norm + 0.5, p.clone()),
             PatternParams::Diagonal(p) => self.diagonal(x_norm, y_norm, p.clone()),
             PatternParams::Plasma(p) => self.plasma(x_norm, y_norm, p.clone()),
             PatternParams::Ripple(p) => self.ripple(x_norm, y_norm, p.clone()),
@@ -93,6 +95,7 @@ impl Patterns {
             PatternParams::Diamond(p) => self.diamond(x_norm, y_norm, p.clone()),
             PatternParams::Perlin(p) => self.perlin(x_norm, y_norm, p.clone()),
             PatternParams::PixelRain(p) => self.pixel_rain(x_norm, y_norm, p.clone()),
+            PatternParams::Fire(p) => self.fire(x_norm, y_norm, p.clone()),
         }
     }
 }

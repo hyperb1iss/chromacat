@@ -138,6 +138,12 @@ define_pattern_registry! {
         variant: PixelRain,
         params: PixelRainParams
     },
+    "fire" => {
+        name: "Fire",
+        description: "Dynamic fire effect with realistic flame movement",
+        variant: Fire,
+        params: FireParams
+    },
 }
 
 /// Registry for managing available patterns

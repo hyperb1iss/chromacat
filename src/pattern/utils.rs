@@ -189,6 +189,47 @@ impl PatternUtils {
             0.0
         }
     }
+
+    /// Generates 2D Perlin noise value at given coordinates
+    #[inline(always)]
+    pub fn noise2d(&self, x: f64, y: f64) -> f64 {
+        // Calculate grid cell coordinates
+        let x0 = x.floor() as i32;
+        let y0 = y.floor() as i32;
+        let x1 = x0 + 1;
+        let y1 = y0 + 1;
+
+        // Calculate relative position within cell
+        let dx = x - x0 as f64;
+        let dy = y - y0 as f64;
+
+        // Pre-calculate smoothstep values
+        let sx = Self::smoothstep(dx);
+        let sy = Self::smoothstep(dy);
+
+        // Calculate dot products with gradient vectors
+        let n00 = self.gradient_dot(self.hash(x0, y0), dx, dy);
+        let n10 = self.gradient_dot(self.hash(x1, y0), dx - 1.0, dy);
+        let n01 = self.gradient_dot(self.hash(x0, y1), dx, dy - 1.0);
+        let n11 = self.gradient_dot(self.hash(x1, y1), dx - 1.0, dy - 1.0);
+
+        // Interpolate results
+        let nx0 = Self::lerp(n00, n10, sx);
+        let nx1 = Self::lerp(n01, n11, sx);
+        Self::lerp(nx0, nx1, sy)
+    }
+
+    /// Calculates dot product between gradient vector and distance vector
+    #[inline(always)]
+    fn gradient_dot(&self, hash: u8, dx: f64, dy: f64) -> f64 {
+        // Use bitwise operations for faster gradient selection
+        match hash & 3 {
+            0 => dx + dy,  // ( 1,  1)
+            1 => -dx + dy, // (-1,  1)
+            2 => dx - dy,  // ( 1, -1)
+            _ => -dx - dy, // (-1, -1)
+        }
+    }
 }
 
 impl Clone for PatternUtils {

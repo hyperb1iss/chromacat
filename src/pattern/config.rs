@@ -1,7 +1,7 @@
 use crate::pattern::patterns::{
     CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
     PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
-    PixelRainParams,
+    PixelRainParams, FireParams,
 };
 
 /// Common parameters that apply to all pattern types
@@ -56,6 +56,8 @@ pub enum PatternParams {
     /// Perlin noise-based pattern
     Perlin(PerlinParams),
     PixelRain(PixelRainParams),
+    /// Dynamic fire effect
+    Fire(FireParams),
 }
 
 impl Default for PatternParams {

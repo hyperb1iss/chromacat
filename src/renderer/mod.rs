@@ -112,6 +112,7 @@ impl Renderer {
             PatternParams::Diamond(_) => "diamond",
             PatternParams::Perlin(_) => "perlin",
             PatternParams::PixelRain(_) => "pixel_rain",
+            PatternParams::Fire(_) => "fire",
         };
 
         let current_pattern_index = available_patterns

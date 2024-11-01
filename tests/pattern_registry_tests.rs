@@ -66,6 +66,7 @@ fn test_pattern_parameter_creation() {
             ("diamond", PatternParams::Diamond(_)) => (),
             ("perlin", PatternParams::Perlin(_)) => (),
             ("pixel_rain", PatternParams::PixelRain(_)) => (),
+            ("fire", PatternParams::Fire(_)) => (),
             _ => panic!("Unexpected pattern type for {}", pattern_id),
         }
     }
