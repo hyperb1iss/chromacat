@@ -27,11 +27,15 @@ pub struct DemoGenerator {
     rng: rand::rngs::ThreadRng,
     /// Cached generated content
     generated_content: Option<String>,
+    /// Terminal width
+    width: u16,
+    /// Terminal height
+    height: u16,
 }
 
 impl DemoGenerator {
     /// Creates a new demo generator
-    pub fn new() -> Self {
+    pub fn new(width: u16, height: u16) -> Self {
         Self {
             patterns: vec![
                 DemoPattern::Matrix,
@@ -44,6 +48,8 @@ impl DemoGenerator {
             ],
             rng: thread_rng(),
             generated_content: None,
+            width,
+            height,
         }
     }
 
@@ -65,8 +71,9 @@ impl DemoGenerator {
         for pattern in patterns.iter() {
             // Add a header for the pattern
             output.push_str(&format!(
-                "\n{:=^80}\n",
-                format!(" {} ", format!("{:?}", pattern))
+                "\n{:=^width$}\n",
+                format!(" {} ", format!("{:?}", pattern)),
+                width = self.width as usize
             ));
             output.push('\n');
 
@@ -90,8 +97,8 @@ impl DemoGenerator {
         let chars: Vec<char> = chars.chars().collect();
 
         // Fill entire width with denser matrix
-        for _ in 0..24 {
-            for _ in 0..80 {
+        for _ in 0..self.height {
+            for _ in 0..self.width {
                 if self.rng.gen_bool(0.7) {
                     output.push(chars[self.rng.gen_range(0..2)]);
                 } else {
@@ -109,8 +116,8 @@ impl DemoGenerator {
         let wave_chars: Vec<char> = "█▓▒░ ".chars().collect();
         let char_count = wave_chars.len() - 1;
 
-        for y in 0..24 {
-            for x in 0..80 {
+        for y in 0..self.height {
+            for x in 0..self.width {
                 let phase = (x as f64 * 0.2 + y as f64 * 0.1).sin();
                 let second = (x as f64 * 0.1 - y as f64 * 0.15).cos();
                 let value = (phase + second) * 0.5 + 0.5;
@@ -128,8 +135,8 @@ impl DemoGenerator {
         let spiral_chars: Vec<char> = "█▓▒░ ".chars().collect();
         let char_count = spiral_chars.len() - 1;
 
-        for y in 0..24 {
-            for x in 0..80 {
+        for y in 0..self.height {
+            for x in 0..self.width {
                 let center_x = 40.0;
                 let center_y = 12.0;
                 let dx = x as f64 - center_x;
@@ -153,8 +160,8 @@ impl DemoGenerator {
     fn generate_boxes(&mut self) -> String {
         let mut output = String::with_capacity(2000);
 
-        for y in 0..24 {
-            for x in 0..80 {
+        for y in 0..self.height {
+            for x in 0..self.width {
                 let pattern_size = 6;
                 let is_border = x % pattern_size == 0 || y % pattern_size == 0;
                 let is_corner = x % pattern_size == 0 && y % pattern_size == 0;
@@ -189,8 +196,8 @@ impl DemoGenerator {
         let mandala_chars: Vec<char> = "█▓▒░ ".chars().collect();
         let char_count = mandala_chars.len() - 1;
 
-        for y in 0..24 {
-            for x in 0..80 {
+        for y in 0..self.height {
+            for x in 0..self.width {
                 let center_x = 40.0;
                 let center_y = 12.0;
                 let dx = x as f64 - center_x;
@@ -366,6 +373,6 @@ impl DemoGenerator {
 
 impl Default for DemoGenerator {
     fn default() -> Self {
-        Self::new()
+        Self::new(80, 24) // Default terminal size
     }
 }

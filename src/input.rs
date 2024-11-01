@@ -3,6 +3,7 @@ use crate::error::Result;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
+use crossterm::terminal::size;
 
 /// Handles reading input from either stdin, a file, or demo mode
 pub struct InputReader {
@@ -27,7 +28,9 @@ impl InputReader {
 
     /// Creates a new InputReader in demo mode
     pub fn from_demo(_is_animated: bool) -> Result<Self> {
-        let generator = DemoGenerator::new();
+        // Get terminal size
+        let (width, height) = size()?;
+        let generator = DemoGenerator::new(width, height.saturating_sub(2)); // Subtract 2 for status bar
         Ok(Self {
             source: Box::new(DemoInput::new(generator)),
         })
