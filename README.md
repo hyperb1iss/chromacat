@@ -10,7 +10,7 @@ ChromaCat is a turbocharged terminal colorizer written in Rust that brings stunn
 
 ## ✨ Features
 
-- 🎨 **Rich Pattern Library**: Nine distinct pattern types from simple gradients to psychedelic plasma effects
+- 🎨 **Rich Pattern Library**: Twelve distinct pattern types from simple gradients to complex effects
 - 🌈 **40+ Built-in Themes**: Everything from classic rainbow to custom color schemes
 - 🔄 **Smooth Animations**: Breathe life into your terminal with fluid color transitions
 - 🎮 **Interactive Mode**: Real-time control over animations and effects
@@ -18,6 +18,7 @@ ChromaCat is a turbocharged terminal colorizer written in Rust that brings stunn
 - 🦀 **Blazing Fast**: Optimized Rust implementation with minimal overhead
 - 🌍 **Full Unicode Support**: Works beautifully with emojis and international text
 - 📱 **Terminal-Aware**: Adapts to terminal dimensions and capabilities
+- 🎨 **Custom Themes**: Create and share your own color schemes
 
 ## 🚀 Installation
 
@@ -59,10 +60,10 @@ echo "Wave pattern!" | chromacat -p wave --param amplitude=1.5
 
 ## 🎨 Pattern Types
 
-ChromaCat offers several pattern types for dynamic colorization:
+ChromaCat offers twelve pattern types for dynamic colorization:
 
-- `horizontal` - Classic left-to-right gradient (default)
-- `diagonal` - Angled gradient with customizable direction
+- `diagonal` - Angled gradient with customizable direction (default)
+- `horizontal` - Classic left-to-right gradient
 - `plasma` - Psychedelic plasma effect using sine waves
 - `ripple` - Concentric circles emanating from center
 - `wave` - Flowing wave distortion pattern
@@ -70,7 +71,9 @@ ChromaCat offers several pattern types for dynamic colorization:
 - `checkerboard` - Alternating gradient colors in a grid
 - `diamond` - Diamond-shaped gradient pattern
 - `perlin` - Organic, cloud-like noise pattern
-- `pixel_rain` - Matrix-style digital rain effect
+- `rain` - Matrix-style digital rain effect
+- `fire` - Dynamic flame simulation
+- `aurora` - Northern lights simulation
 
 ## 🎨 Theme Gallery
 
@@ -231,6 +234,15 @@ chromacat -p wave --param amplitude=1.5,frequency=2.0 file.txt
 
 # Ripple pattern from center
 chromacat -p ripple --param wavelength=1.0,damping=0.5 file.txt
+
+# Fire effect with custom parameters
+chromacat -p fire --param "intensity=1.5,speed=2.0,turbulence=0.7,wind=true"
+
+# Aurora effect simulation
+chromacat -p aurora --param "intensity=1.2,waviness=1.5,layers=4"
+
+# Matrix-style digital rain
+chromacat -p pixel_rain --param "speed=1.5,density=2.0,length=5,glitch=true"
 ```
 
 ### Animation Effects
@@ -302,7 +314,29 @@ chromacat -p spiral --param density=2.0,rotation=90,expansion=1.5
 
 # Checkerboard
 chromacat -p checkerboard --param size=2,blur=0.1,rotation=45
+
+# Fire
+chromacat -p fire --param intensity=1.5,turbulence=0.8,height=1.2,wind_strength=0.5
+
+# Aurora
+chromacat -p aurora --param intensity=1.2,waviness=1.5,layers=4,spread=0.4
+
+# Pixel Rain
+chromacat -p pixel_rain --param speed=2.0,density=1.5,length=4,glitch_freq=1.0
 ```
+
+## 🎨 Custom Themes
+
+ChromaCat supports custom theme creation through YAML files. See our [Custom Theme Guide](docs/custom-themes.md) for detailed instructions on creating your own color schemes.
+
+```bash
+# Load and use a custom theme
+chromacat --theme-file mythemes.yaml -t my-custom-theme
+```
+
+## 🏗️ Architecture
+
+For developers interested in ChromaCat's internal design and contributing to the project, check out our [Architecture Overview](docs/architecture.md).
 
 ## 🔧 Integration Tips
 
@@ -330,41 +364,9 @@ cargo build 2>&1 | chromacat -p plasma -t matrix
 watch -n1 "ps aux | sort -rn -k 3,3 | head -n 5 | chromacat -t heat"
 ```
 
-## 📝 Custom Themes
-
-ChromaCat supports custom theme files in YAML format:
-
-```yaml
-- name: custom-theme
-  desc: A beautiful custom gradient
-  colors:
-    - [1.0, 0.0, 0.0, 0.0, red]
-    - [0.0, 1.0, 0.0, 0.5, green]
-    - [0.0, 0.0, 1.0, 1.0, blue]
-  dist: even
-  repeat: mirror
-  speed: 1.0
-  ease: smooth
-```
-
-Load custom themes with:
-
-```bash
-chromacat --theme-file my-themes.yaml -t custom-theme
-```
-
-## 🎯 Performance Considerations
-
-ChromaCat is designed to be fast and efficient:
-
-- Pre-computed lookup tables for pattern generation
-- Efficient buffering for large inputs
-- Smart terminal handling and state management
-- Optional performance modes for resource-constrained environments
-
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
+Yes please!
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
