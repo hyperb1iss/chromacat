@@ -144,6 +144,12 @@ define_pattern_registry! {
         variant: Fire,
         params: FireParams
     },
+    "aurora" => {
+        name: "Aurora",
+        description: "Aurora Borealis effect with flowing bands of light",
+        variant: Aurora,
+        params: AuroraParams
+    },
 }
 
 /// Registry for managing available patterns

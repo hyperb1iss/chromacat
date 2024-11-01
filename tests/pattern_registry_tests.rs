@@ -67,6 +67,7 @@ fn test_pattern_parameter_creation() {
             ("perlin", PatternParams::Perlin(_)) => (),
             ("pixel_rain", PatternParams::PixelRain(_)) => (),
             ("fire", PatternParams::Fire(_)) => (),
+            ("aurora", PatternParams::Aurora(_)) => (),
             _ => panic!("Unexpected pattern type for {}", pattern_id),
         }
     }
