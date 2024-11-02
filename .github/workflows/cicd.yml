@@ -24,19 +24,21 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             cmd: cargo
-            test_cmd: script -e -c "cargo test --verbose --target"
+            test_cmd: script -e -c "cargo test --verbose --target x86_64-unknown-linux-gnu"
             test_args: ""
+
           - build: macos-x64
             os: macos-latest
             target: x86_64-apple-darwin
             cmd: cargo
-            test_cmd: script -q /dev/null cargo test --verbose --target
+            test_cmd: script -F /dev/null cargo test --verbose --target x86_64-apple-darwin
             test_args: ""
+
           - build: windows-gnu
             os: windows-latest
             target: x86_64-pc-windows-gnu
             cmd: cargo
-            test_cmd: cargo test --verbose --target
+            test_cmd: cargo test --verbose --target x86_64-pc-windows-gnu
             test_args: -- --test-threads=1
 
     steps:
@@ -74,11 +76,14 @@ jobs:
 
       - name: Run tests with PTY
         shell: bash
-        run: ${{ matrix.test_cmd }} ${{ matrix.target }} ${{ matrix.test_args }}
+        run: ${{ matrix.test_cmd }} ${{ matrix.test_args }}
         env:
           RUST_TEST_THREADS: 1
           TERM: xterm-256color
           FORCE_TTY: 1
+          COLUMNS: "80"
+          LINES: "24"
+          STTY_SIZE: "24 80"
 
   # The following jobs only run on tag pushes (i.e., releases)
   create-release:
