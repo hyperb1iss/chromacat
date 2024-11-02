@@ -24,11 +24,11 @@ pub struct Args {
     pub output_dir: PathBuf,
 
     /// Width of the WebP
-    #[arg(short = 'W', long, default_value_t = 320)]
+    #[arg(short = 'W', long, default_value_t = 240)]
     pub width: u32,
 
     /// Height of the WebP
-    #[arg(short = 'H', long, default_value_t = 240)]
+    #[arg(short = 'H', long, default_value_t = 160)]
     pub height: u32,
 
     /// Frames per second
@@ -36,7 +36,7 @@ pub struct Args {
     pub fps: u32,
 
     /// Animation duration in seconds
-    #[arg(long, default_value_t = 5.0)]
+    #[arg(long, default_value_t = 15.0)]
     pub duration: f64,
 
     /// Pattern to generate (defaults to all patterns)
