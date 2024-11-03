@@ -2,11 +2,16 @@
 
 > _Because your terminal deserves to be fabulous_ ✨
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Crates.io](https://img.shields.io/badge/crates.io-v0.1.0-orange.svg)](https://crates.io/crates/chromacat)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+
+[![Build Status](https://img.shields.io/github/actions/workflow/status/hyperb1iss/chromacat/cicd.yml?branch=main&logo=github&logoColor=white)](https://github.com/hyperb1iss/chromacat/actions/workflows/cicd.yml)
+[![crates.io](https://img.shields.io/crates/v/chromacat?logo=rust)](https://crates.io/crates/chromacat)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue?logo=apache)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs.rs-latest-blue?logo=docs.rs)](https://docs.rs/chromacat)
+[![Patterns](https://img.shields.io/badge/patterns-12%2B-blue?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMiAyMmMxMCAwIDEwLTIwIDAgLTIwQzIgMiAyIDIyIDEyIDIyeiIvPjwvc3ZnPg==)](README.md#-pattern-types)
+[![Themes](https://img.shields.io/badge/themes-40%2B-blueviolet?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMiAyQTE0IDE0IDAgMCAwIDIgMTZhMTQgMTQgMCAwIDAgMjQgMEExNCAxNCAwIDAgMCAxMiAyeiIvPjwvc3ZnPg==)](README.md#-theme-gallery)
 
 ChromaCat is a turbocharged terminal colorizer written in Rust that brings stunning gradient patterns and animations to your command-line experience. Think `lolcat` but with superpowers! 🚀
+
 
 ## ✨ Features
 
