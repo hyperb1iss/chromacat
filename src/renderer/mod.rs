@@ -17,7 +17,7 @@ mod config;
 mod error;
 mod scroll;
 mod status_bar;
-mod terminal;
+pub mod terminal;
 
 pub use buffer::RenderBuffer;
 pub use config::AnimationConfig;
@@ -82,7 +82,8 @@ impl Renderer {
             .collect::<Vec<_>>();
 
         // Initialize available patterns from registry
-        let available_patterns = REGISTRY.list_patterns()
+        let available_patterns = REGISTRY
+            .list_patterns()
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
@@ -101,7 +102,8 @@ impl Renderer {
             .unwrap_or(0);
 
         // Get pattern ID from registry based on current params
-        let initial_pattern = REGISTRY.get_pattern_id(&engine.config().params)
+        let initial_pattern = REGISTRY
+            .get_pattern_id(&engine.config().params)
             .unwrap_or("horizontal"); // fallback to horizontal if pattern not found
 
         let current_pattern_index = available_patterns
@@ -358,14 +360,19 @@ impl Renderer {
     /// Switches to the next available pattern
     pub fn next_pattern(&mut self) -> Result<(), RendererError> {
         // Calculate next index
-        self.current_pattern_index = (self.current_pattern_index + 1) % self.available_patterns.len();
+        self.current_pattern_index =
+            (self.current_pattern_index + 1) % self.available_patterns.len();
         let new_pattern_id = &self.available_patterns[self.current_pattern_index];
 
         // Get default parameters for the new pattern
-        let pattern_params = REGISTRY.create_pattern_params(new_pattern_id)
-            .ok_or_else(|| RendererError::InvalidConfig(
-                format!("Failed to create parameters for pattern: {}", new_pattern_id)
-            ))?;
+        let pattern_params = REGISTRY
+            .create_pattern_params(new_pattern_id)
+            .ok_or_else(|| {
+                RendererError::InvalidConfig(format!(
+                    "Failed to create parameters for pattern: {}",
+                    new_pattern_id
+                ))
+            })?;
 
         // Create new pattern configuration while preserving common parameters
         let pattern_config = PatternConfig {
