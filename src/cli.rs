@@ -184,11 +184,19 @@ pub struct Cli {
     pub buffer_size: Option<usize>,
 
     #[arg(
-        long = "demo",
+        long,
         help_heading = CliFormat::HEADING_GENERAL,
         help = CliFormat::highlight_description("Run in demo mode with generated patterns")
     )]
     pub demo: bool,
+
+    #[arg(
+        long,
+        value_name = "FILE",
+        help_heading = CliFormat::HEADING_PLAYLIST,
+        help = CliFormat::highlight_description("Load and play a sequence of patterns (uses default if not specified in animation mode)")
+    )]
+    pub playlist: Option<PathBuf>,
 }
 
 impl Cli {
@@ -292,6 +300,11 @@ impl Cli {
 
         // Validate aspect ratio
         self.validate_range("aspect-ratio", self.aspect_ratio, 0.1, 2.0)?;
+
+        // Warn about demo mode overriding playlist
+        if self.demo && self.playlist.is_some() {
+            eprintln!("Warning: Demo mode is enabled, playlist will be ignored");
+        }
 
         Ok(())
     }
@@ -447,6 +460,22 @@ impl Cli {
         ];
 
         for (desc, cmd) in examples {
+            println!("  {} {}",
+                CliFormat::param(&format!("{:<25}", desc)),
+                CliFormat::param_value(cmd)
+            );
+        }
+
+        println!("\n{}", CliFormat::core("🎵 Playlist Examples"));
+        println!("{}", CliFormat::separator(&"─".repeat(85)));
+
+        let playlist_examples = [
+            ("Play default playlist:", "chromacat -a"),
+            ("Use custom playlist:", "chromacat -a --playlist my-playlist.yaml"),
+            ("Disable playlist:", "chromacat -a --no-playlist"),
+        ];
+
+        for (desc, cmd) in playlist_examples {
             println!("  {} {}",
                 CliFormat::param(&format!("{:<25}", desc)),
                 CliFormat::param_value(cmd)

@@ -11,6 +11,7 @@
 //! - Scrolling and viewport control
 //! - Status bar rendering
 //! - Frame timing and synchronization
+//! - Playlist management and transitions
 
 mod buffer;
 mod config;
@@ -27,10 +28,11 @@ pub use status_bar::StatusBar;
 pub use terminal::TerminalState;
 
 use crate::pattern::PatternEngine;
-use crate::pattern::{PatternConfig, REGISTRY};
-use crate::themes;
+use crate::playlist::{Playlist, PlaylistPlayer};
+use crate::{themes, PatternConfig};
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
+use log::info;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
@@ -64,62 +66,103 @@ pub struct Renderer {
     last_fps_update: Instant,
     /// Current FPS measurement
     current_fps: f64,
+    /// Current playlist player if using a playlist
+    playlist_player: Option<PlaylistPlayer>,
 }
 
 impl Renderer {
     /// Creates a new renderer with the given pattern engine and configuration
-    pub fn new(engine: PatternEngine, config: AnimationConfig) -> Result<Self, RendererError> {
+    pub fn new(
+        engine: PatternEngine,
+        config: AnimationConfig,
+        playlist: Option<Playlist>,
+    ) -> Result<Self, RendererError> {
         let terminal = TerminalState::new()?;
         let term_size = terminal.size();
         let buffer = RenderBuffer::new(term_size);
         let scroll = ScrollState::new(term_size.1.saturating_sub(2));
         let mut status_bar = StatusBar::new(term_size);
 
-        // Initialize available themes
+        // Initialize available themes and patterns
         let available_themes = themes::all_themes()
             .iter()
             .map(|t| t.name.clone())
             .collect::<Vec<_>>();
 
-        // Initialize available patterns from registry
-        let available_patterns = REGISTRY
+        let available_patterns = crate::pattern::REGISTRY
             .list_patterns()
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
 
-        // Set initial theme and pattern in status bar based on engine's configuration
-        let initial_theme = match engine.config().common.theme_name.as_ref() {
-            Some(name) => name,
-            None => "rainbow", // fallback
-        };
-        status_bar.set_theme(initial_theme);
+        // Initialize playlist player if provided
+        let playlist_player = playlist.map(PlaylistPlayer::new);
 
-        // Find the current theme index
+        // Get the initial engine configuration based on playlist or defaults
+        let (initial_engine, initial_theme, initial_pattern) =
+            if let Some(player) = &playlist_player {
+                if let Some(entry) = player.current_entry() {
+                    // Get configuration from first playlist entry
+                    let entry_config = entry.to_pattern_config()?;
+                    let entry_gradient = themes::get_theme(&entry.theme)?.create_gradient()?;
+
+                    // Create new engine with playlist entry's configuration
+                    let new_engine = PatternEngine::new(
+                        entry_gradient,
+                        entry_config,
+                        term_size.0 as usize,
+                        term_size.1 as usize,
+                    );
+
+                    (new_engine, entry.theme.clone(), entry.pattern.clone())
+                } else {
+                    let theme = engine
+                        .config()
+                        .common
+                        .theme_name
+                        .clone()
+                        .unwrap_or_else(|| "rainbow".to_string());
+                    let pattern = crate::pattern::REGISTRY
+                        .get_pattern_id(&engine.config().params)
+                        .unwrap_or("horizontal")
+                        .to_string();
+                    (engine, theme, pattern)
+                }
+            } else {
+                let theme = engine
+                    .config()
+                    .common
+                    .theme_name
+                    .clone()
+                    .unwrap_or_else(|| "rainbow".to_string());
+                let pattern = crate::pattern::REGISTRY
+                    .get_pattern_id(&engine.config().params)
+                    .unwrap_or("horizontal")
+                    .to_string();
+                (engine, theme, pattern)
+            };
+
+        // Set initial theme and pattern in status bar
+        status_bar.set_theme(&initial_theme);
+        status_bar.set_pattern(&initial_pattern);
+
+        // Find current indices
         let current_theme_index = available_themes
             .iter()
-            .position(|t| t == initial_theme)
+            .position(|t| t == &initial_theme)
             .unwrap_or(0);
-
-        // Get pattern ID from registry based on current params
-        let initial_pattern = REGISTRY
-            .get_pattern_id(&engine.config().params)
-            .unwrap_or("horizontal"); // fallback to horizontal if pattern not found
 
         let current_pattern_index = available_patterns
             .iter()
-            .position(|p| p == initial_pattern)
+            .position(|p| p == &initial_pattern)
             .unwrap_or(0);
-
-        status_bar.set_pattern(initial_pattern);
 
         // Initialize timing state
         let now = Instant::now();
-
-        let fps = config.fps; // Store fps before moving config
+        let fps = config.fps as f64;
 
         Ok(Self {
-            engine,
+            engine: initial_engine,
             config,
             buffer,
             terminal,
@@ -132,7 +175,8 @@ impl Renderer {
             last_frame: None,
             frame_count: 0,
             last_fps_update: now,
-            current_fps: fps as f64,
+            current_fps: fps,
+            playlist_player,
         })
     }
 
@@ -154,19 +198,18 @@ impl Renderer {
         self.config.cycle_duration
     }
 
-    /// Renders static text with pattern-based colors, advancing the pattern
-    /// for each line to create a flowing effect similar to lolcat
+    /// Renders static text with pattern-based colors
     pub fn render_static(&mut self, text: &str) -> Result<(), RendererError> {
         // Prepare the full content
         self.buffer.prepare_text(text)?;
 
-        // Use static color update mode for the entire content
+        // Update colors
         self.buffer.update_colors_static(&self.engine)?;
 
         // Get a stdout lock for efficient writing
         let mut stdout = self.terminal.stdout();
 
-        // Render the entire buffer content, not just one screen
+        // Render the entire buffer content
         self.buffer.render_region(
             &mut stdout,
             0,
@@ -175,14 +218,47 @@ impl Renderer {
             false,
         )?;
 
-        // Ensure everything is flushed
         stdout.flush()?;
         Ok(())
     }
 
     /// Renders a single animation frame
     pub fn render_frame(&mut self, text: &str, delta_seconds: f64) -> Result<(), RendererError> {
-        let now = Instant::now();
+        let frame_time = Duration::from_secs_f64(delta_seconds);
+
+        // Handle playlist updates if active
+        let needs_update = if let Some(player) = &mut self.playlist_player {
+            info!(
+                "Updating playlist: current_entry={:?}, time={:?}",
+                player.current_entry().map(|e| &e.pattern),
+                frame_time
+            );
+            player.update(frame_time)
+        } else {
+            false
+        };
+
+        if needs_update {
+            info!("Playlist entry changed, updating configuration");
+            self.update_playlist_entry()?;
+        }
+
+        // Update playlist status display
+        if let Some(player) = &self.playlist_player {
+            if let Some(entry) = player.current_entry() {
+                let status = if player.is_paused() {
+                    "Paused"
+                } else {
+                    "Playing"
+                };
+                self.status_bar.set_custom_text(Some(&format!(
+                    "{} - {} [{:.0}%]",
+                    status,
+                    entry.name,
+                    player.current_progress() * 100.0
+                )));
+            }
+        }
 
         // First-time initialization
         if !self.buffer.has_content() {
@@ -192,43 +268,18 @@ impl Renderer {
             let visible_range = self.scroll.get_visible_range();
             self.buffer.update_colors(&self.engine, visible_range.0)?;
             self.draw_full_screen()?;
-            self.last_frame = Some(now);
-            self.last_fps_update = now;
+            self.last_frame = Some(Instant::now());
+            self.last_fps_update = Instant::now();
             return Ok(());
         }
 
-        // Calculate and enforce frame timing more precisely
-        let frame_time = if let Some(last) = self.last_frame {
-            now.duration_since(last)
-        } else {
-            Duration::from_secs_f64(delta_seconds)
-        };
+        // Update pattern animation
+        self.engine.update(delta_seconds);
 
-        let target_frame_time = Duration::from_secs_f64(1.0 / self.config.fps as f64);
-        if frame_time < target_frame_time {
-            // Skip frame if we're ahead of schedule
-            return Ok(());
-        }
-
-        // Update FPS counter with more accurate timing
-        self.frame_count += 1;
-        let fps_interval = Duration::from_secs(1);
-        if now.duration_since(self.last_fps_update) >= fps_interval {
-            self.current_fps =
-                self.frame_count as f64 / now.duration_since(self.last_fps_update).as_secs_f64();
-            self.frame_count = 0;
-            self.last_fps_update = now;
-            self.status_bar.set_fps(self.current_fps);
-        }
-
-        // Update pattern with actual elapsed time
-        self.engine.update(frame_time.as_secs_f64());
-
-        // Update engine and colors
+        // Update colors and render
         let visible_range = self.scroll.get_visible_range();
         self.buffer.update_colors(&self.engine, visible_range.0)?;
 
-        // Draw frame with current viewport
         let mut stdout = self.terminal.stdout();
         self.buffer.render_region(
             &mut stdout,
@@ -237,6 +288,16 @@ impl Renderer {
             self.terminal.colors_enabled(),
             true,
         )?;
+
+        // Update FPS counter
+        self.frame_count += 1;
+        let now = Instant::now();
+        if now.duration_since(self.last_fps_update) >= Duration::from_secs(1) {
+            self.current_fps = self.frame_count as f64;
+            self.frame_count = 0;
+            self.last_fps_update = now;
+            self.status_bar.set_fps(self.current_fps);
+        }
 
         // Update status bar
         self.status_bar.render(&mut stdout, &self.scroll)?;
@@ -249,21 +310,11 @@ impl Renderer {
 
     /// Handles terminal resize events
     pub fn handle_resize(&mut self, new_width: u16, new_height: u16) -> Result<(), RendererError> {
-        // Validate dimensions
-        if new_width == 0 || new_height == 0 {
-            return Err(RendererError::InvalidConfig(
-                "Invalid terminal dimensions".to_string(),
-            ));
-        }
-
         self.terminal.resize(new_width, new_height)?;
         self.scroll.update_viewport(new_height.saturating_sub(2));
         self.buffer.resize((new_width, new_height))?;
         self.status_bar.resize((new_width, new_height));
-
-        // Validate scroll state after resize
         self.scroll.validate_viewport();
-
         self.draw_full_screen()?;
         Ok(())
     }
@@ -281,9 +332,42 @@ impl Renderer {
                 self.draw_full_screen()?;
                 Ok(true)
             }
+            // Playlist controls
+            KeyCode::Char(' ') if self.playlist_player.is_some() => {
+                if let Some(player) = &mut self.playlist_player {
+                    player.toggle_pause();
+                    if let Some(entry) = player.current_entry() {
+                        let status = if player.is_paused() {
+                            "Paused"
+                        } else {
+                            "Playing"
+                        };
+                        self.status_bar.set_custom_text(Some(&format!(
+                            "{} - {} [{:.0}%]",
+                            status,
+                            entry.name,
+                            player.current_progress() * 100.0
+                        )));
+                    }
+                }
+                Ok(true)
+            }
+            KeyCode::Right if self.playlist_player.is_some() => {
+                if let Some(player) = &mut self.playlist_player {
+                    player.next_entry();
+                    self.update_playlist_entry()?;
+                }
+                Ok(true)
+            }
+            KeyCode::Left if self.playlist_player.is_some() => {
+                if let Some(player) = &mut self.playlist_player {
+                    player.previous_entry();
+                    self.update_playlist_entry()?;
+                }
+                Ok(true)
+            }
             _ => match self.scroll.handle_key_event(key) {
                 Action::Continue => {
-                    // Update colors and render without clearing screen
                     let visible_range = self.scroll.get_visible_range();
                     self.buffer.update_colors(&self.engine, visible_range.0)?;
                     let mut stdout = self.terminal.stdout();
@@ -310,7 +394,6 @@ impl Renderer {
         let mut stdout = self.terminal.stdout();
         let visible_range = self.scroll.get_visible_range();
 
-        // Draw content and status bar atomically
         self.buffer.render_region(
             &mut stdout,
             visible_range.0,
@@ -324,69 +407,59 @@ impl Renderer {
         Ok(())
     }
 
-    fn update_visible_region(&mut self) -> Result<(), RendererError> {
-        let visible_range = self.scroll.get_visible_range();
-        self.buffer.update_colors(&self.engine, visible_range.0)?;
+    fn update_playlist_entry(&mut self) -> Result<(), RendererError> {
+        if let Some(player) = &mut self.playlist_player {
+            if let Some(entry) = player.current_entry() {
+                let new_config = entry.to_pattern_config()?;
+                let new_gradient = themes::get_theme(&entry.theme)?.create_gradient()?;
+
+                self.engine.update_gradient(new_gradient);
+                self.engine.update_pattern_config(new_config);
+
+                // Update status bar
+                self.status_bar.set_pattern(&entry.pattern);
+                self.status_bar.set_theme(&entry.theme);
+            }
+        }
         Ok(())
     }
 
     /// Switches to the next available theme
-    pub fn next_theme(&mut self) -> Result<(), RendererError> {
-        // Calculate next index
+    fn next_theme(&mut self) -> Result<(), RendererError> {
+        // Increment theme index
         self.current_theme_index = (self.current_theme_index + 1) % self.available_themes.len();
         let new_theme = &self.available_themes[self.current_theme_index];
 
-        // Create new gradient from theme
-        let theme = themes::get_theme(new_theme)?;
-        let gradient = theme.create_gradient()?;
-
-        // Update engine with new gradient and theme name
-        self.engine.update_gradient(gradient);
-
-        // Update theme name in engine's config
-        let mut config = self.engine.config().clone();
-        config.common.theme_name = Some(new_theme.clone());
-        self.engine.update_pattern_config(config);
+        // Update theme
+        let new_gradient = themes::get_theme(new_theme)?.create_gradient()?;
+        self.engine.update_gradient(new_gradient);
 
         // Update status bar
         self.status_bar.set_theme(new_theme);
-
-        // Force refresh
-        self.update_visible_region()?;
 
         Ok(())
     }
 
     /// Switches to the next available pattern
-    pub fn next_pattern(&mut self) -> Result<(), RendererError> {
-        // Calculate next index
+    fn next_pattern(&mut self) -> Result<(), RendererError> {
+        // Increment pattern index
         self.current_pattern_index =
             (self.current_pattern_index + 1) % self.available_patterns.len();
-        let new_pattern_id = &self.available_patterns[self.current_pattern_index];
+        let new_pattern = &self.available_patterns[self.current_pattern_index];
 
-        // Get default parameters for the new pattern
-        let pattern_params = REGISTRY
-            .create_pattern_params(new_pattern_id)
-            .ok_or_else(|| {
-                RendererError::InvalidConfig(format!(
-                    "Failed to create parameters for pattern: {}",
-                    new_pattern_id
-                ))
-            })?;
-
-        // Create new pattern configuration while preserving common parameters
-        let pattern_config = PatternConfig {
+        // Create new pattern config
+        let new_config = PatternConfig {
             common: self.engine.config().common.clone(),
-            params: pattern_params,
+            params: crate::pattern::REGISTRY
+                .create_pattern_params(new_pattern)
+                .ok_or_else(|| RendererError::InvalidPattern(new_pattern.clone()))?,
         };
 
-        // Update engine with new pattern config
-        self.engine.update_pattern_config(pattern_config);
-        self.status_bar.set_pattern(new_pattern_id);
+        // Update engine
+        self.engine.update_pattern_config(new_config);
 
-        // Force complete refresh
-        self.terminal.clear_screen()?;
-        self.update_visible_region()?;
+        // Update status bar
+        self.status_bar.set_pattern(new_pattern);
 
         Ok(())
     }
@@ -394,7 +467,6 @@ impl Renderer {
 
 impl Drop for Renderer {
     fn drop(&mut self) {
-        // Attempt to cleanup terminal state
         if let Err(e) = self.terminal.cleanup() {
             eprintln!("Error cleaning up terminal: {}", e);
         }

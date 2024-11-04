@@ -30,6 +30,10 @@ pub enum ChromaCatError {
     ParseError(String),
     /// Rendering error
     RenderError(String),
+    /// Invalid pattern name or configuration
+    InvalidPattern(String),
+    /// Playlist-related error
+    PlaylistError(String),
     /// General error with message
     Other(String),
 }
@@ -68,6 +72,8 @@ impl fmt::Display for ChromaCatError {
             Self::InputError(msg) => write!(f, "Input error: {}", msg),
             Self::ParseError(msg) => write!(f, "Parse error: {}", msg),
             Self::RenderError(msg) => write!(f, "Render error: {}", msg),
+            Self::InvalidPattern(msg) => write!(f, "Invalid pattern: {}", msg),
+            Self::PlaylistError(msg) => write!(f, "Playlist error: {}", msg),
             Self::Other(msg) => write!(f, "{}", msg),
         }
     }
@@ -115,6 +121,7 @@ impl From<RendererError> for ChromaCatError {
                 param: "pattern".to_string(),
                 message: msg,
             },
+            RendererError::InvalidPattern(msg) => Self::InvalidPattern(msg),
             RendererError::Other(msg) => Self::RenderError(msg),
         }
     }

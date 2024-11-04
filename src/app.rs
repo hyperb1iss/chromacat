@@ -8,6 +8,7 @@ use crate::cli::Cli;
 use crate::error::{ChromaCatError, Result};
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
+use crate::playlist::{load_default_playlist, Playlist};
 use crate::renderer::Renderer;
 use crate::streaming::StreamingInput;
 use crate::themes;
@@ -86,7 +87,40 @@ impl ChromaCat {
         // Set up the renderer
         let animation_config = self.cli.create_animation_config();
         info!("Creating renderer with config: {:?}", animation_config);
-        let mut renderer = Renderer::new(engine, animation_config)?;
+
+        // Load playlist if enabled
+        let playlist = if let Some(playlist_path) = &self.cli.playlist {
+            match Playlist::from_file(playlist_path) {
+                Ok(p) => {
+                    info!("Loaded playlist from {} with {} entries", playlist_path.display(), p.entries.len());
+                    if let Some(first) = p.entries.first() {
+                        info!("First entry: pattern={}, theme={}", first.pattern, first.theme);
+                    }
+                    Some(p)
+                }
+                Err(e) => {
+                    info!("Failed to load playlist: {}", e);
+                    None
+                }
+            }
+        } else if self.cli.animate {
+            // Try loading default playlist in animation mode
+            match load_default_playlist()? {
+                Some(p) => {
+                    info!("Loaded default playlist");
+                    Some(p)
+                }
+                None => {
+                    info!("No default playlist found");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        info!("Creating renderer with playlist: {}", playlist.is_some());
+        let mut renderer = Renderer::new(engine, animation_config, playlist)?;
 
         // Process input and render
         let result = self.process_input(&mut renderer);
@@ -158,7 +192,7 @@ impl ChromaCat {
         if self.cli.demo {
             info!("Running in demo mode");
             let mut reader = InputReader::from_demo(self.cli.animate)?;
-            
+
             if self.cli.animate {
                 // For animated demo, we'll keep generating new content
                 let mut buffer = String::new();
@@ -274,7 +308,9 @@ impl ChromaCat {
         // Main animation loop
         'main: loop {
             // Add duration check
-            if self.cli.duration > 0 && start_time.elapsed() >= Duration::from_secs(self.cli.duration) {
+            if self.cli.duration > 0
+                && start_time.elapsed() >= Duration::from_secs(self.cli.duration)
+            {
                 break 'main;
             }
 
@@ -285,17 +321,17 @@ impl ChromaCat {
                         use crossterm::event::KeyCode;
                         match key.code {
                             KeyCode::Esc | KeyCode::Char('q') => break 'main,
-                            KeyCode::Char(' ') => paused = !paused,
-                            _ => {
-                                match renderer.handle_key_event(key) {
-                                    Ok(true) => continue 'main,
-                                    Ok(false) => break 'main,
-                                    Err(e) => {
-                                        eprintln!("Key handling error: {}", e);
-                                        continue 'main;
-                                    }
+                            KeyCode::Char(' ') => {
+                                paused = !paused;
+                            },
+                            _ => match renderer.handle_key_event(key) {
+                                Ok(true) => continue 'main,
+                                Ok(false) => break 'main,
+                                Err(e) => {
+                                    eprintln!("Key handling error: {}", e);
+                                    continue 'main;
                                 }
-                            }
+                            },
                         }
                     }
                     Event::Resize(width, height) => {

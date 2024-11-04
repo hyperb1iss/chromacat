@@ -4,44 +4,58 @@
 //! for the rendering system.
 
 use crate::error::ChromaCatError;
-use std::fmt;
 use std::io;
+use thiserror::Error;
 
 /// Errors that can occur during rendering operations
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RendererError {
     /// I/O error during terminal operations
-    IoError(io::Error),
+    #[error("I/O error: {0}")]
+    IoError(#[from] io::Error),
+
     /// Error manipulating terminal state
+    #[error("Terminal error: {0}")]
     TerminalError(String),
+
     /// Error managing render buffers
+    #[error("Buffer error: {0}")]
     BufferError(String),
+
     /// Invalid configuration values
+    #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
+
     /// Error during pattern generation
+    #[error("Pattern error: {0}")]
     PatternError(String),
+
+    /// Invalid pattern name or configuration
+    #[error("Invalid pattern: {0}")]
+    InvalidPattern(String),
+
     /// General error with message
+    #[error("{0}")]
     Other(String),
 }
 
-impl fmt::Display for RendererError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::IoError(err) => write!(f, "I/O error: {}", err),
-            Self::TerminalError(msg) => write!(f, "Terminal error: {}", msg),
-            Self::BufferError(msg) => write!(f, "Buffer error: {}", msg),
-            Self::InvalidConfig(msg) => write!(f, "Invalid configuration: {}", msg),
-            Self::PatternError(msg) => write!(f, "Pattern error: {}", msg),
-            Self::Other(msg) => write!(f, "{}", msg),
+impl From<ChromaCatError> for RendererError {
+    fn from(err: ChromaCatError) -> Self {
+        match err {
+            ChromaCatError::IoError(e) => Self::IoError(e),
+            ChromaCatError::InvalidParameter { name, value, .. } => {
+                Self::InvalidConfig(format!("Invalid parameter {}: {}", name, value))
+            }
+            ChromaCatError::PatternError { message, .. } => Self::PatternError(message),
+            ChromaCatError::InvalidPattern(msg) => Self::InvalidPattern(msg),
+            ChromaCatError::InvalidTheme(msg) => Self::Other(format!("Invalid theme: {}", msg)),
+            ChromaCatError::GradientError(msg) => Self::Other(format!("Gradient error: {}", msg)),
+            ChromaCatError::InputError(msg) => Self::Other(format!("Input error: {}", msg)),
+            ChromaCatError::ParseError(msg) => Self::Other(format!("Parse error: {}", msg)),
+            ChromaCatError::RenderError(msg) => Self::Other(format!("Render error: {}", msg)),
+            ChromaCatError::PlaylistError(msg) => Self::Other(format!("Playlist error: {}", msg)),
+            ChromaCatError::Other(msg) => Self::Other(msg),
         }
-    }
-}
-
-impl std::error::Error for RendererError {}
-
-impl From<io::Error> for RendererError {
-    fn from(err: io::Error) -> Self {
-        Self::IoError(err)
     }
 }
 
@@ -60,18 +74,5 @@ impl From<String> for RendererError {
 impl From<&str> for RendererError {
     fn from(msg: &str) -> Self {
         Self::Other(msg.to_string())
-    }
-}
-
-impl From<ChromaCatError> for RendererError {
-    fn from(err: ChromaCatError) -> Self {
-        match err {
-            ChromaCatError::IoError(e) => Self::IoError(e),
-            ChromaCatError::InvalidParameter { name, value, .. } => {
-                Self::InvalidConfig(format!("Invalid parameter {}: {}", name, value))
-            }
-            ChromaCatError::PatternError { message, .. } => Self::PatternError(message),
-            _ => Self::Other(err.to_string()),
-        }
     }
 }

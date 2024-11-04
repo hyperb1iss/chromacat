@@ -27,6 +27,8 @@ pub struct StatusBar {
     fps: f64,
     /// Whether to show FPS counter
     show_fps: bool,
+    /// Custom status text (for playlists)
+    custom_text: Option<String>,
 }
 
 impl StatusBar {
@@ -39,6 +41,7 @@ impl StatusBar {
             current_pattern: String::from("diagonal"),
             fps: 0.0,
             show_fps: true,
+            custom_text: None,
         }
     }
 
@@ -63,6 +66,16 @@ impl StatusBar {
     /// Sets whether to show the FPS counter.
     pub fn show_fps(&mut self, show: bool) {
         self.show_fps = show;
+    }
+
+    /// Sets custom text to display in the status bar
+    pub fn set_custom_text(&mut self, text: Option<&str>) {
+        self.custom_text = text.map(|s| s.to_string());
+    }
+
+    /// Gets the custom text if any
+    pub fn custom_text(&self) -> Option<&str> {
+        self.custom_text.as_deref()
     }
 
     /// Renders the status bar to the terminal.
@@ -105,7 +118,11 @@ impl StatusBar {
         let (start, end) = scroll.get_visible_range();
 
         // Build status sections
-        let mut left_section = format!(" {} • {}", self.current_theme, self.current_pattern);
+        let mut left_section = if let Some(text) = &self.custom_text {
+            format!(" {} ", text)
+        } else {
+            format!(" {} • {}", self.current_theme, self.current_pattern)
+        };
         if self.show_fps {
             left_section.push_str(&format!(" • {:.1} FPS", self.fps));
         }
@@ -193,52 +210,35 @@ impl StatusBar {
         self.width = new_size.0;
         self.height = new_size.1;
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_status_bar_creation() {
-        let status_bar = StatusBar::new((80, 24));
-        assert_eq!(status_bar.width, 80);
-        assert_eq!(status_bar.height, 24);
+    /// Gets the current width
+    pub fn width(&self) -> u16 {
+        self.width
     }
 
-    #[test]
-    fn test_theme_pattern_update() {
-        let mut status_bar = StatusBar::new((80, 24));
-        status_bar.set_theme("ocean");
-        assert_eq!(status_bar.current_theme, "ocean");
-
-        status_bar.set_pattern("wave");
-        assert_eq!(status_bar.current_pattern, "wave");
+    /// Gets the current height
+    pub fn height(&self) -> u16 {
+        self.height
     }
 
-    #[test]
-    fn test_fps_update() {
-        let mut status_bar = StatusBar::new((80, 24));
-        
-        // Test FPS update with significant change
-        status_bar.set_fps(60.0);
-        assert_eq!(status_bar.fps, 60.0);
-
-        // Test FPS update with minor change (should not update)
-        status_bar.set_fps(60.2);
-        assert_eq!(status_bar.fps, 60.0);
-
-        // Test FPS display toggle
-        status_bar.show_fps(false);
-        assert!(!status_bar.show_fps);
+    /// Gets the current theme
+    pub fn current_theme(&self) -> &str {
+        &self.current_theme
     }
 
-    #[test]
-    fn test_resize() {
-        let mut status_bar = StatusBar::new((80, 24));
-        status_bar.resize((100, 30));
-        assert_eq!(status_bar.width, 100);
-        assert_eq!(status_bar.height, 30);
+    /// Gets the current pattern
+    pub fn current_pattern(&self) -> &str {
+        &self.current_pattern
+    }
+
+    /// Gets the current FPS
+    pub fn fps(&self) -> f64 {
+        self.fps
+    }
+
+    /// Returns whether FPS display is enabled
+    pub fn is_fps_shown(&self) -> bool {
+        self.show_fps
     }
 }
 

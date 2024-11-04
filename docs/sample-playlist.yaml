@@ -1,0 +1,46 @@
+# A playlist of pattern and theme configurations
+entries:
+  - name: "Neon Dreams"
+    pattern: "plasma"
+    theme: "neon"
+    duration: 30
+    params:
+      complexity: 3.0
+      scale: 1.5
+      frequency: 1.0
+      blend_mode: add
+
+  - name: "Digital Rain"
+    pattern: "rain"
+    theme: "matrix"
+    duration: 20
+    params:
+      speed: 2.0
+      density: 1.5
+      length: 4
+      glitch: true
+      glitch_freq: 1.0
+
+  - name: "Aurora Storm"
+    pattern: "aurora"
+    theme: "borealis"
+    duration: 45
+    params:
+      intensity: 1.5
+      speed: 1.2
+      waviness: 1.5
+      layers: 4
+      height: 0.8
+      spread: 0.4
+
+  - name: "Fire & Ice"
+    pattern: "fire"
+    theme: "ice"
+    duration: 25
+    params:
+      intensity: 1.8
+      speed: 1.5
+      turbulence: 0.8
+      height: 1.2
+      wind: true
+      wind_strength: 0.6

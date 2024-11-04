@@ -11,6 +11,7 @@ pub mod demo;
 pub mod error;
 pub mod gradient;
 pub mod input;
+pub mod playlist;
 pub mod renderer;
 pub mod streaming;
 pub mod themes;
