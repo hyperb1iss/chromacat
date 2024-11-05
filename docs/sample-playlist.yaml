@@ -1,46 +1,114 @@
-# A playlist of pattern and theme configurations
+# ChromaCat Ultimate Visualization Playlist
 entries:
-  - name: "Neon Dreams"
+  - name: "Digital Dreamscape"
     pattern: "plasma"
     theme: "neon"
     duration: 30
     params:
-      complexity: 3.0
-      scale: 1.5
-      frequency: 1.0
-      blend_mode: add
+      complexity: 4.5 # Higher complexity for more intricate patterns
+      scale: 1.8 # Larger scale for bold visuals
+      frequency: 1.2 # Slightly faster animation
+      blend_mode: add # Additive blending for intense colors
 
-  - name: "Digital Rain"
+  - name: "Quantum Fields"
+    pattern: "kaleidoscope"
+    theme: "quantum"
+    duration: 35
+    params:
+      segments: 8 # Balanced number of segments
+      rotation_speed: 0.8 # Smooth rotation
+      zoom: 1.5 # Increased zoom for detail
+      complexity: 3.0 # Rich geometric patterns
+      color_flow: 1.2 # Enhanced color transitions
+      distortion: 0.4 # Subtle quantum distortions
+
+  - name: "Cyberpunk Rain"
     pattern: "rain"
-    theme: "matrix"
-    duration: 20
-    params:
-      speed: 2.0
-      density: 1.5
-      length: 4
-      glitch: true
-      glitch_freq: 1.0
-
-  - name: "Aurora Storm"
-    pattern: "aurora"
-    theme: "borealis"
-    duration: 45
-    params:
-      intensity: 1.5
-      speed: 1.2
-      waviness: 1.5
-      layers: 4
-      height: 0.8
-      spread: 0.4
-
-  - name: "Fire & Ice"
-    pattern: "fire"
-    theme: "ice"
+    theme: "cyberpunk"
     duration: 25
     params:
-      intensity: 1.8
-      speed: 1.5
-      turbulence: 0.8
-      height: 1.2
+      speed: 1.8 # Fast but readable
+      density: 1.7 # Dense matrix effect
+      length: 5 # Longer trails
+      glitch: true # Enable glitch effects
+      glitch_freq: 1.5 # Frequent glitches
+      speed_var: 0.8 # Variable speed for organic feel
+
+  - name: "Mystic Aurora"
+    pattern: "aurora"
+    theme: "borealis"
+    duration: 40
+    params:
+      intensity: 1.6 # Bright, vivid auroras
+      speed: 0.8 # Slow, majestic movement
+      waviness: 1.8 # Enhanced wave effects
+      layers: 5 # Maximum layers for depth
+      height: 0.9 # Tall, sweeping curtains
+      spread: 0.35 # Tight layer spacing
+
+  - name: "Plasma Nebula"
+    pattern: "plasma"
+    theme: "nebula"
+    duration: 30
+    params:
+      complexity: 3.5 # Complex space-like patterns
+      scale: 2.0 # Large cosmic scale
+      frequency: 0.7 # Slower, cosmic movement
+      blend_mode: add # Bright stellar colors
+
+  - name: "Sacred Geometry"
+    pattern: "kaleidoscope"
+    theme: "retrowave"
+    duration: 35
+    params:
+      segments: 12 # Many symmetrical segments
+      rotation_speed: 0.6 # Meditative rotation
+      zoom: 1.8 # Close-up geometric detail
+      complexity: 4.0 # Maximum pattern complexity
+      color_flow: 0.9 # Smooth color transitions
+      distortion: 0.2 # Subtle organic movement
+
+  - name: "Inferno Vortex"
+    pattern: "spiral"
+    theme: "fire"
+    duration: 30
+    params:
+      density: 2.0 # Dense spiral arms
+      rotation: 180 # Half rotation offset
+      expansion: 1.5 # Moderate expansion
+      clockwise: true
+      frequency: 1.5 # Fast spiral movement
+
+  - name: "Ocean Ripples"
+    pattern: "ripple"
+    theme: "ocean"
+    duration: 35
+    params:
+      center_x: 0.5 # Centered
+      center_y: 0.5
+      wavelength: 1.2 # Longer waves
+      damping: 0.3 # Less damping for wider effect
+      frequency: 0.8 # Gentle wave motion
+
+  - name: "Electric Dreams"
+    pattern: "wave"
+    theme: "plasma"
+    duration: 30
+    params:
+      amplitude: 1.8 # Large wave height
+      frequency: 2.0 # Fast oscillation
+      phase: 0.0
+      offset: 0.5 # Centered waves
+      base_freq: 1.5 # Higher base frequency
+
+  - name: "Cosmic Fire"
+    pattern: "fire"
+    theme: "nebula"
+    duration: 35
+    params:
+      intensity: 1.9 # Very bright flames
+      speed: 1.3 # Fast movement
+      turbulence: 0.9 # High turbulence
+      height: 1.5 # Tall flames
       wind: true
-      wind_strength: 0.6
+      wind_strength: 0.7 # Strong wind effect
