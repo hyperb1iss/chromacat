@@ -4,6 +4,7 @@
 //! It handles all user input configuration and converts it into the internal configuration
 //! types used by the pattern engine and renderer.
 
+use crate::demo::DemoArt;
 use crate::error::{ChromaCatError, Result};
 use crate::pattern::{CommonParams, PatternConfig, REGISTRY, ParamType};
 use crate::renderer::AnimationConfig;
@@ -197,6 +198,23 @@ pub struct Cli {
         help = CliFormat::highlight_description("Load and play a sequence of patterns (uses default if not specified in animation mode)")
     )]
     pub playlist: Option<PathBuf>,
+
+    /// Demo art pattern to display
+    #[arg(
+        long = "art",
+        value_name = "TYPE",
+        help_heading = CliFormat::HEADING_DEMO,
+        help = CliFormat::highlight_description("Select demo art pattern to display")
+    )]
+    pub art: Option<String>,
+
+    /// List available demo art patterns
+    #[arg(
+        long = "list-art",
+        help_heading = CliFormat::HEADING_DEMO,
+        help = CliFormat::highlight_description("Show available art patterns")
+    )]
+    pub list_art: bool,
 }
 
 impl Cli {
@@ -256,7 +274,14 @@ impl Cli {
     pub fn validate(&self) -> Result<()> {
         // Skip validation if just listing options
         if self.list_available {
-            return Ok(());
+            Self::print_available_options();
+            std::process::exit(0);
+        }
+
+        // Handle --list-art flag
+        if self.list_art {
+            Self::print_art_patterns();
+            std::process::exit(0);
         }
 
         // Validate animation parameters
@@ -304,6 +329,22 @@ impl Cli {
         // Warn about demo mode overriding playlist
         if self.demo && self.playlist.is_some() {
             eprintln!("Warning: Demo mode is enabled, playlist will be ignored");
+        }
+
+        // Validate art selection if specified
+        if let Some(art) = &self.art {
+            if !self.demo {
+                return Err(ChromaCatError::InputError(
+                    "--art can only be used with --demo".to_string()
+                ));
+            }
+            
+            if DemoArt::from_str(art).is_none() && art != "all" {
+                return Err(ChromaCatError::InputError(format!(
+                    "Invalid art type '{}'. Use --list-art to see available options.",
+                    art
+                )));
+            }
         }
 
         Ok(())
@@ -481,5 +522,47 @@ impl Cli {
                 CliFormat::param_value(cmd)
             );
         }
+    }
+
+    /// Print available demo art patterns
+    pub fn print_art_patterns() {
+        println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Demo Art ✨"));
+        println!("{}", CliFormat::separator(&"═".repeat(90)));
+        println!("\n{}", CliFormat::highlight_description(
+            "ChromaCat's demo art patterns showcase different artistic effects and capabilities.\n\
+             Use these patterns with --demo mode to create ambient displays and visualizations."
+        ));
+
+        println!("\n{}", CliFormat::core("Available Patterns:"));
+        println!("{}", CliFormat::separator(&"─".repeat(85)));
+        
+        for art in DemoArt::all_types() {
+            println!("  {} {} - {}",
+                CliFormat::param(&format!("{:<12}", art.as_str())),
+                CliFormat::param_value(art.display_name()),
+                CliFormat::description(art.description())
+            );
+        }
+
+        println!("\n{}", CliFormat::param("Special Values:"));
+        println!("  {} {} - {}",
+            CliFormat::param(&format!("{:<12}", "all")),
+            CliFormat::param_value("All Patterns"),
+            CliFormat::description("Show all patterns in sequence")
+        );
+
+        println!("\n{}", CliFormat::general("Examples:"));
+        println!("  {} {}", 
+            CliFormat::param("Basic demo:"),
+            CliFormat::description("chromacat --demo")
+        );
+        println!("  {} {}", 
+            CliFormat::param("Specific art:"),
+            CliFormat::description("chromacat --demo --art matrix")
+        );
+        println!("  {} {}", 
+            CliFormat::param("With playlist:"),
+            CliFormat::description("chromacat --demo --playlist my-playlist.yaml")
+        );
     }
 }

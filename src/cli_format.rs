@@ -23,6 +23,7 @@ impl CliFormat {
     pub const HEADING_SPIRAL: &'static str = "💫 Spiral/Diamond";
     pub const HEADING_OTHER: &'static str = "📐 Other";
     pub const HEADING_PLAYLIST: &'static str = "📝 Playlist";
+    pub const HEADING_DEMO: &'static str = "Demo Options";
 
     // Add new color constants and heading constants
     pub const PARAM: &'static str = "\x1b[38;5;149m"; // Light green for parameters

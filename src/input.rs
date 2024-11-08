@@ -1,9 +1,9 @@
-use crate::demo::DemoGenerator;
+use crate::demo::{ArtSettings, DemoArt, DemoArtGenerator};
 use crate::error::Result;
+use crossterm::terminal::size;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
-use crossterm::terminal::size;
 
 /// Handles reading input from either stdin, a file, or demo mode
 pub struct InputReader {
@@ -27,12 +27,27 @@ impl InputReader {
     }
 
     /// Creates a new InputReader in demo mode
-    pub fn from_demo(_is_animated: bool) -> Result<Self> {
+    pub fn from_demo(is_animated: bool, art_type: Option<&str>, playlist_art: Option<&DemoArt>) -> Result<Self> {
         // Get terminal size
         let (width, height) = size()?;
-        let generator = DemoGenerator::new(width, height.saturating_sub(2)); // Subtract 2 for status bar
+        let settings = ArtSettings::new(width, height.saturating_sub(2)) // Subtract 2 for status bar
+            .with_headers(!is_animated); // Only show headers in static mode
+
+        let generator = DemoArtGenerator::new(settings);
+
+        // If in playlist mode, use the playlist's art type
+        // Otherwise use specified art type or default to All
+        let art_type = if let Some(playlist_art) = playlist_art {
+            *playlist_art
+        } else {
+            match art_type {
+                Some(art_str) => DemoArt::from_str(art_str).unwrap_or(DemoArt::All),
+                None => DemoArt::All,
+            }
+        };
+
         Ok(Self {
-            source: Box::new(DemoInput::new(generator)),
+            source: Box::new(DemoInput::new(generator, art_type)),
         })
     }
 
@@ -61,10 +76,10 @@ struct DemoInput {
 }
 
 impl DemoInput {
-    fn new(mut generator: DemoGenerator) -> Self {
+    fn new(mut generator: DemoArtGenerator, art: DemoArt) -> Self {
         // Generate content once at initialization
-        log::info!("Initializing demo mode content");
-        let content = generator.generate();
+        log::info!("Initializing demo mode content for {}", art.display_name());
+        let content = generator.generate(art);
         let buffer = content.into_bytes();
         log::debug!("Demo content size: {} bytes", buffer.len());
 

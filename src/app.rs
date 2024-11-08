@@ -50,6 +50,12 @@ impl ChromaCat {
     pub fn run(&mut self) -> Result<()> {
         debug!("Starting ChromaCat with configuration: {:?}", self.cli);
 
+        // Handle --list-art flag
+        if self.cli.list_art {
+            Cli::print_art_patterns();
+            return Ok(());
+        }
+
         // Handle --list flag
         if self.cli.list_available {
             Cli::print_available_options();
@@ -92,9 +98,16 @@ impl ChromaCat {
         let playlist = if let Some(playlist_path) = &self.cli.playlist {
             match Playlist::from_file(playlist_path) {
                 Ok(p) => {
-                    info!("Loaded playlist from {} with {} entries", playlist_path.display(), p.entries.len());
+                    info!(
+                        "Loaded playlist from {} with {} entries",
+                        playlist_path.display(),
+                        p.entries.len()
+                    );
                     if let Some(first) = p.entries.first() {
-                        info!("First entry: pattern={}, theme={}", first.pattern, first.theme);
+                        info!(
+                            "First entry: pattern={}, theme={}",
+                            first.pattern, first.theme
+                        );
                     }
                     Some(p)
                 }
@@ -120,7 +133,12 @@ impl ChromaCat {
         };
 
         info!("Creating renderer with playlist: {}", playlist.is_some());
-        let mut renderer = Renderer::new(engine, animation_config, playlist)?;
+        let mut renderer = Renderer::new(
+            engine,
+            animation_config,
+            playlist,
+            self.cli.demo
+        )?;
 
         // Process input and render
         let result = self.process_input(&mut renderer);
@@ -191,7 +209,11 @@ impl ChromaCat {
         // Handle demo mode
         if self.cli.demo {
             info!("Running in demo mode");
-            let mut reader = InputReader::from_demo(self.cli.animate)?;
+            let mut reader = InputReader::from_demo(
+                self.cli.animate,
+                self.cli.art.as_deref(),
+                None
+            )?;
 
             if self.cli.animate {
                 // For animated demo, we'll keep generating new content
@@ -323,7 +345,7 @@ impl ChromaCat {
                             KeyCode::Esc | KeyCode::Char('q') => break 'main,
                             KeyCode::Char(' ') => {
                                 paused = !paused;
-                            },
+                            }
                             _ => match renderer.handle_key_event(key) {
                                 Ok(true) => continue 'main,
                                 Ok(false) => break 'main,

@@ -1,19 +1,11 @@
-//! Playlist entry and playlist file format definitions.
+//! Playlist entry definitions and validation
 //!
-//! This module provides the core data structures for defining playlists and their entries.
-//! Playlists are typically loaded from YAML files with the following format:
-//!
-//! ```yaml
-//! entries:
-//!   - name: "Cool Effect"
-//!     pattern: "plasma"
-//!     theme: "rainbow"
-//!     duration: 30
-//!     params:
-//!       complexity: 3.0
-//!       scale: 1.5
-//! ```
+//! This module defines the structure for playlist entries, which specify patterns,
+//! themes, demo art, and other configuration for ChromaCat's animation sequences.
+//! Each entry represents a single step in the playlist that can be rendered with
+//! specific visual effects and timing.
 
+use crate::demo::DemoArt;
 use crate::error::{ChromaCatError, Result};
 use crate::pattern::{PatternConfig, REGISTRY};
 use crate::themes;
@@ -25,11 +17,23 @@ use std::time::Duration;
 /// A single entry in a playlist, describing a pattern configuration and duration.
 ///
 /// Each entry specifies:
-/// - An optional name for the sequence
-/// - The pattern type to display
-/// - The theme to apply
-/// - How long to display it (in seconds)
-/// - Optional pattern-specific parameters
+/// - A display name (optional)
+/// - The pattern type and theme to use
+/// - How long to display it
+/// - Pattern-specific parameters (optional)
+/// - Demo art to display (optional)
+///
+/// # Example
+/// ```yaml
+/// name: "Digital Rain"
+/// pattern: "rain"
+/// theme: "matrix"
+/// duration: 30
+/// art: "matrix"
+/// params:
+///   speed: 2.0
+///   density: 1.5
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaylistEntry {
     /// Optional name for this sequence
@@ -48,15 +52,29 @@ pub struct PlaylistEntry {
     /// Pattern-specific parameters as key-value pairs
     #[serde(default)]
     pub params: Option<serde_yaml::Value>,
+
+    /// Demo art to display (only used in demo mode)
+    #[serde(default)]
+    pub art: Option<DemoArt>,
 }
 
 impl PlaylistEntry {
-    /// Creates a new playlist entry with required values.
+    /// Creates a new entry with the required fields.
     ///
     /// # Arguments
-    /// * `pattern` - The pattern type to use
-    /// * `theme` - The theme to apply
-    /// * `duration` - How long to display this entry in seconds
+    /// * `pattern` - Pattern type to use
+    /// * `theme` - Theme to apply
+    /// * `duration` - How long to display in seconds
+    ///
+    /// # Example
+    /// ```
+    /// use chromacat::playlist::PlaylistEntry;
+    /// use chromacat::demo::DemoArt;
+    ///
+    /// let entry = PlaylistEntry::new("wave", "ocean", 30)
+    ///     .with_name("Ocean Waves")
+    ///     .with_art(DemoArt::Waves);
+    /// ```
     pub fn new(pattern: impl Into<String>, theme: impl Into<String>, duration: u64) -> Self {
         Self {
             name: String::new(),
@@ -64,19 +82,44 @@ impl PlaylistEntry {
             theme: theme.into(),
             duration,
             params: None,
+            art: None,
         }
     }
 
+    /// Adds a display name to the entry.
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
+    }
+
+    /// Adds pattern-specific parameters to the entry.
+    pub fn with_params(mut self, params: serde_yaml::Value) -> Self {
+        self.params = Some(params);
+        self
+    }
+
+    /// Sets the demo art pattern to display.
+    pub fn with_art(mut self, art: DemoArt) -> Self {
+        self.art = Some(art);
+        self
+    }
+
+    /// Returns a human-readable description of this entry.
+    pub fn description(&self) -> String {
+        let mut desc = if self.name.is_empty() {
+            format!("{} with {} theme", self.pattern, self.theme)
+        } else {
+            self.name.clone()
+        };
+
+        if let Some(art) = &self.art {
+            desc.push_str(&format!(" ({})", art.display_name()));
+        }
+
+        desc
+    }
+
     /// Validates that all references and parameters exist and are valid.
-    ///
-    /// Checks:
-    /// - Pattern exists in the registry
-    /// - Theme exists
-    /// - Parameters are valid for the specified pattern
-    ///
-    /// # Returns
-    /// * `Ok(())` if validation passes
-    /// * `Err(ChromaCatError)` if any validation fails
     pub fn validate(&self) -> Result<()> {
         // Check pattern exists
         if !REGISTRY.list_patterns().contains(&self.pattern.as_str()) {
@@ -99,10 +142,6 @@ impl PlaylistEntry {
     }
 
     /// Converts this entry into a pattern configuration that can be rendered.
-    ///
-    /// # Returns
-    /// * `Ok(PatternConfig)` with the entry's settings applied
-    /// * `Err(ChromaCatError)` if conversion fails
     pub fn to_pattern_config(&self) -> Result<PatternConfig> {
         // Start with default parameters for the pattern
         let mut pattern_config = PatternConfig {
@@ -131,9 +170,6 @@ impl PlaylistEntry {
 }
 
 /// A complete playlist containing multiple entries to be played in sequence.
-///
-/// Playlists can be loaded from YAML files or strings and provide validation
-/// of all entries before use.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Playlist {
     /// List of entries to play in sequence
@@ -154,13 +190,6 @@ impl Playlist {
     }
 
     /// Loads a playlist from a file.
-    ///
-    /// # Arguments
-    /// * `path` - Path to the YAML playlist file
-    ///
-    /// # Returns
-    /// * `Ok(Playlist)` if loading and validation succeed
-    /// * `Err(ChromaCatError)` if loading or validation fails
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let contents = std::fs::read_to_string(path.as_ref()).map_err(|e| {
             ChromaCatError::InputError(format!("Failed to read playlist file: {}", e))
@@ -173,14 +202,6 @@ impl Playlist {
 impl FromStr for Playlist {
     type Err = ChromaCatError;
 
-    /// Parses a playlist from a YAML string.
-    ///
-    /// # Arguments
-    /// * `contents` - YAML string containing playlist definition
-    ///
-    /// # Returns
-    /// * `Ok(Playlist)` if parsing and validation succeed
-    /// * `Err(ChromaCatError)` if parsing or validation fails
     fn from_str(contents: &str) -> std::result::Result<Self, Self::Err> {
         let playlist: Playlist = serde_yaml::from_str(contents)
             .map_err(|e| ChromaCatError::InputError(format!("Invalid playlist format: {}", e)))?;
@@ -195,13 +216,6 @@ impl FromStr for Playlist {
 }
 
 /// Converts YAML parameters to the string format expected by the registry.
-///
-/// # Arguments
-/// * `params` - YAML value containing parameter key-value pairs
-///
-/// # Returns
-/// * `Ok(String)` containing parameters in "key=value,key2=value2" format
-/// * `Err(ChromaCatError)` if parameter format is invalid
 fn params_to_string(params: &serde_yaml::Value) -> Result<String> {
     let mut param_strings = Vec::new();
 
@@ -236,3 +250,7 @@ fn params_to_string(params: &serde_yaml::Value) -> Result<String> {
 
     Ok(param_strings.join(","))
 }
+
+/// Example playlist yaml for documentation
+#[doc = include_str!("../../docs/sample-playlist.yaml")]
+const _EXAMPLE: &str = "";

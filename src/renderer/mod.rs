@@ -35,6 +35,7 @@ use crossterm::event::KeyEvent;
 use log::info;
 use std::io::Write;
 use std::time::{Duration, Instant};
+use crate::input::InputReader;
 
 /// Coordinates all rendering functionality for ChromaCat
 pub struct Renderer {
@@ -68,6 +69,10 @@ pub struct Renderer {
     current_fps: f64,
     /// Current playlist player if using a playlist
     playlist_player: Option<PlaylistPlayer>,
+    /// Current content being displayed
+    content: String,
+    /// Whether running in demo mode
+    demo_mode: bool,
 }
 
 impl Renderer {
@@ -76,6 +81,7 @@ impl Renderer {
         engine: PatternEngine,
         config: AnimationConfig,
         playlist: Option<Playlist>,
+        demo_mode: bool,
     ) -> Result<Self, RendererError> {
         let terminal = TerminalState::new()?;
         let term_size = terminal.size();
@@ -177,6 +183,8 @@ impl Renderer {
             last_fps_update: now,
             current_fps: fps,
             playlist_player,
+            content: String::new(),
+            demo_mode,
         })
     }
 
@@ -415,6 +423,21 @@ impl Renderer {
 
                 self.engine.update_gradient(new_gradient);
                 self.engine.update_pattern_config(new_config);
+
+                // Update art type for demo mode
+                if self.demo_mode {
+                    if let Some(art) = entry.art {
+                        // Create new input reader with the entry's art type
+                        let mut reader = InputReader::from_demo(true, None, Some(&art))?;
+                        let mut new_content = String::new();
+                        reader.read_to_string(&mut new_content)?;
+                        self.content = new_content;
+                        
+                        // Prepare the new content for rendering
+                        self.buffer.prepare_text(&self.content)?;
+                        self.scroll.set_total_lines(self.buffer.line_count());
+                    }
+                }
 
                 // Update status bar
                 self.status_bar.set_pattern(&entry.pattern);

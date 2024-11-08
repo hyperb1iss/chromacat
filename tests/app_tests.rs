@@ -51,6 +51,8 @@ fn test_chromacat_basic() {
         buffer_size: None,
         demo: false,
         playlist: None,
+        art: None,
+        list_art: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -86,6 +88,8 @@ fn test_chromacat_invalid_angle() {
         buffer_size: None,
         demo: false,
         playlist: None,
+        art: None,
+        list_art: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -151,6 +155,8 @@ fn test_chromacat_pattern_params() {
             buffer_size: None,
             demo: false,
             playlist: None,
+            art: None,
+            list_art: false,
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -190,6 +196,8 @@ fn test_chromacat_animation_settings() {
         buffer_size: None,
         demo: false,
         playlist: None,
+        art: None,
+        list_art: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -226,6 +234,8 @@ fn test_streaming_mode() {
         buffer_size: Some(4096),
         demo: false,
         playlist: None,
+        art: None,
+        list_art: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -266,6 +276,8 @@ fn test_demo_mode() {
         buffer_size: None,
         demo: true,
         playlist: None,
+        art: None,
+        list_art: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -302,6 +314,8 @@ fn test_demo_mode() {
         buffer_size: None,
         demo: true,
         playlist: None,
+        art: None,
+        list_art: false,
     };
 
     let mut cat = ChromaCat::new(cli);

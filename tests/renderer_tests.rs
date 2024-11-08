@@ -53,7 +53,12 @@ impl RendererTest {
     }
 
     fn create_renderer(&self) -> Result<Renderer, Box<dyn std::error::Error>> {
-        let renderer = Renderer::new(self.engine.clone(), self.config.clone(), None)?;
+        let renderer = Renderer::new(
+            self.engine.clone(), 
+            self.config.clone(), 
+            None,  // playlist
+            false, // demo_mode
+        )?;
         Ok(renderer)
     }
 }

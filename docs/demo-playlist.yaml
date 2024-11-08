@@ -1,0 +1,112 @@
+# ChromaCat Showcase Playlist
+# A stunning display of algorithmic art and color patterns
+
+entries:
+  - name: "Organic Flow"
+    pattern: "plasma"
+    theme: "nebula"
+    duration: 30
+    art: "plasma"
+    params:
+      complexity: 4.5
+      scale: 1.8
+      frequency: 0.8
+      blend_mode: add
+
+  - name: "Hypnotic Dreams"
+    pattern: "spiral"
+    theme: "retrowave"
+    duration: 25
+    art: "vortex"
+    params:
+      density: 2.5
+      rotation: 180
+      expansion: 1.2
+      clockwise: true
+      frequency: 0.6
+
+  - name: "Digital Ecosystem"
+    pattern: "perlin"
+    theme: "quantum"
+    duration: 30
+    art: "cells"
+    params:
+      octaves: 6
+      persistence: 0.7
+      scale: 1.5
+      seed: 42
+
+  - name: "Liquid Light"
+    pattern: "wave"
+    theme: "aurora"
+    duration: 35
+    art: "fluid"
+    params:
+      amplitude: 1.5
+      frequency: 0.8
+      phase: 0.0
+      offset: 0.5
+      base_freq: 0.6
+
+  - name: "Growth Patterns"
+    pattern: "kaleidoscope"
+    theme: "forest"
+    duration: 30
+    art: "fractal"
+    params:
+      segments: 8
+      rotation_speed: 0.6
+      zoom: 1.8
+      complexity: 3.0
+      color_flow: 0.9
+      distortion: 0.2
+
+  - name: "Digital Rain"
+    pattern: "rain"
+    theme: "matrix"
+    duration: 20
+    art: "matrix"
+    params:
+      speed: 2.0
+      density: 1.8
+      length: 5
+      glitch: true
+      glitch_freq: 1.2
+
+  - name: "Sacred Geometry"
+    pattern: "diamond"
+    theme: "aurora"
+    duration: 25
+    art: "mandala"
+    params:
+      size: 1.2
+      offset: 0.3
+      sharpness: 2.5
+      rotation: 45
+      speed: 0.7
+      mode: zoom
+
+  - name: "Cosmic Dance"
+    pattern: "aurora"
+    theme: "borealis"
+    duration: 40
+    art: "spiral"
+    params:
+      intensity: 1.8
+      speed: 0.7
+      layers: 4
+      height: 0.8
+      spread: 0.4
+
+  - name: "Void Portal"
+    pattern: "kaleidoscope"
+    theme: "probability"
+    duration: 35
+    art: "vortex"
+    params:
+      segments: 12
+      rotation_speed: 0.8
+      zoom: 2.0
+      complexity: 4.0
+      color_flow: 1.5
+      distortion: 0.3
