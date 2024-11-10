@@ -55,6 +55,7 @@ impl From<ChromaCatError> for RendererError {
             ChromaCatError::RenderError(msg) => Self::Other(format!("Render error: {}", msg)),
             ChromaCatError::PlaylistError(msg) => Self::Other(format!("Playlist error: {}", msg)),
             ChromaCatError::Other(msg) => Self::Other(msg),
+            ChromaCatError::InvalidArt(msg) => Self::Other(format!("Invalid art type: {}", msg)),
         }
     }
 }

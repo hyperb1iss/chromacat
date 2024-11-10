@@ -114,11 +114,35 @@ impl DemoArtGenerator {
         let wave_chars = vec!['█', '▓', '▒', '░', ' '];
         let char_count = wave_chars.len() - 1;
 
+        // Multiple wave parameters for more organic feel
+        let waves = [
+            // (frequency_x, frequency_y, amplitude, speed)
+            (0.07, 0.03, 0.5, 0.8),  // Primary wave
+            (0.05, 0.04, 0.3, 1.2),  // Secondary wave
+            (0.03, 0.06, 0.2, 0.6),  // Background wave
+        ];
+
+        // Add time variation for animation-like effect
+        let time_offset = self.rng.gen_range(0.0..2.0 * PI);
+
         for y in 0..self.settings.height {
             for x in 0..self.settings.width {
-                let phase = (x as f64 * 0.2 + y as f64 * 0.1).sin();
-                let second = (x as f64 * 0.1 - y as f64 * 0.15).cos();
-                let value = (phase + second) * 0.5 + 0.5;
+                let mut value = 0.0;
+
+                // Combine multiple waves
+                for (freq_x, freq_y, amplitude, speed) in waves.iter() {
+                    let phase = x as f64 * freq_x + time_offset * speed;
+                    let y_offset = y as f64 * freq_y;
+                    
+                    // Create wave pattern with vertical displacement
+                    let wave = (phase + y_offset).sin() * amplitude;
+                    value += wave;
+                }
+
+                // Normalize to [0, 1] range
+                value = (value + 1.5) / 3.0;
+                value = value.max(0.0).min(1.0);
+                
                 let idx = (value * char_count as f64) as usize;
                 output.push(wave_chars[idx.min(char_count)]);
             }

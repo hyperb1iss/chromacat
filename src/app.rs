@@ -105,15 +105,29 @@ impl ChromaCat {
                     );
                     if let Some(first) = p.entries.first() {
                         info!(
-                            "First entry: pattern={}, theme={}",
-                            first.pattern, first.theme
+                            "First entry: pattern={}, theme={}, art={:?}",
+                            first.pattern, first.theme, first.art
                         );
+                    }
+                    // Validate all entries
+                    for (index, entry) in p.entries.iter().enumerate() {
+                        if let Err(e) = entry.validate() {
+                            return Err(ChromaCatError::Other(format!(
+                                "Invalid playlist entry {} ({}): {}",
+                                index + 1,
+                                entry.name,
+                                e
+                            )));
+                        }
                     }
                     Some(p)
                 }
                 Err(e) => {
-                    info!("Failed to load playlist: {}", e);
-                    None
+                    return Err(ChromaCatError::Other(format!(
+                        "Failed to load playlist from {}: {}",
+                        playlist_path.display(),
+                        e
+                    )));
                 }
             }
         } else if self.cli.animate {

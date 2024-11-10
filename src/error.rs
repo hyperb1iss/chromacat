@@ -36,6 +36,8 @@ pub enum ChromaCatError {
     PlaylistError(String),
     /// General error with message
     Other(String),
+    /// Invalid art type specified
+    InvalidArt(String),
 }
 
 impl std::error::Error for ChromaCatError {}
@@ -75,6 +77,7 @@ impl fmt::Display for ChromaCatError {
             Self::InvalidPattern(msg) => write!(f, "Invalid pattern: {}", msg),
             Self::PlaylistError(msg) => write!(f, "Playlist error: {}", msg),
             Self::Other(msg) => write!(f, "{}", msg),
+            Self::InvalidArt(msg) => write!(f, "Invalid art type: {}", msg),
         }
     }
 }

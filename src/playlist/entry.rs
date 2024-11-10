@@ -138,6 +138,17 @@ impl PlaylistEntry {
             REGISTRY.validate_params(&self.pattern, &param_str)?;
         }
 
+        // Validate art type if present
+        if let Some(art) = &self.art {
+            // Ensure the art type is valid by checking against available types
+            if !DemoArt::all_types().contains(art) && *art != DemoArt::All {
+                return Err(ChromaCatError::InvalidArt(format!(
+                    "Art type '{}' is not valid",
+                    art.as_str()
+                )));
+            }
+        }
+
         Ok(())
     }
 
