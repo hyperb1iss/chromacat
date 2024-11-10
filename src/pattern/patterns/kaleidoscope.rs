@@ -78,7 +78,12 @@ impl PatternParam for KaleidoscopeParams {
     fn default_value(&self) -> String {
         format!(
             "segments={},rotation_speed={},zoom={},complexity={},color_flow={},distortion={}",
-            self.segments, self.rotation_speed, self.zoom, self.complexity, self.color_flow, self.distortion
+            self.segments,
+            self.rotation_speed,
+            self.zoom,
+            self.complexity,
+            self.color_flow,
+            self.distortion
         )
     }
 
@@ -151,18 +156,18 @@ impl PatternParam for KaleidoscopeParams {
 
 impl super::Patterns {
     /// Generates a kaleidoscope pattern with mirror segments and dynamic effects.
-    /// 
+    ///
     /// The pattern combines several elements:
     /// - Symmetrical mirroring around a central point
     /// - Multiple layers of geometric patterns (spirals, rings, hexagons)
     /// - Organic distortions and flow effects
     /// - Dynamic animations and color transitions
-    /// 
+    ///
     /// # Arguments
     /// * `x_norm` - Normalized x coordinate (-0.5 to 0.5)
     /// * `y_norm` - Normalized y coordinate (-0.5 to 0.5)
     /// * `params` - Configuration parameters for the pattern
-    /// 
+    ///
     /// # Returns
     /// A value between 0.0 and 1.0 representing the pattern intensity at the given point
     #[inline(always)]
@@ -178,52 +183,40 @@ impl super::Patterns {
         // Pre-calculate time-based values for consistent animation
         let base_time = self.time * params.rotation_speed * 0.5;
         let flow_time = self.time * params.color_flow * 0.3;
-        
+
         // Cache frequently used trigonometric values
         let (time_sin, time_cos) = {
             let t = base_time * PI;
             (self.utils.fast_sin(t), self.utils.fast_cos(t))
         };
-        
+
         let (flow_sin, flow_cos) = {
             let t = flow_time * PI;
             (self.utils.fast_sin(t), self.utils.fast_cos(t))
         };
 
-        // Transform input coordinates with zoom
+        // Transform input coordinates with zoom and aspect ratio correction
         let x = x_norm * params.zoom;
-        let y = y_pos * params.zoom; // Use modified y position
-        
+        let y = y_pos * params.zoom * self.char_aspect_ratio; // Apply aspect ratio to y
+
         // Calculate polar coordinates for radial effects
-        let (mut angle, distance) = {
+        let (angle, distance) = {
             let angle = y.atan2(x);
             let dist = (x * x + y * y).sqrt();
             (angle, dist)
         };
 
-        // Improved symmetry calculation
+        // Symmetry calculation
         let segment_angle = 2.0 * PI / params.segments as f64;
-        
-        // Normalize angle to positive range [0, 2π)
-        angle = angle.rem_euclid(2.0 * PI);
-        
-        // Calculate which segment we're in
-        let segment = (angle / segment_angle).floor();
-        
-        // Calculate position within segment
-        let segment_pos = angle - segment * segment_angle;
-        
-        // Mirror within segment if in second half
-        let mirrored_angle = if segment_pos > segment_angle * 0.5 {
-            segment_angle - segment_pos
-        } else {
-            segment_pos
-        };
+        let mut mirrored_angle = angle.rem_euclid(segment_angle);
+        if mirrored_angle > segment_angle * 0.5 {
+            mirrored_angle = segment_angle - mirrored_angle;
+        }
 
         // Combine rotations for smooth animation
-        let total_angle = mirrored_angle + 
-            base_time * PI * 0.3 + // Base rotation
-            time_sin * 0.2;        // Secondary wobble
+        let total_angle = mirrored_angle
+            + base_time * PI * 0.3   // Base rotation
+            + time_sin * 0.2; // Secondary wobble
 
         // Initialize pattern accumulator
         let mut value = 0.0;
@@ -245,14 +238,13 @@ impl super::Patterns {
         // Add geometric hexagonal grid pattern
         let geo_scale = complexity * 2.0;
         let geo_time = base_time * 0.5;
-        
+
         let hex_coords = {
             let hx = x * geo_scale * 1.732 + geo_time;
             let hy = y * geo_scale * 2.0 + geo_time;
             let hz = (hx - hy * 0.577) + geo_time;
-            (self.utils.fast_sin(hx) * 
-             self.utils.fast_sin(hz) * 
-             self.utils.fast_sin(hy * 1.155)) * 0.3
+            (self.utils.fast_sin(hx) * self.utils.fast_sin(hz) * self.utils.fast_sin(hy * 1.155))
+                * 0.3
         };
         value += hex_coords;
 
@@ -270,14 +262,14 @@ impl super::Patterns {
             let noise_scale = 3.0 * complexity;
             let noise = self.utils.noise2d(
                 x * noise_scale + base_time * 0.7,
-                y * noise_scale - base_time * 0.5
+                y * noise_scale - base_time * 0.5,
             );
             value += noise * params.distortion * 0.6;
         }
 
         // Add flowing color transitions
-        let flow = flow_sin * 0.25 * (1.0 + distance * 2.0) +
-                  flow_cos * 0.15 * (1.0 + distance * 3.0);
+        let flow =
+            flow_sin * 0.25 * (1.0 + distance * 2.0) + flow_cos * 0.15 * (1.0 + distance * 3.0);
         value += flow;
 
         // Apply distance-based intensity falloff
@@ -295,9 +287,9 @@ impl super::Patterns {
         // Final value adjustments and normalization
         value = value * 0.6 + 0.5;
         value = value.powf(0.9);
-        
+
         // Clamp to valid range while maintaining smooth transitions
         value = value.clamp(0.05, 0.95);
         (value - 0.05) / 0.9
     }
-} 
+}
