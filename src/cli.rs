@@ -339,7 +339,7 @@ impl Cli {
                 ));
             }
             
-            if DemoArt::from_str(art).is_none() && art != "all" {
+            if DemoArt::try_from_str(art).is_none() {
                 return Err(ChromaCatError::InputError(format!(
                     "Invalid art type '{}'. Use --list-art to see available options.",
                     art

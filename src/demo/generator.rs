@@ -111,15 +111,15 @@ impl DemoArtGenerator {
     fn generate_waves(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let wave_chars = vec!['█', '▓', '▒', '░', ' '];
+        let wave_chars = ['█', '▓', '▒', '░', ' '];
         let char_count = wave_chars.len() - 1;
 
         // Multiple wave parameters for more organic feel
         let waves = [
             // (frequency_x, frequency_y, amplitude, speed)
-            (0.07, 0.03, 0.5, 0.8),  // Primary wave
-            (0.05, 0.04, 0.3, 1.2),  // Secondary wave
-            (0.03, 0.06, 0.2, 0.6),  // Background wave
+            (0.07, 0.03, 0.5, 0.8), // Primary wave
+            (0.05, 0.04, 0.3, 1.2), // Secondary wave
+            (0.03, 0.06, 0.2, 0.6), // Background wave
         ];
 
         // Add time variation for animation-like effect
@@ -133,7 +133,7 @@ impl DemoArtGenerator {
                 for (freq_x, freq_y, amplitude, speed) in waves.iter() {
                     let phase = x as f64 * freq_x + time_offset * speed;
                     let y_offset = y as f64 * freq_y;
-                    
+
                     // Create wave pattern with vertical displacement
                     let wave = (phase + y_offset).sin() * amplitude;
                     value += wave;
@@ -141,8 +141,8 @@ impl DemoArtGenerator {
 
                 // Normalize to [0, 1] range
                 value = (value + 1.5) / 3.0;
-                value = value.max(0.0).min(1.0);
-                
+                value = value.clamp(0.0, 1.0);
+
                 let idx = (value * char_count as f64) as usize;
                 output.push(wave_chars[idx.min(char_count)]);
             }
@@ -156,7 +156,7 @@ impl DemoArtGenerator {
     fn generate_spiral(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let chars = vec!['█', '▓', '▒', '░', ' '];
+        let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
         let center_x = self.settings.width as f64 / 2.0;
@@ -236,41 +236,41 @@ impl DemoArtGenerator {
     fn generate_ascii(&self) -> String {
         let arts = [
             r#"
-    ╔══════════════════════════════════════════════════════════════╗
-    ║                      Welcome to ChromaCat                     ║
-    ║                                                              ║
-    ║                         /\___/\                              ║
-    ║                        (  o o  )                             ║
-    ║                        (  =^=  )                             ║
-    ║                         (______)                             ║
-    ║                                                              ║
-    ║                  Create Magical Color Gradients              ║
-    ║                     For Your Terminal Text                   ║
-    ║                                                              ║
-    ╚══════════════════════════════════════════════════════════════╝"#,
+        ╔══════════════════════════════════════════════════════════════╗
+        ║                      Welcome to ChromaCat                     ║
+        ║                                                              ║
+        ║                         /\___/\                              ║
+        ║                        (  o o  )                             ║
+        ║                        (  =^=  )                             ║
+        ║                         (______)                             ║
+        ║                                                              ║
+        ║                  Create Magical Color Gradients              ║
+        ║                     For Your Terminal Text                   ║
+        ║                                                              ║
+        ╚══════════════════════════════════════════════════════════════╝"#,
             r#"
-        ┌─────────────────────────────────────────────────────────────┐
-        │   ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ███╗ █████╗  ██████╗█████╗ ████████╗  │
-        │  ██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗╚══██╔══╝ │
-        │  ██║     ███████║██████╔╝██║   ██║██╔████╔██║███████║██║     ███████║   ██║    │
-        │  ██║     ██╔══██║██╔══██╗██║   ██║██║╚██╔╝██║██╔══██║██║     ██╔══██║   ██║    │
-        │  ╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║   ██║    │
-        │   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝    │
-        └──────────────────────────────────────────────────────────────┘"#,
+            ┌─────────────────────────────────────────────────────────────┐
+            │   ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ███╗ █████╗  ██████╗█████╗ ████████╗  │
+            │  ██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗╚══██╔══╝ │
+            │  ██║     ███████║██████╔╝██║   ██║██╔████╔██║███████║██║     ███████║   ██║    │
+            │  ██║     ██╔══██║██╔══██╗██║   ██║██║╚██╔╝██║██╔══██║██║     ██╔══██║   ██║    │
+            │  ╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║   ██║    │
+            │   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝    │
+            └──────────────────────────────────────────────────────────────┘"#,
             r#"
-        ┌─────────────────────────────────────────────────────────────┐
-        │                     🎨 Terminal Artistry 🎨                   │
-        │                                                              │
-        │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
-        │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
-        │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
-        │              ░░  ▒▒  ▓▓  ████████  ▓▓  ▒▒  ░░             │
-        │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
-        │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
-        │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
-        │                                                              │
-        │                    Paint Your Terminal World                 │
-        └─────────────────────────────────────────────────────────────┘"#,
+            ┌─────────────────────────────────────────────────────────────┐
+            │                     🎨 Terminal Artistry 🎨                   │
+            │                                                              │
+            │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
+            │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
+            │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
+            │              ░░  ▒▒  ▓▓  ████████  ▓▓  ▒▒  ░░             │
+            │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
+            │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
+            │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
+            │                                                              │
+            │                    Paint Your Terminal World                 │
+            └─────────────────────────────────────────────────────────────┘"#,
         ];
 
         let mut output = String::new();
@@ -376,7 +376,7 @@ impl DemoArtGenerator {
     fn generate_mandala(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let chars = vec!['█', '▓', '▒', '░', ' '];
+        let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
         let center_x = self.settings.width as f64 / 2.0;
@@ -451,7 +451,7 @@ impl DemoArtGenerator {
     fn generate_plasma(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let chars = vec!['█', '▓', '▒', '░', ' '];
+        let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
         let freq_x = 0.1;
@@ -482,7 +482,7 @@ impl DemoArtGenerator {
     fn generate_vortex(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let chars = vec!['█', '▓', '▒', '░', ' '];
+        let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
         let center_x = self.settings.width as f64 / 2.0;
@@ -515,15 +515,15 @@ impl DemoArtGenerator {
     fn generate_cells(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let chars = vec!['█', '▓', '▒', '░', ' '];
+        let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
         // Initialize random cells
         let mut grid =
             vec![vec![false; self.settings.width as usize]; self.settings.height as usize];
-        for y in 0..self.settings.height {
-            for x in 0..self.settings.width {
-                grid[y as usize][x as usize] = self.rng.gen_bool(0.3);
+        for row in grid.iter_mut() {
+            for cell in row.iter_mut() {
+                *cell = self.rng.gen_bool(0.3);
             }
         }
 
@@ -551,12 +551,10 @@ impl DemoArtGenerator {
                         }
                     }
                     // Conway's Game of Life rules
-                    new_grid[y as usize][x as usize] =
-                        match (grid[y as usize][x as usize], neighbors) {
-                            (true, 2) | (true, 3) => true,
-                            (false, 3) => true,
-                            _ => false,
-                        };
+                    new_grid[y as usize][x as usize] = matches!(
+                        (grid[y as usize][x as usize], neighbors),
+                        (true, 2) | (true, 3) | (false, 3)
+                    );
                 }
             }
             grid = new_grid;
@@ -571,10 +569,8 @@ impl DemoArtGenerator {
                 // Calculate smoothed value based on neighborhood
                 for dy in -radius..=radius {
                     for dx in -radius..=radius {
-                        let ny = ((y as i32 + dy) as i32).clamp(0, self.settings.height as i32 - 1)
-                            as usize;
-                        let nx = ((x as i32 + dx) as i32).clamp(0, self.settings.width as i32 - 1)
-                            as usize;
+                        let ny = (y as i32 + dy).clamp(0, self.settings.height as i32 - 1) as usize;
+                        let nx = (x as i32 + dx).clamp(0, self.settings.width as i32 - 1) as usize;
                         if grid[ny][nx] {
                             let dist = (dx * dx + dy * dy) as f64;
                             value += (-dist / 4.0).exp();
@@ -595,7 +591,7 @@ impl DemoArtGenerator {
     fn generate_fluid(&mut self) -> String {
         let mut output =
             String::with_capacity((self.settings.width * self.settings.height) as usize);
-        let chars = vec!['█', '▓', '▒', '░', ' '];
+        let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
         let time = self.rng.gen_range(0.0..=2.0 * PI);
@@ -632,7 +628,7 @@ impl DemoArtGenerator {
 
                 // Normalize and add bias for better distribution
                 value = (value + 2.0) / 4.0;
-                value = value.max(0.0).min(1.0);
+                value = value.clamp(0.0, 1.0);
 
                 let idx = (value * char_count as f64) as usize;
                 output.push(chars[idx.min(char_count)]);
@@ -827,10 +823,10 @@ impl DemoArtGenerator {
         }
 
         // Fill the entire canvas with walls first
-        for y in 0..self.settings.height as usize {
-            for x in 0..self.settings.width as usize {
-                if canvas[y][x] == ' ' {
-                    canvas[y][x] = '█';
+        for row in &mut canvas {
+            for ch in row.iter_mut() {
+                if *ch == ' ' {
+                    *ch = '█';
                 }
             }
         }
@@ -864,9 +860,9 @@ impl DemoArtGenerator {
             canvas[0][x] = style[0]; // top border
             canvas[self.settings.height as usize - 1][x] = style[0]; // bottom border
         }
-        for y in 0..self.settings.height as usize {
-            canvas[y][0] = style[1]; // left border
-            canvas[y][self.settings.width as usize - 1] = style[1]; // right border
+        for row in canvas.iter_mut() {
+            row[0] = style[1]; // left border
+            row[self.settings.width as usize - 1] = style[1]; // right border
         }
 
         // Add proper corners

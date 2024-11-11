@@ -27,7 +27,11 @@ impl InputReader {
     }
 
     /// Creates a new InputReader in demo mode
-    pub fn from_demo(is_animated: bool, art_type: Option<&str>, playlist_art: Option<&DemoArt>) -> Result<Self> {
+    pub fn from_demo(
+        is_animated: bool,
+        art_type: Option<&str>,
+        playlist_art: Option<&DemoArt>,
+    ) -> Result<Self> {
         // Get terminal size
         let (width, height) = size()?;
         let settings = ArtSettings::new(width, height.saturating_sub(2)) // Subtract 2 for status bar
@@ -41,7 +45,7 @@ impl InputReader {
             *playlist_art
         } else {
             match art_type {
-                Some(art_str) => DemoArt::from_str(art_str).unwrap_or(DemoArt::All),
+                Some(art_str) => DemoArt::try_from_str(art_str).unwrap_or(DemoArt::All),
                 None => DemoArt::All,
             }
         };

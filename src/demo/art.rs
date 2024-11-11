@@ -57,35 +57,6 @@ impl DemoArt {
         ]
     }
 
-    /// Parse art type from string.
-    ///
-    /// # Arguments
-    /// * `s` - String representation of an art type
-    ///
-    /// # Returns
-    /// * `Some(DemoArt)` if the string matches a known art type
-    /// * `None` if the string doesn't match any art type
-    pub fn from_str(s: &str) -> Option<Self> {
-        use DemoArt::*;
-        match s.to_lowercase().as_str() {
-            "logo" => Some(Logo),
-            "matrix" => Some(Matrix),
-            "waves" => Some(Waves),
-            "spiral" => Some(Spiral),
-            "code" => Some(Code),
-            "ascii" => Some(Ascii),
-            "boxes" => Some(Boxes),
-            "plasma" => Some(Plasma),
-            "vortex" => Some(Vortex),
-            "cells" => Some(Cells),
-            "fluid" => Some(Fluid),
-            "maze" => Some(Maze),
-            "mandala" => Some(Mandala),
-            "all" => Some(All),
-            _ => None,
-        }
-    }
-
     /// Get string representation of the art type.
     pub fn as_str(&self) -> &'static str {
         use DemoArt::*;
@@ -148,6 +119,27 @@ impl DemoArt {
             All => "All available demo patterns in sequence",
         }
     }
+
+    // Add a try_from_str method to maintain backward compatibility
+    pub fn try_from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "logo" => Some(Self::Logo),
+            "matrix" => Some(Self::Matrix),
+            "waves" => Some(Self::Waves),
+            "spiral" => Some(Self::Spiral),
+            "code" => Some(Self::Code),
+            "ascii" => Some(Self::Ascii),
+            "boxes" => Some(Self::Boxes),
+            "plasma" => Some(Self::Plasma),
+            "vortex" => Some(Self::Vortex),
+            "cells" => Some(Self::Cells),
+            "fluid" => Some(Self::Fluid),
+            "maze" => Some(Self::Maze),
+            "mandala" => Some(Self::Mandala),
+            "all" => Some(Self::All),
+            _ => None,
+        }
+    }
 }
 
 /// Enable serialization for playlist integration
@@ -167,7 +159,7 @@ impl<'de> Deserialize<'de> for DemoArt {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        DemoArt::from_str(&s)
+        DemoArt::try_from_str(&s)
             .ok_or_else(|| serde::de::Error::custom(format!("Invalid art type: {}", s)))
     }
 }
@@ -177,7 +169,23 @@ impl FromStr for DemoArt {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str(s).ok_or_else(|| format!("Invalid art type: {}", s))
+        match s.to_lowercase().as_str() {
+            "logo" => Ok(Self::Logo),
+            "matrix" => Ok(Self::Matrix),
+            "waves" => Ok(Self::Waves),
+            "spiral" => Ok(Self::Spiral),
+            "code" => Ok(Self::Code),
+            "ascii" => Ok(Self::Ascii),
+            "boxes" => Ok(Self::Boxes),
+            "plasma" => Ok(Self::Plasma),
+            "vortex" => Ok(Self::Vortex),
+            "cells" => Ok(Self::Cells),
+            "fluid" => Ok(Self::Fluid),
+            "maze" => Ok(Self::Maze),
+            "mandala" => Ok(Self::Mandala),
+            "all" => Ok(Self::All),
+            _ => Err(format!("Invalid art type: {}", s)),
+        }
     }
 }
 
