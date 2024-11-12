@@ -40,6 +40,8 @@ pub enum DemoArt {
     Maze,
     /// Mandala pattern
     Mandala,
+    /// Cityscape with sky and moon
+    Cityscape,
     /// All demo patterns in sequence
     All,
 }
@@ -53,7 +55,7 @@ impl DemoArt {
         use DemoArt::*;
         &[
             Logo, Matrix, Waves, Spiral, Code, Ascii, Boxes, Plasma, Vortex, Cells, Fluid, Maze,
-            Mandala,
+            Mandala, Cityscape,
         ]
     }
 
@@ -74,6 +76,7 @@ impl DemoArt {
             Fluid => "fluid",
             Maze => "maze",
             Mandala => "mandala",
+            Cityscape => "cityscape",
             All => "all",
         }
     }
@@ -95,6 +98,7 @@ impl DemoArt {
             Fluid => "Fluid Motion",
             Maze => "Intricate Maze",
             Mandala => "Mandala Pattern",
+            Cityscape => "Night Cityscape",
             All => "All Patterns",
         }
     }
@@ -116,6 +120,7 @@ impl DemoArt {
             Fluid => "Fluid simulation with dynamic motion",
             Maze => "Intricate maze pattern with box-drawing characters",
             Mandala => "Symmetrical mandala pattern",
+            Cityscape => "Multi-layered cityscape with night sky and moon",
             All => "All available demo patterns in sequence",
         }
     }
@@ -136,6 +141,7 @@ impl DemoArt {
             "fluid" => Some(Self::Fluid),
             "maze" => Some(Self::Maze),
             "mandala" => Some(Self::Mandala),
+            "cityscape" => Some(Self::Cityscape),
             "all" => Some(Self::All),
             _ => None,
         }
@@ -183,6 +189,7 @@ impl FromStr for DemoArt {
             "fluid" => Ok(Self::Fluid),
             "maze" => Ok(Self::Maze),
             "mandala" => Ok(Self::Mandala),
+            "cityscape" => Ok(Self::Cityscape),
             "all" => Ok(Self::All),
             _ => Err(format!("Invalid art type: {}", s)),
         }

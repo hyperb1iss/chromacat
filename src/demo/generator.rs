@@ -82,6 +82,7 @@ impl DemoArtGenerator {
             DemoArt::Maze => self.generate_maze(),
             DemoArt::Mandala => self.generate_mandala(),
             DemoArt::Logo => self.generate_logo(),
+            DemoArt::Cityscape => self.generate_cityscape(),
             DemoArt::All => unreachable!(),
         }
     }
@@ -199,7 +200,7 @@ impl DemoArtGenerator {
             "│  // Create beautiful gradients     │",
             "│  // for your terminal output!      │",
             "│                                    │",
-            "└────────────────────────────┘",
+            "└──────────────────┘",
         ];
 
         // Center the code box
@@ -236,7 +237,7 @@ impl DemoArtGenerator {
     fn generate_ascii(&self) -> String {
         let arts = [
             r#"
-        ╔══════════════════════════════════════════════════════════════╗
+        ╔════════════════════════════════════════════════════════╗
         ║                      Welcome to ChromaCat                     ║
         ║                                                              ║
         ║                         /\___/\                              ║
@@ -247,22 +248,22 @@ impl DemoArtGenerator {
         ║                  Create Magical Color Gradients              ║
         ║                     For Your Terminal Text                   ║
         ║                                                              ║
-        ╚══════════════════════════════════════════════════════════════╝"#,
+        ╚════════════════════════════════════════════════════════╝"#,
             r#"
             ┌─────────────────────────────────────────────────────────────┐
-            │   ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ███╗ █████╗  ██████╗█████╗ ████████╗  │
-            │  ██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗╚══██╔══╝ │
+            │   ██████╗██╗  ██╗██████╗  █████╗ ███╗   ███╗ █████╗  ██████╗█████╗ ████████╗  │
+            │  █════╝██║  ██║██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗╚══██╔══╝ │
             │  ██║     ███████║██████╔╝██║   ██║██╔████╔██║███████║██║     ███████║   ██║    │
-            │  ██║     ██╔══██║██╔══██╗██║   ██║██║╚██╔╝██║██╔══██║██║     ██╔══██║   ██║    │
-            │  ╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║   ██║    │
+            │  ██║     ██╔══██║██╔═██╗██║   ██║██║╚██╔╝██║██╔══██║██║     ██╔══██║   ██║    │
+            │  ╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚╝ ██║██║  ██║╚██████╗██║  ██║   ██║    │
             │   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝    │
             └──────────────────────────────────────────────────────────────┘"#,
             r#"
-            ┌─────────────────────────────────────────────────────────────┐
+            ┌────────────────────────────────────────────────────────────┐
             │                     🎨 Terminal Artistry 🎨                   │
             │                                                              │
             │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
-            │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
+            │              ░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
             │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
             │              ░░  ▒▒  ▓▓  ████████  ▓▓  ▒▒  ░░             │
             │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
@@ -870,6 +871,311 @@ impl DemoArtGenerator {
         canvas[0][self.settings.width as usize - 1] = style[3]; // top-right ┐
         canvas[self.settings.height as usize - 1][0] = style[4]; // bottom-left └
         canvas[self.settings.height as usize - 1][self.settings.width as usize - 1] = style[5]; // bottom-right ┘
+
+        // Convert canvas to string
+        for row in canvas {
+            for ch in row {
+                output.push(ch);
+            }
+            output.push('\n');
+        }
+
+        output
+    }
+
+    /// Generate a multi-layered cityscape with night sky
+    fn generate_cityscape(&mut self) -> String {
+        let mut output =
+            String::with_capacity((self.settings.width * self.settings.height) as usize);
+        let mut canvas =
+            vec![vec![' '; self.settings.width as usize]; self.settings.height as usize];
+
+        // Generate night sky with gradient only in a smaller portion
+        let sky_height = (self.settings.height as f64 * 0.85) as usize;
+        let gradient_start = sky_height / 3; // Start gradient higher (changed from sky_height / 2)
+
+        // Fill gradient in lower portion of sky (more subtle)
+        for y in gradient_start..sky_height {
+            let gradient_pos = (y - gradient_start) as f64 / (sky_height - gradient_start) as f64;
+            let sky_char = match gradient_pos {
+                p if p < 0.15 => ' ', // Keep more clear space
+                p if p < 0.25 => '⠂', // Single dot braille for smoother transition
+                p if p < 0.5 => '░',  // Light gradient
+                p if p < 0.75 => '▒', // Medium gradient
+                _ => '▓',             // Darker at bottom
+            };
+
+            for x in 0..self.settings.width as usize {
+                canvas[y][x] = sky_char;
+            }
+        }
+
+        // Calculate safe moon position
+        // Maximum building height (including spires) is about 80% of total height
+        let max_building_reach = (self.settings.height as f64 * 0.8) as usize;
+        let safe_sky_height = max_building_reach / 2; // Place moon in upper half of safe area
+
+        // Moon coordinates - keep x position between 65-85% of width to avoid edge cases
+        let moon_x = (self.settings.width as f64 * self.rng.gen_range(0.65..0.85)) as usize;
+        let moon_y = (self.settings.height as f64 * 0.15).max(3.0) as usize; // Keep moon in top 15%
+
+        // Adjust moon size relative to safe area
+        let moon_radius_y = (safe_sky_height as f64 * 0.25).max(3.0) as i32;
+        let moon_radius_x = (moon_radius_y as f64 * 1.2) as i32; // Make moon wider
+        let glow_radius_y = (moon_radius_y as f64 * 1.5) as i32;
+        let glow_radius_x = (moon_radius_x as f64 * 1.5) as i32;
+
+        // Track moon pixels for star placement
+        let mut moon_pixels = vec![];
+
+        // Draw moon glow first
+        for dy in -glow_radius_y..=glow_radius_y {
+            for dx in -glow_radius_x..=glow_radius_x {
+                let x = moon_x.saturating_add_signed(dx as isize);
+                let y = moon_y.saturating_add_signed(dy as isize);
+
+                if x < canvas[0].len() && y < canvas.len() {
+                    // Calculate normalized distance for oval shape
+                    let distance = ((dx * dx) as f64 / (moon_radius_x * moon_radius_x) as f64
+                        + (dy * dy) as f64 / (moon_radius_y * moon_radius_y) as f64)
+                        .sqrt();
+
+                    if distance <= 1.5 {
+                        // Adjusted for oval glow
+                        // Create a soft glow effect
+                        let char = if distance > 1.3 {
+                            '░'
+                        } else if distance > 1.1 {
+                            '▒'
+                        } else if distance > 1.0 {
+                            '▓'
+                        } else {
+                            // Core moon shape
+                            let moon_edge = distance >= 0.9;
+                            if moon_edge {
+                                '█'
+                            } else {
+                                // Create subtle texture inside the moon
+                                if self.rng.gen_bool(0.1) {
+                                    '▓'
+                                } else {
+                                    '█'
+                                }
+                            }
+                        };
+                        canvas[y][x] = char;
+                        if distance <= 1.2 {
+                            moon_pixels.push((x, y)); // Track moon area including close glow
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add a few subtle highlights
+        for _ in 0..5 {
+            let angle = self.rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+            let dist = self.rng.gen_range(0.0..0.7); // Normalized distance
+            let dx = (dist * angle.cos() * moon_radius_x as f64) as i32;
+            let dy = (dist * angle.sin() * moon_radius_y as f64) as i32;
+
+            let x = moon_x.saturating_add_signed(dx as isize);
+            let y = moon_y.saturating_add_signed(dy as isize);
+
+            if x < canvas[0].len() && y < canvas.len() {
+                canvas[y][x] = '░';
+            }
+        }
+
+        // Add stars with more variety and careful placement
+        let star_chars = ['✦', '✧', '*', '⋆', '·'];
+        for _ in 0..(self.settings.width * self.settings.height) / 60 {
+            let x = self.rng.gen_range(0..self.settings.width as usize);
+            let y = self.rng.gen_range(0..gradient_start);
+
+            if x < canvas[0].len() && y < canvas.len() {
+                if !moon_pixels.contains(&(x, y)) && canvas[y][x] == ' ' {
+                    let star = match self.rng.gen_range(0..100) {
+                        0..=5 => star_chars[0],   // 5% ✦
+                        6..=15 => star_chars[1],  // 10% ✧
+                        16..=30 => star_chars[2], // 15% *
+                        31..=60 => star_chars[3], // 30% ⋆
+                        _ => star_chars[4],       // 40% ·
+                    };
+                    canvas[y][x] = star;
+                }
+            }
+        }
+
+        // Generate buildings
+        let mut x = 0;
+
+        while x < self.settings.width as usize {
+            // Building parameters
+            let width = self
+                .rng
+                .gen_range(6..12)
+                .min(self.settings.width as usize - x);
+            let height = (self.settings.height as f64 * self.rng.gen_range(0.3..0.8)) as usize;
+
+            // Clear the space for the building including left and right borders
+            for y in (self.settings.height as usize - height)..self.settings.height as usize {
+                // Clear left border
+                if x > 0 {
+                    canvas[y][x - 1] = ' ';
+                }
+                // Clear main building area
+                for bx in x..(x + width) {
+                    if y >= canvas.len() || bx >= canvas[0].len() {
+                        continue;
+                    }
+                    canvas[y][bx] = ' ';
+                }
+                // Clear right border
+                if x + width < canvas[0].len() {
+                    canvas[y][x + width] = ' ';
+                }
+            }
+
+            // Draw building outline
+            for y in (self.settings.height as usize - height)..self.settings.height as usize {
+                for bx in x..(x + width) {
+                    if y >= canvas.len() || bx >= canvas[0].len() {
+                        continue;
+                    }
+
+                    // Add bottom half block for the top row of each building
+                    if y == self.settings.height as usize - height {
+                        canvas[y][bx] = '▄';
+                    } else {
+                        canvas[y][bx] = '█';
+                    }
+                }
+            }
+
+            // Add windows in a grid pattern
+            let window_rows = (height - 2) / 3;
+            let window_cols = (width - 2) / 3;
+
+            for wy in 0..window_rows {
+                for wx in 0..window_cols {
+                    let window_y = self.settings.height as usize - height + 2 + wy * 3;
+                    let window_x = x + 2 + wx * 3;
+
+                    if window_y < canvas.len() && window_x < canvas[0].len() {
+                        // Different window styles
+                        match self.rng.gen_range(0..100) {
+                            0..=60 => {
+                                // Lit window with variations
+                                let window_style = match self.rng.gen_range(0..4) {
+                                    0 => [['▀', '▀'], ['░', '░']], // Half-shuttered top
+                                    1 => [['░', '░'], ['▄', '▄']], // Half-shuttered bottom
+                                    2 => [['░', '▓'], ['▓', '░']], // Diagonal light pattern
+                                    _ => [['░', '░'], ['░', '░']], // Fully lit
+                                };
+
+                                // Draw 2x2 window
+                                for dy in 0..2 {
+                                    for dx in 0..2 {
+                                        if window_y + dy < canvas.len()
+                                            && window_x + dx < canvas[0].len()
+                                        {
+                                            canvas[window_y + dy][window_x + dx] =
+                                                window_style[dy][dx];
+                                        }
+                                    }
+                                }
+                            }
+                            61..=85 => {
+                                // Dark window with frame
+                                let frame = '▓';
+                                canvas[window_y][window_x] = frame;
+                                canvas[window_y][window_x + 1] = frame;
+                                canvas[window_y + 1][window_x] = frame;
+                                canvas[window_y + 1][window_x + 1] = frame;
+                            }
+                            _ => {
+                                // Completely dark window
+                                for dy in 0..2 {
+                                    for dx in 0..2 {
+                                        if window_y + dy < canvas.len()
+                                            && window_x + dx < canvas[0].len()
+                                        {
+                                            canvas[window_y + dy][window_x + dx] = '█';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Add antenna or spire to tall buildings
+            if height > (self.settings.height as f64 * 0.5) as usize {
+                let spire_chance = if height > (self.settings.height as f64 * 0.7) as usize {
+                    0.8 // 80% chance for very tall buildings
+                } else {
+                    0.5 // 50% chance for moderately tall buildings
+                };
+
+                if self.rng.gen_bool(spire_chance) {
+                    let spire_x = x + width / 2;
+                    if spire_x < canvas[0].len() {
+                        let spire_height = if width > 8 {
+                            self.rng.gen_range(3..6)
+                        } else {
+                            self.rng.gen_range(2..4)
+                        };
+
+                        // Start at the building top (including the half block)
+                        let building_top = self.settings.height as usize - height;
+
+                        // Replace the half block with a full block where the spire connects
+                        canvas[building_top][spire_x] = '█';
+                        if spire_x > 0 {
+                            canvas[building_top][spire_x - 1] = '▄'; // Keep half block for sides
+                        }
+                        if spire_x + 1 < canvas[0].len() {
+                            canvas[building_top][spire_x + 1] = '▄'; // Keep half block for sides
+                        }
+
+                        // Clear and draw the rest of the spire
+                        for sy in 1..=spire_height {
+                            let y = building_top - sy;
+                            if y < canvas.len() {
+                                // Clear space
+                                canvas[y][spire_x] = ' ';
+                                if spire_x > 0 {
+                                    canvas[y][spire_x - 1] = ' ';
+                                }
+                                if spire_x + 1 < canvas[0].len() {
+                                    canvas[y][spire_x + 1] = ' ';
+                                }
+
+                                // Draw spire
+                                if sy == spire_height {
+                                    // Top of spire
+                                    canvas[y][spire_x] = '╥';
+                                } else if sy == 1 {
+                                    // First segment above building
+                                    canvas[y][spire_x] = '║';
+                                    if spire_x > 0 && spire_x + 1 < canvas[0].len() {
+                                        canvas[y][spire_x - 1] = '═';
+                                        canvas[y][spire_x + 1] = '═';
+                                    }
+                                } else {
+                                    // Spire shaft
+                                    canvas[y][spire_x] = '║';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            x += width + 1;
+        }
 
         // Convert canvas to string
         for row in canvas {
