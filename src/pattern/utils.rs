@@ -230,6 +230,32 @@ impl PatternUtils {
             _ => -dx - dy, // (-1, -1)
         }
     }
+
+    /// Generates fractal (turbulence) noise by combining multiple octaves of noise
+    ///
+    /// # Arguments
+    /// * `x` - x-coordinate
+    /// * `y` - y-coordinate
+    /// * `octaves` - number of noise layers to combine
+    ///
+    /// # Returns
+    /// Fractal noise value at the given coordinates
+    pub fn fractal_noise(&self, x: f64, y: f64, octaves: u32) -> f64 {
+        let mut total = 0.0;
+        let mut frequency = 1.0;
+        let mut amplitude = 1.0;
+        let mut max_value = 0.0; // Used for normalizing result
+
+        for _ in 0..octaves {
+            total += self.noise2d(x * frequency, y * frequency) * amplitude;
+
+            max_value += amplitude;
+            amplitude *= 0.5;
+            frequency *= 2.0;
+        }
+
+        total / max_value
+    }
 }
 
 impl Clone for PatternUtils {

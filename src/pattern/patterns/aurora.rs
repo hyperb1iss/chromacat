@@ -154,23 +154,14 @@ impl super::Patterns {
     /// of animated waves with dynamic distortion and shimmer effects.
     #[inline(always)]
     pub fn aurora(&self, x_norm: f64, y_norm: f64, params: AuroraParams) -> f64 {
-        // Normalize all time values to keep them bounded
+        // Time variables without wrapping
         let base_time = self.time * params.speed * 0.35;
-        let time = base_time.rem_euclid(2.0 * PI);
-        let time_slow = (base_time * 0.23).rem_euclid(PI);
-        let time_very_slow = (base_time * 0.11).rem_euclid(PI / 2.0);
+        let time = base_time;
+        let time_slow = base_time * 0.23;
+        let time_very_slow = base_time * 0.11;
 
-        // Adjust vertical position based on animation state
-        let y_pos = if self.time == 0.0 {
-            (y_norm + 0.5).rem_euclid(0.3) * 3.0
-        } else {
-            y_norm + 0.5
-        };
-
-        // Skip calculation for positions outside the aurora's vertical range
-        if y_pos > 0.8 + params.height || y_pos < 0.1 {
-            return 0.0;
-        }
+        // Map y_norm to use full screen height
+        let y_pos = y_norm + 0.5; // Map y_norm from [-0.5, 0.5] to [0.0, 1.0]
 
         let x_pos = x_norm + 0.5;
 
@@ -205,69 +196,80 @@ impl super::Patterns {
 
             // Calculate wave motion for this layer with more distinct phase offsets
             let wave = {
-                let x = (base_wave.0 + layer_offset).rem_euclid(10.0)
+                let x = base_wave.0
+                    + layer_offset
                     + self.utils.fast_sin(time_slow + layer_phase) * (0.4 + layer_offset * 0.2);
-                let y = (base_wave.1 + layer_offset).rem_euclid(10.0)
+                let y = base_wave.1
+                    + layer_offset
                     + self.utils.fast_cos(time_slow + layer_phase) * (0.2 + layer_offset * 0.3);
                 (x, y)
             };
 
+            // Introduce turbulence for folding effect
+            let turbulence = self.utils.fractal_noise(wave.0, wave.1, 4) * params.waviness;
+
             // Generate flow distortion using layered noise
             let flow = {
-                // Wrap noise coordinates to prevent accumulation
-                let noise_x =
-                    (wave.0 * waviness_scale * (0.8 + layer_offset * 0.3)).rem_euclid(100.0);
-                let noise_y =
-                    (wave.1 * waviness_scale * (0.8 + layer_offset * 0.2)).rem_euclid(100.0);
+                // Noise coordinates without wrapping
+                let noise_x = wave.0 * waviness_scale * (0.8 + layer_offset * 0.3);
+                let noise_y = wave.1 * waviness_scale * (0.8 + layer_offset * 0.2);
                 let primary = self.utils.noise2d(noise_x, noise_y);
 
-                // Wrap detail noise coordinates too
-                let detail_x = (wave.0 * waviness_scale * 1.5).rem_euclid(100.0)
-                    + self.utils.fast_sin(time_very_slow) * 0.1;
-                let detail_y = (wave.1 * waviness_scale * 1.5).rem_euclid(100.0)
-                    + self.utils.fast_cos(time_very_slow) * 0.1;
+                // Detail noise coordinates
+                let detail_x =
+                    wave.0 * waviness_scale * 1.5 + self.utils.fast_sin(time_very_slow) * 0.1;
+                let detail_y =
+                    wave.1 * waviness_scale * 1.5 + self.utils.fast_cos(time_very_slow) * 0.1;
                 let detail = self.utils.noise2d(detail_x, detail_y);
 
-                (primary * 2.0 - 1.0) + detail * 0.3 * (1.0 + base_sin_time * 0.2)
+                (primary * 2.0 - 1.0)
+                    + detail * 0.3 * (1.0 + base_sin_time * 0.2)
+                    + turbulence * 0.1
             };
 
-            // Calculate vertical band shape
+            // Calculate vertical band shape with folding effect
             let band = {
-                let center = 0.3 + layer_offset * params.spread + base_sin_time * 0.03;
-                let y_wave = y_pos + flow * 0.25 * params.waviness;
-                let pos = (y_wave - center) / params.height;
-                (-pos * pos * 3.0).exp()
+                // Adjust center to distribute across screen height
+                let center = 0.5 - layer_offset * params.spread - base_sin_time * 0.03;
+                let fold = self.utils.noise2d(wave.0 * 0.5, wave.1 * 0.5 + time) * 0.2;
+                let y_wave = y_pos + flow * 0.25 * params.waviness + fold;
+                let pos = (y_wave - center) / (params.height * 2.0);
+                (-pos * pos * 2.0).exp()
             };
 
-            // Generate horizontal wave pattern
+            // Generate horizontal wave pattern with turbulence
             let wave_value = {
-                let x_wave = x_pos + flow * 0.1 * (1.0 - layer_offset * 0.3);
-                let phase = (x_wave * 3.0 + time + layer_phase).rem_euclid(2.0 * PI);
+                let x_wave = x_pos + flow * 0.1 * (1.0 - layer_offset * 0.3) + turbulence * 0.05;
+                let phase = x_wave * 3.0 + time + layer_phase + turbulence * 0.2;
                 let base = self.utils.fast_sin(phase) * 0.5 + 0.5;
-                base * (1.0 + self.utils.fast_sin(time_slow * 1.2 + layer_phase) * 0.2)
+                base * (1.0
+                    + self
+                        .utils
+                        .fast_sin(time_slow * 1.2 + layer_phase + turbulence)
+                        * 0.2)
             };
 
             // Add curtain-like variation
-            let curtain = self.utils.fast_sin(
-                (x_pos * 2.5 + y_pos * 0.3 + flow * 0.1 + time_slow + layer_phase)
-                    .rem_euclid(2.0 * PI),
-            ) * 0.4
+            let curtain = self
+                .utils
+                .fast_sin(x_pos * 2.5 + y_pos * 0.3 + flow * 0.1 + time_slow + layer_phase)
+                * 0.4
                 + 0.6;
 
-            let intensity = intensity_scale * 
-                (1.0 - layer_offset * 0.1) *  // Reduce layer falloff (was 0.2)
-                (1.0 + curtain * 0.5);
+            let intensity = intensity_scale * (1.0 - layer_offset * 0.1) * (1.0 + curtain * 0.5);
 
             // Add shimmer and pulsing effects
             let modulation = {
-                let pulse = self.utils.fast_sin(
-                    time_slow * (1.5 + layer_offset * 0.5) + layer_phase  // Add layer-dependent speed variation
-                ) * (0.25 + layer_offset * 0.1) + 0.85;  // Vary pulse depth by layer
+                let pulse = self
+                    .utils
+                    .fast_sin(time_slow * (1.5 + layer_offset * 0.5) + layer_phase)
+                    * (0.25 + layer_offset * 0.1)
+                    + 0.85;
                 let shimmer = {
-                    let shimmer_x = (x_pos * (10.0 + layer_offset * 2.0)).rem_euclid(100.0)  // Vary frequency by layer
-                        + self.utils.fast_sin(time * 0.3) * 0.2;
-                    let shimmer_y = (y_pos * (10.0 + layer_offset * 2.0)).rem_euclid(100.0)
-                        + self.utils.fast_cos(time * 0.3) * 0.2;
+                    let shimmer_x =
+                        x_pos * (10.0 + layer_offset * 2.0) + self.utils.fast_sin(time * 0.3) * 0.2;
+                    let shimmer_y =
+                        y_pos * (10.0 + layer_offset * 2.0) + self.utils.fast_cos(time * 0.3) * 0.2;
                     self.utils.noise2d(shimmer_x, shimmer_y) * 0.15 + 0.85
                 };
                 pulse * shimmer
