@@ -246,7 +246,7 @@ impl RenderBuffer {
                     b: (gradient_color.b * 255.0) as u8,
                 };
 
-                // Only update if color actually changed
+                // Only mark as dirty if color actually changed
                 if line[x].color != color {
                     line[x].color = color;
                     line[x].dirty = true;
@@ -326,53 +326,60 @@ impl RenderBuffer {
             // Animation mode: Use cursor movement and selective updates
             queue!(stdout, Hide)?;
 
-            // Pre-build all updates to minimize time between first and last line render
-            let mut updates = Vec::with_capacity(end - start);
+            // Track if any updates were made
+            let mut any_updates = false;
             let mut needs_color_reset = false;
+            let mut last_color = None;
 
-            // First pass: collect all updates
+            // Process each line in the visible region
             for (display_y, line_idx) in (start..end.min(self.line_info.len())).enumerate() {
                 let (line_start, line_len) = self.line_info[line_idx];
 
-                // Ensure buffer has enough rows
-                while line_start >= self.back.len() {
-                    self.back.push(vec![BufferCell::default(); width]);
-                    self.front.push(vec![BufferCell::default(); width]);
+                // Skip lines that haven't changed
+                if !self.back[line_start]
+                    .iter()
+                    .take(width)
+                    .any(|cell| cell.dirty)
+                {
+                    continue;
                 }
+
+                any_updates = true;
+
+                // Move cursor only when we need to update
+                queue!(stdout, MoveTo(0, display_y as u16))?;
 
                 // Build line content
                 let mut line_buffer = String::with_capacity(width * 4);
-                let mut last_color = None;
 
                 // Always process the full width for consistent display
                 for x in 0..width {
-                    let back_cell = &self.back[line_start][x];
+                    let back_cell = &mut self.back[line_start][x];
 
+                    // Only update color if it changed
                     if colors_enabled && last_color != Some(back_cell.color) {
                         if let Color::Rgb { r, g, b } = back_cell.color {
-                            write!(line_buffer, "\x1b[38;2;{};{};{}m", r, g, b)
-                                .map_err(|e| RendererError::Other(e.to_string()))?;
+                            write!(line_buffer, "\x1b[38;2;{};{};{}m", r, g, b)?;
                             needs_color_reset = true;
                         }
                         last_color = Some(back_cell.color);
                     }
 
                     line_buffer.push(if x < line_len { back_cell.ch } else { ' ' });
+
+                    // Clear dirty flag after processing
+                    back_cell.dirty = false;
                 }
 
-                updates.push((display_y, line_buffer));
+                queue!(stdout, Print(&line_buffer))?;
             }
 
-            // Second pass: perform all rendering atomically
-            for (display_y, line_buffer) in updates {
-                queue!(stdout, MoveTo(0, display_y as u16), Print(&line_buffer))?;
-            }
-
-            if colors_enabled && needs_color_reset {
+            // Only reset colors if we made updates
+            if colors_enabled && needs_color_reset && any_updates {
                 queue!(stdout, Print("\x1b[0m"))?;
             }
+
             queue!(stdout, Show)?;
-            stdout.flush()?;
         } else {
             // Static mode: Simple line-by-line output
             let mut needs_color_reset = false;
@@ -403,6 +410,15 @@ impl RenderBuffer {
 
             if colors_enabled && needs_color_reset {
                 write!(stdout, "\x1b[0m")?;
+            }
+        }
+
+        // Swap buffers after rendering
+        for y in start..end {
+            if y < self.back.len() {
+                for x in 0..width {
+                    self.front[y][x] = self.back[y][x].clone();
+                }
             }
         }
 
