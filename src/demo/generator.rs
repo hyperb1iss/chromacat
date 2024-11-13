@@ -200,7 +200,7 @@ impl DemoArtGenerator {
             "│  // Create beautiful gradients     │",
             "│  // for your terminal output!      │",
             "│                                    │",
-            "└──────────────────┘",
+            "└─────┬───────────┘",
         ];
 
         // Center the code box
@@ -268,7 +268,7 @@ impl DemoArtGenerator {
             │              ░░  ▒▒  ▓▓  ████████  ▓▓  ▒▒  ░░             │
             │              ░░  ▒▒  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ▒▒  ░░             │
             │              ░░  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░             │
-            │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
+            │              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
             │                                                              │
             │                    Paint Your Terminal World                 │
             └─────────────────────────────────────────────────────────────┘"#,
@@ -895,7 +895,12 @@ impl DemoArtGenerator {
         let gradient_start = sky_height / 3; // Start gradient higher (changed from sky_height / 2)
 
         // Fill gradient in lower portion of sky (more subtle)
-        for y in gradient_start..sky_height {
+        for (y, row) in canvas
+            .iter_mut()
+            .enumerate()
+            .take(sky_height)
+            .skip(gradient_start)
+        {
             let gradient_pos = (y - gradient_start) as f64 / (sky_height - gradient_start) as f64;
             let sky_char = match gradient_pos {
                 p if p < 0.15 => ' ', // Keep more clear space
@@ -905,8 +910,8 @@ impl DemoArtGenerator {
                 _ => '▓',             // Darker at bottom
             };
 
-            for x in 0..self.settings.width as usize {
-                canvas[y][x] = sky_char;
+            for cell in row.iter_mut().take(self.settings.width as usize) {
+                *cell = sky_char;
             }
         }
 
@@ -993,17 +998,19 @@ impl DemoArtGenerator {
             let x = self.rng.gen_range(0..self.settings.width as usize);
             let y = self.rng.gen_range(0..gradient_start);
 
-            if x < canvas[0].len() && y < canvas.len() {
-                if !moon_pixels.contains(&(x, y)) && canvas[y][x] == ' ' {
-                    let star = match self.rng.gen_range(0..100) {
-                        0..=5 => star_chars[0],   // 5% ✦
-                        6..=15 => star_chars[1],  // 10% ✧
-                        16..=30 => star_chars[2], // 15% *
-                        31..=60 => star_chars[3], // 30% ⋆
-                        _ => star_chars[4],       // 40% ·
-                    };
-                    canvas[y][x] = star;
-                }
+            if x < canvas[0].len()
+                && y < canvas.len()
+                && !moon_pixels.contains(&(x, y))
+                && canvas[y][x] == ' '
+            {
+                let star = match self.rng.gen_range(0..100) {
+                    0..=5 => star_chars[0],   // 5% ✦
+                    6..=15 => star_chars[1],  // 10% ✧
+                    16..=30 => star_chars[2], // 15% *
+                    31..=60 => star_chars[3], // 30% ⋆
+                    _ => star_chars[4],       // 40% ·
+                };
+                canvas[y][x] = star;
             }
         }
 
