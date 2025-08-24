@@ -384,15 +384,7 @@ impl RenderBuffer {
             for (display_y, line_idx) in (start..end.min(self.line_info.len())).enumerate() {
                 let (line_start, line_len) = self.line_info[line_idx];
 
-                // Skip lines that haven't changed
-                if !self.back[line_start]
-                    .iter()
-                    .take(width)
-                    .any(|cell| cell.dirty)
-                {
-                    continue;
-                }
-
+                // Always repaint visible lines to avoid stale background
                 any_updates = true;
 
                 // Move cursor only when we need to update
@@ -408,7 +400,8 @@ impl RenderBuffer {
                     // Only update color if it changed
                     if colors_enabled && last_color != Some(back_cell.color) {
                         if let Color::Rgb { r, g, b } = back_cell.color {
-                            write!(line_buffer, "\x1b[38;2;{};{};{}m", r, g, b)?;
+                            // Use background color so even spaces are visible
+                            write!(line_buffer, "\x1b[48;2;{};{};{}m", r, g, b)?;
                             needs_color_reset = true;
                         }
                         last_color = Some(back_cell.color);
@@ -444,7 +437,8 @@ impl RenderBuffer {
 
                     if colors_enabled && last_color != Some(back_cell.color) {
                         if let Color::Rgb { r, g, b } = back_cell.color {
-                            write!(line_buffer, "\x1b[38;2;{};{};{}m", r, g, b)?;
+                            // Use background color so even spaces are visible
+                            write!(line_buffer, "\x1b[48;2;{};{};{}m", r, g, b)?;
                             needs_color_reset = true;
                         }
                         last_color = Some(back_cell.color);

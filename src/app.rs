@@ -154,7 +154,7 @@ impl ChromaCat {
             engine,
             animation_config,
             playlist,
-            self.cli.demo
+            self.cli.demo || self.cli.playground  // Treat playground as demo mode for art selection
         )?;
 
         // Process input and render
@@ -195,7 +195,7 @@ impl ChromaCat {
             return Ok(());
         }
 
-        if self.cli.animate {
+        if self.cli.animate || self.cli.playground {
             // Enter raw mode for animation
             enable_raw_mode()
                 .map_err(|e| ChromaCatError::Other(format!("Failed to enable raw mode: {}", e)))?;
@@ -441,8 +441,10 @@ impl ChromaCat {
 
     /// Runs the playground UI loop (stub: delegates to animation for now)
     fn run_playground(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
-        // Placeholder: reuse animation loop until ratatui overlay is implemented
-        self.run_animation(renderer, content)
+        // Playground reuses animation loop; ensure overlay is visible at start and content is non-empty
+        renderer.set_overlay_visible(true);
+        let non_empty = if content.is_empty() { "\n" } else { content };
+        self.run_animation(renderer, non_empty)
     }
 }
 

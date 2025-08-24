@@ -127,7 +127,8 @@ impl StatusBar {
             left_section.push_str(&format!(" • {:.1} FPS", self.fps));
         }
 
-        let middle_section = "[T]heme [P]attern";
+        // Hide legacy middle hints when custom text is present (playground UI provides its own footer)
+        let middle_section = if self.custom_text.is_some() { "" } else { "[T]heme [P]attern" };
         let right_section = format!(
             "Lines {}-{}/{}  [Q]uit ",
             start + 1,
@@ -147,7 +148,7 @@ impl StatusBar {
         // Render sections based on available space
         let available_width = total_width.saturating_sub(2); // Leave 2 chars margin
 
-        if left_width + middle_width + right_width <= available_width {
+        if middle_width > 0 && left_width + middle_width + right_width <= available_width {
             // Full render
             queue!(
                 stdout,

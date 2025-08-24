@@ -1149,7 +1149,7 @@ impl DemoArtGenerator {
 
                         // Clear and draw the rest of the spire
                         for sy in 1..=spire_height {
-                            let y = building_top - sy;
+                            let y = building_top.saturating_sub(sy);
                             if y < canvas.len() {
                                 // Clear space
                                 canvas[y][spire_x] = ' ';

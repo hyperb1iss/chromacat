@@ -35,6 +35,7 @@ use crate::playlist::{Playlist, PlaylistPlayer};
 use crate::{themes, PatternConfig};
 use crate::demo::art::DemoArt;
 use crossterm::event::{KeyCode, MouseEvent};
+#[cfg(not(feature = "playground-ui"))]
 use crossterm::style::{Color, SetForegroundColor, SetAttribute, Attribute, ResetColor};
 use crossterm::event::KeyEvent;
 use crossterm::queue;
@@ -46,6 +47,16 @@ use crate::input::InputReader;
 use modulation::{Lfo, Modulator};
 use scheduler::{Scene, SceneScheduler};
 use crate::recipes::{Recipe, RouteRecipe, LfoRecipe};
+#[cfg(feature = "playground-ui")]
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color as TuiColor, Modifier, Style},
+    text::{Line as TuiLine, Span as TuiSpan},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    Terminal as TuiTerminal,
+};
+use rand::Rng;
 
 /// Coordinates all rendering functionality for ChromaCat
 pub struct Renderer {
@@ -75,6 +86,8 @@ pub struct Renderer {
     transition_alpha: f32,
     /// Whether a transition is active
     transitioning: bool,
+    /// Crossfade duration in seconds
+    transition_duration: f32,
     /// Last frame timestamp for timing
     last_frame: Option<Instant>,
     /// Frame counter for FPS calculation
@@ -126,9 +139,35 @@ pub struct Renderer {
     overlay_dirty: bool,
     last_overlay_draw: Instant,
     overlay_refresh: Duration,
+    #[cfg(feature = "playground-ui")]
+    tui: Option<TuiTerminal<CrosstermBackend<std::io::Stdout>>>,
+    /// Toast message shown above the overlay for short duration
+    toast_text: Option<String>,
+    toast_time: Option<Instant>,
+    toast_duration: Duration,
+    /// Theme advance behavior: 0=Scene, 1=Locked (manual), 2=Random per scene
+    theme_mode: u8,
+    /// If Locked, this holds the chosen theme name
+    locked_theme: Option<String>,
+    /// Debug overlay for internal state
+    debug_mode: bool,
 }
 
 impl Renderer {
+    /// Generate fallback content if none was provided (e.g., playground without demo)
+    fn generate_default_content(&self) -> String {
+        // Try demo art first for something interesting; fall back to simple banner
+        if let Ok(mut reader) = InputReader::from_demo(true, None, None) {
+            let mut s = String::new();
+            if reader.read_to_string(&mut s).is_ok() && !s.is_empty() { return s; }
+        }
+        // Minimal placeholder content
+        let mut lines = String::new();
+        for i in 0..64 {
+            lines.push_str(&format!("ChromaCat Playground {:03}\n", i));
+        }
+        lines
+    }
     /// Creates a new renderer with the given pattern engine and configuration
     pub fn new(
         engine: PatternEngine,
@@ -234,6 +273,7 @@ impl Renderer {
             transition_engine: None,
             transition_alpha: 0.0,
             transitioning: false,
+            transition_duration: 1.0,
             last_frame: None,
             frame_count: 0,
             last_fps_update: now,
@@ -263,121 +303,189 @@ impl Renderer {
             overlay_dirty: true,
             last_overlay_draw: now,
             overlay_refresh: Duration::from_millis(33),
+            #[cfg(feature = "playground-ui")]
+            tui: {
+                let backend = CrosstermBackend::new(std::io::stdout());
+                match TuiTerminal::new(backend) { Ok(t) => Some(t), Err(_) => None }
+            },
+            toast_text: None,
+            toast_time: None,
+            toast_duration: Duration::from_millis(2200),
+            theme_mode: 0,
+            locked_theme: None,
+            debug_mode: false,
         })
     }
 
     /// Renders the overlay with three columns: patterns, params, themes
-    fn render_overlay(&self, stdout: &mut std::io::StdoutLock) -> Result<(), RendererError> {
-        let size = self.terminal.size();
-        let width = size.0 as usize;
-        let height_u16 = size.1;
-        let overlay_height = ((height_u16 / 2).max(10)).min(height_u16.saturating_sub(3));
-        let start_y = height_u16.saturating_sub(overlay_height + 2);
-
-        for i in 0..overlay_height as usize {
-            queue!(stdout, crossterm::cursor::MoveTo(0, start_y + i as u16), crossterm::style::Print("\x1b[K"))?;
-        }
-        let sep_line = "─".repeat(width.min(240));
-        queue!(stdout, crossterm::cursor::MoveTo(0, start_y), crossterm::style::Print(&sep_line))?;
-
-        let titles_y = start_y + 1;
-        let colw = (width / 4).max(18);
-        let x_pat = 0u16;
-        let x_prm = colw as u16;
-        let x_thm = (colw * 2) as u16;
-        let x_mod = (colw * 3) as u16;
-        // Colored titles (SilkCircuit palette)
-        let mut print_title = |x: u16, text: &str, color: u8, selected: bool| -> Result<(), RendererError> {
-            let pad = format!("{:<w$}", text, w=colw);
-            if selected {
-                queue!(stdout, crossterm::cursor::MoveTo(x, titles_y), SetAttribute(Attribute::Bold), SetForegroundColor(Color::AnsiValue(color)), crossterm::style::Print(&pad), ResetColor, SetAttribute(Attribute::Reset))?;
-            } else {
-                queue!(stdout, crossterm::cursor::MoveTo(x, titles_y), SetForegroundColor(Color::AnsiValue(color)), crossterm::style::Print(&pad), ResetColor)?;
-            }
-            Ok(())
-        };
-
-        print_title(x_pat, if self.overlay_section == 0 { "▶ Patterns" } else { "  Patterns" }, 219, self.overlay_section == 0)?;
-        print_title(x_prm, if self.overlay_section == 1 { "▶ Params" } else { "  Params" }, 117, self.overlay_section == 1)?;
-        print_title(x_thm, if self.overlay_section == 2 { "▶ Themes" } else { "  Themes" }, 147, self.overlay_section == 2)?;
-        print_title(x_mod, if self.overlay_section == 3 { "▶ Art" } else { "  Art" }, 149, self.overlay_section == 3)?;
-
-        let list_rows = overlay_height.saturating_sub(3) as usize;
-        let pat_start = self.overlay_pattern_offset;
-        for i in 0..list_rows {
-            let row_y = titles_y + 1 + i as u16;
-            let idx = pat_start + i;
-            let name = self.available_patterns.get(idx).map(|s| s.as_str()).unwrap_or("");
-            let is_sel = idx == self.overlay_pattern_sel;
-            let line = format!(" {} {:<w$}", if is_sel {"➤"} else {" "}, name, w=colw.saturating_sub(3));
-            let printed = if is_sel { format!("\x1b[7m{}\x1b[0m", line) } else { line };
-            queue!(stdout, crossterm::cursor::MoveTo(x_pat, row_y), crossterm::style::Print(printed))?;
-        }
-
-        let param_names = self.current_param_names();
-        let prm_start = self.overlay_param_offset;
-        for i in 0..list_rows {
-            let row_y = titles_y + 1 + i as u16;
-            let idx = prm_start + i;
-            let name = param_names.get(idx).map(|s| s.as_str()).unwrap_or("");
-            let is_sel = idx == self.overlay_param_sel;
-            // draw value slider if numeric
-            let mut val_str = String::new();
-            if let Some((n, ptype)) = self.param_meta_at(idx) {
-                match ptype {
-                    crate::pattern::ParamType::Number { min, max } => {
-                        let cur = self.overlay_param_values.get(&n).and_then(|s| s.parse::<f64>().ok()).unwrap_or_else(|| self.param_default_value(&n).and_then(|v| v.parse::<f64>().ok()).unwrap_or(min));
-                        let t = ((cur - min) / (max - min)).clamp(0.0, 1.0);
-                        let bars = (t * 10.0).round() as usize;
-                        val_str = format!(" [{}{}] {:.2}", "█".repeat(bars), "░".repeat(10 - bars), cur);
-                    }
-                    _ => {}
+    fn render_overlay(&mut self) -> Result<(), RendererError> {
+        #[cfg(feature = "playground-ui")]
+        {
+            // Draw overlay using ratatui for flicker-free UI
+            if self.tui.is_none() {
+                let backend = CrosstermBackend::new(std::io::stdout());
+                if let Ok(t) = TuiTerminal::new(backend) {
+                    self.tui = Some(t);
+                } else {
+                    self.status_bar.set_custom_text(Some("Overlay unavailable: TUI init failed"));
                 }
             }
-            let name_w = colw.saturating_sub(14);
-            let line = format!(" {} {:<nw$}{}", if is_sel {"➤"} else {" "}, name, val_str, nw=name_w);
-            let printed = if is_sel { format!("\x1b[7m{}\x1b[0m", line) } else { line };
-            queue!(stdout, crossterm::cursor::MoveTo(x_prm, row_y), crossterm::style::Print(printed))?;
-        }
+            let term_size = self.terminal.size();
+            let width = term_size.0 as u16;
+            let height = term_size.1 as u16;
+            // Compact floating panel
+            let overlay_height = (12u16).min(height.saturating_sub(4));
+            let panel_w = ((width as u32 * 90) / 100) as u16; // 90% width
+            let panel_w = panel_w.max(48).min(width.saturating_sub(2));
+            let start_y = height.saturating_sub(overlay_height + 2);
+            let start_x = ((width.saturating_sub(panel_w)) / 2).max(1);
+            let overlay_rect = Rect { x: start_x, y: start_y, width: panel_w, height: overlay_height };
+            let visible_rows: usize = overlay_height.saturating_sub(3) as usize;
+            let pat_off = self.overlay_pattern_offset;
+            let prm_off = self.overlay_param_offset;
+            let thm_off = self.overlay_theme_offset;
+            let art_off = self.overlay_art_offset;
+            let pat_names = &self.available_patterns;
+            let param_names = self.current_param_names();
+            let thm_names = &self.available_themes;
+            let art_names = &self.available_arts;
 
-        let thm_start = self.overlay_theme_offset;
-        for i in 0..list_rows {
-            let row_y = titles_y + 1 + i as u16;
-            let idx = thm_start + i;
-            let name = self.available_themes.get(idx).map(|s| s.as_str()).unwrap_or("");
-            let is_sel = idx == self.overlay_theme_sel;
-            let line = format!(" {} {:<w$}", if is_sel {"➤"} else {" "}, name, w=colw.saturating_sub(3));
-            let printed = if is_sel { format!("\x1b[7m{}\x1b[0m", line) } else { line };
-            queue!(stdout, crossterm::cursor::MoveTo(x_thm, row_y), crossterm::style::Print(printed))?;
-        }
+            let pat_sel = self.overlay_pattern_sel;
+            let prm_sel = self.overlay_param_sel;
+            let thm_sel = self.overlay_theme_sel;
+            let art_sel = self.overlay_art_sel;
+            // Precompute slices and labels to avoid borrowing `self` in draw closure
+            let pat_end = (pat_off + visible_rows).min(pat_names.len());
+            let pat_slice = &pat_names[pat_off..pat_end];
+            let pat_high = pat_sel.saturating_sub(pat_off).min(pat_slice.len().saturating_sub(1));
 
-        // Art column (demo)
-        let art_x = x_mod;
-        if self.demo_mode && !self.available_arts.is_empty() {
-            let start = self.overlay_art_offset;
-            for i in 0..list_rows {
-                let row_y = titles_y + 1 + i as u16;
-                let idx = start + i;
-                let is_sel = idx == self.overlay_art_sel;
-                let name = self.available_arts.get(idx).map(|s| s.as_str()).unwrap_or("");
-                let line = format!(" {} {:<w$}", if is_sel {"➤"} else {" "}, name, w=colw.saturating_sub(3));
-                let printed = if is_sel { format!("\x1b[7m{}\x1b[0m", line) } else { line };
-                queue!(stdout, crossterm::cursor::MoveTo(art_x, row_y), crossterm::style::Print(printed))?;
+            let prm_end = (prm_off + visible_rows).min(param_names.len());
+            let mut prm_labels: Vec<String> = Vec::new();
+            for (i, n) in param_names[prm_off..prm_end].iter().enumerate() {
+                let global_i = prm_off + i;
+                if global_i == prm_sel {
+                    // Selected label with numeric bar if applicable
+                    if let Some((name, ptype)) = self.param_meta_at(prm_sel) {
+                        if let crate::pattern::ParamType::Number { min, max } = ptype {
+                            let cur = self.overlay_param_values.get(&name).and_then(|s| s.parse::<f64>().ok()).unwrap_or_else(|| self.param_default_value(&name).and_then(|v| v.parse::<f64>().ok()).unwrap_or(min));
+                            let t = ((cur - min) / (max - min)).clamp(0.0, 1.0);
+                            let bars = (t * 10.0).round() as usize;
+                            prm_labels.push(format!("{}  [{}{}] {:.2}", n, "█".repeat(bars), "░".repeat(10 - bars), cur));
+                            continue;
+                        }
+                    }
+                }
+                prm_labels.push(n.clone());
             }
-        } else {
-            queue!(stdout, crossterm::cursor::MoveTo(art_x, titles_y + 1), crossterm::style::Print(" (demo only)"))?;
-        }
+            let theme_mode_label: String = match self.theme_mode {
+                0 => "Theme: Scene".to_string(),
+                1 => "Theme: Locked".to_string(),
+                2 => "Theme: Random".to_string(),
+                _ => "Theme".to_string(),
+            };
+            let footer_text: String = format!(
+                " [Tab] switch  [Enter] apply  [-/=] adjust  [n/b] step  [t] lock  [u] unlock  [Y] {}  [S] scenes  [E] export  [?] help",
+                theme_mode_label
+            );
+            let prm_high = prm_sel.saturating_sub(prm_off).min(prm_labels.len().saturating_sub(1));
 
-        let footer = "[Click] select/apply  [Wheel] scroll  [Tab] section  [Enter] apply  [-/=] adjust  [b] bind LFO  [m] mod  [S] schedule  [R/L] save/load  [E] export  [;] overlay  [?] help";
-        let mut footer_trunc = footer.to_string();
-        let maxw = width.saturating_sub(1);
-        if footer_trunc.len() > maxw { footer_trunc.truncate(maxw); }
-        queue!(stdout, crossterm::cursor::MoveTo(0, start_y + overlay_height - 1), crossterm::style::Print("\x1b[K"), SetForegroundColor(Color::AnsiValue(239)), crossterm::style::Print(footer_trunc), ResetColor)?;
+            let thm_end = (thm_off + visible_rows).min(thm_names.len());
+            let thm_slice = &thm_names[thm_off..thm_end];
+            let thm_high = thm_sel.saturating_sub(thm_off).min(thm_slice.len().saturating_sub(1));
 
-        // Help modal overlay
-        if self.help_visible {
-            self.render_help_modal(stdout)?;
+            let art_end = (art_off + visible_rows).min(art_names.len());
+            let art_slice = &art_names[art_off..art_end];
+            let art_high = art_sel.saturating_sub(art_off).min(art_slice.len().saturating_sub(1));
+
+            if let Some(term) = self.tui.as_mut() {
+            term.draw(|f: &mut ratatui::Frame| {
+                // Only clear inside the compact panel; leave surroundings untouched for a floating look
+                f.render_widget(Clear, overlay_rect);
+
+                // Inner layout with a 1-cell margin and 4 floating windows
+                let inner = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Percentage(100)])
+                    .margin(1)
+                    .split(overlay_rect)[0];
+
+                let cols = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage(25),
+                        Constraint::Length(1), // gutter
+                        Constraint::Percentage(25),
+                        Constraint::Length(1),
+                        Constraint::Percentage(25),
+                        Constraint::Length(1),
+                        Constraint::Percentage(25),
+                    ])
+                    .split(inner);
+
+                // Helper to build list with highlight and slice
+                let render_list = |f: &mut ratatui::Frame, rect: Rect, title: &str, names: &[String], highlight_index: usize, focused: bool| {
+                    let pulse = (Instant::now().elapsed().as_millis() / 450) % 2 == 0;
+                    let focus_color = if pulse { TuiColor::Rgb(255, 130, 200) } else { TuiColor::LightMagenta };
+                    let title_style = if focused { Style::default().fg(focus_color).add_modifier(Modifier::BOLD) } else { Style::default().fg(TuiColor::Magenta).add_modifier(Modifier::BOLD) };
+                    let border_style = if focused { Style::default().fg(focus_color) } else { Style::default().fg(TuiColor::DarkGray) };
+                    // Subtle shadow behind panel
+                    let shadow = Rect { x: rect.x.saturating_add(1), y: rect.y.saturating_add(1), width: rect.width, height: rect.height };
+                    let shadow_block = Block::default().style(Style::default().bg(TuiColor::Rgb(10, 10, 12)));
+                    f.render_widget(shadow_block, shadow);
+                    let block = Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(border_style)
+                        .title(TuiLine::from(TuiSpan::styled(title, title_style)))
+                        .style(Style::default().bg(TuiColor::Rgb(16, 16, 20)));
+                    let items: Vec<ListItem> = names.iter().enumerate().map(|(i, n)| {
+                        let is_sel = i == highlight_index;
+                        let sel_glyph = if is_sel { "›" } else { " " };
+                        let style = if is_sel { Style::default().fg(focus_color).add_modifier(Modifier::BOLD) } else { Style::default().fg(TuiColor::Gray) };
+                        ListItem::new(TuiLine::from(TuiSpan::styled(format!(" {} {}", sel_glyph, n), style)))
+                    }).collect();
+                    let list = List::new(items).block(block);
+                    f.render_widget(list, rect);
+                };
+
+                render_list(f, cols[0], if self.overlay_section == 0 { "▶ Patterns" } else { "Patterns" }, pat_slice, pat_high, self.overlay_section == 0);
+                render_list(f, cols[2], if self.overlay_section == 1 { "▶ Params" } else { "Params" }, &prm_labels, prm_high, self.overlay_section == 1);
+                render_list(f, cols[4], if self.overlay_section == 2 { "▶ Themes" } else { "Themes" }, thm_slice, thm_high, self.overlay_section == 2);
+                render_list(f, cols[6], if self.overlay_section == 3 { "▶ Art" } else { "Art" }, art_slice, art_high, self.overlay_section == 3);
+
+                // Footer line
+                let footer = Paragraph::new(TuiLine::from(
+                    TuiSpan::styled(
+                        format!("{}   [Z] crossfade", footer_text),
+                        Style::default().fg(TuiColor::DarkGray),
+                    ),
+                ));
+                let footer_rect = Rect { x: start_x, y: start_y + overlay_height - 1, width: panel_w, height: 1 };
+                f.render_widget(footer, footer_rect);
+
+                // Toast above the panel if active
+                if let (Some(text), Some(t0)) = (&self.toast_text, self.toast_time) {
+                    if Instant::now().duration_since(t0) <= self.toast_duration {
+                        let toast_w = (text.len() as u16 + 4).min(width.saturating_sub(2));
+                        let tx = start_x + panel_w.saturating_sub(toast_w) / 2;
+                        let ty = start_y.saturating_sub(2).max(1);
+                        let toast_rect = Rect { x: tx, y: ty, width: toast_w, height: 1 };
+                        let toast = Block::default()
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(TuiColor::LightCyan))
+                            .title(TuiLine::from(TuiSpan::styled(text.clone(), Style::default().fg(TuiColor::White))));
+                        f.render_widget(toast, toast_rect);
+                    }
+                }
+            }).map_err(|e| RendererError::Other(format!("tui draw: {e}")))?;
+            } else {
+                // TUI terminal failed to initialize
+                self.status_bar.set_custom_text(Some("Overlay error: No TUI terminal"));
+            }
+
+            return Ok(());
         }
+        #[cfg(not(feature = "playground-ui"))]
+        { /* Legacy overlay removed */ }
         Ok(())
     }
 
@@ -394,6 +502,18 @@ impl Renderer {
         let term_h = self.terminal.size().1;
         let overlay_height = ((term_h / 2).max(10)).min(term_h.saturating_sub(3));
         let visible_rows = overlay_height.saturating_sub(3) as usize;
+        // Clamp offsets to keep selection within the visible page
+        let clamp_offset = |sel: usize, mut off: usize, len: usize| -> usize {
+            if len == 0 { return 0; }
+            if sel < off { off = sel; }
+            let max_off = len.saturating_sub(visible_rows.max(1));
+            if off > max_off { off = max_off; }
+            off
+        };
+        self.overlay_pattern_offset = clamp_offset(self.overlay_pattern_sel, self.overlay_pattern_offset, self.available_patterns.len());
+        self.overlay_param_offset = clamp_offset(self.overlay_param_sel, self.overlay_param_offset, self.current_param_names().len());
+        self.overlay_theme_offset = clamp_offset(self.overlay_theme_sel, self.overlay_theme_offset, self.available_themes.len());
+        self.overlay_art_offset = clamp_offset(self.overlay_art_sel, self.overlay_art_offset, self.available_arts.len());
         match key.code {
             KeyCode::Tab => { self.overlay_section = (self.overlay_section + 1) % 4; self.overlay_dirty = true; self.redraw_overlay_only()?; return Ok(true); }
             KeyCode::Up => { match self.overlay_section { 0 => { if self.overlay_pattern_sel > 0 { self.overlay_pattern_sel -= 1; if self.overlay_pattern_sel < self.overlay_pattern_offset { self.overlay_pattern_offset = self.overlay_pattern_sel; } } }
@@ -457,8 +577,9 @@ impl Renderer {
                     }
                 }
             }
-            KeyCode::Enter => { match self.overlay_section { 0 => { if let Some(p) = self.available_patterns.get(self.overlay_pattern_sel) { let pat = p.clone(); self.set_pattern_by_id(&pat)?; self.overlay_param_sel = 0; } }
-                2 => { if let Some(t) = self.available_themes.get(self.overlay_theme_sel) { let theme = t.clone(); self.set_theme_by_name(&theme)?; } }
+            KeyCode::Enter => { match self.overlay_section { 0 => { if let Some(p) = self.available_patterns.get(self.overlay_pattern_sel) { let pat = p.clone(); self.set_pattern_by_id(&pat)?; if let Some(s) = self.scene_scheduler.as_mut() { s.set_current_pattern(&pat); } self.overlay_param_sel = 0; } }
+                2 => { if let Some(t) = self.available_themes.get(self.overlay_theme_sel) { let theme = t.clone(); self.set_theme_by_name(&theme)?; if let Some(s) = self.scene_scheduler.as_mut() { s.set_current_theme(&theme); } } }
+                3 => { if self.demo_mode { if let Some(a) = self.available_arts.get(self.overlay_art_sel) { let art = a.clone(); self.set_demo_art(&art)?; } } }
                 _ => {} } self.draw_full_screen()?; return Ok(true); }
             KeyCode::Char('b') => {
                 // Bind current param to first LFO route
@@ -497,7 +618,11 @@ impl Renderer {
                             let new_value = (current + step).clamp(min, max);
                             let csv = format!("{}={}", name, new_value);
                             self.update_params_from_str(&csv)?;
-                            self.overlay_param_values.insert(name, format!("{new_value:.3}"));
+                            self.overlay_param_values.insert(name.clone(), format!("{new_value:.3}"));
+                            // Toast on change
+                            let msg = format!("{} = {:.3}", name, new_value);
+                            self.toast_text = Some(msg);
+                            self.toast_time = Some(Instant::now());
                             self.draw_full_screen()?;
                             return Ok(true);
                         }
@@ -541,6 +666,10 @@ impl Renderer {
                         }
                     }
                 }
+            }
+            KeyCode::Char(';') => {
+                // Let toggle fall through to main handler
+                return Ok(false);
             }
             _ => {}
         }
@@ -661,7 +790,7 @@ impl Renderer {
             }
         }
         let scenes = if let Some(s) = &self.scene_scheduler { s.clone().into() } else { Vec::new() };
-        Recipe { current_theme, current_pattern: current_id, scenes, routes }
+        Recipe { current_theme, current_pattern: current_id, scenes, routes, theme_mode: Some(self.theme_mode), crossfade_seconds: Some(self.transition_duration) }
     }
 
     fn apply_recipe(&mut self, recipe: Recipe) -> Result<(), RendererError> {
@@ -672,6 +801,9 @@ impl Renderer {
             let scenes = recipe.scenes.into_iter().map(|s| Scene { pattern_id: s.pattern_id, theme_name: s.theme_name, duration_secs: s.duration_secs }).collect::<Vec<_>>() ;
             self.scene_scheduler = Some(SceneScheduler::new(scenes));
         }
+        // Theme mode and crossfade
+        if let Some(mode) = recipe.theme_mode { self.theme_mode = mode; }
+        if let Some(sec) = recipe.crossfade_seconds { self.transition_duration = sec.max(0.1); }
         // Routes
         if !recipe.routes.is_empty() {
             let mut m = Modulator::new();
@@ -726,19 +858,24 @@ impl Renderer {
         Ok(())
     }
 
-    /// Sets the current theme by name
-    pub fn set_theme_by_name(&mut self, theme: &str) -> Result<(), RendererError> {
+    /// Internal helper to apply a theme, optionally locking into manual mode
+    fn apply_theme_by_name(&mut self, theme: &str, lock: bool) -> Result<(), RendererError> {
         let new_gradient = themes::get_theme(theme)?.create_gradient()?;
         self.engine.update_gradient(new_gradient);
-        if let Some(idx) = self
-            .available_themes
-            .iter()
-            .position(|t| t == theme)
-        {
+        if let Some(idx) = self.available_themes.iter().position(|t| t == theme) {
             self.current_theme_index = idx;
         }
         self.status_bar.set_theme(theme);
+        if lock {
+            self.locked_theme = Some(theme.to_string());
+            self.theme_mode = 1;
+        }
         Ok(())
+    }
+
+    /// Sets the current theme by name (locks the theme until toggled)
+    pub fn set_theme_by_name(&mut self, theme: &str) -> Result<(), RendererError> {
+        self.apply_theme_by_name(theme, true)
     }
 
     /// Sets the current pattern by ID and resets params to defaults for that pattern
@@ -821,10 +958,12 @@ impl Renderer {
             }
         }
 
-        // First-time initialization
+        // First-time initialization (ensure we have content)
         if !self.buffer.has_content() {
             self.terminal.enter_alternate_screen()?;
-            self.buffer.prepare_text(text)?;
+            let mut initial = if text.is_empty() { self.generate_default_content() } else { text.to_string() };
+            if initial.trim().is_empty() { initial = self.generate_default_content(); }
+            self.buffer.prepare_text(&initial)?;
             self.scroll.set_total_lines(self.buffer.line_count());
             let visible_range = self.scroll.get_visible_range();
             self.buffer.update_colors(&self.engine, visible_range.0)?;
@@ -865,7 +1004,7 @@ impl Renderer {
             if let Some(trans) = &self.transition_engine {
                 self.buffer.update_colors_blend(&self.engine, trans, self.transition_alpha, visible_range.0)?;
             } else {
-                self.buffer.update_colors(&self.engine, visible_range.0)?;
+        self.buffer.update_colors(&self.engine, visible_range.0)?;
             }
         } else {
         self.buffer.update_colors(&self.engine, visible_range.0)?;
@@ -892,7 +1031,8 @@ impl Renderer {
 
         // Progress transition
         if self.transitioning {
-            self.transition_alpha += (delta_seconds as f32) / 1.0; // 1s crossfade
+            let dur = self.transition_duration.max(0.1);
+            self.transition_alpha += (delta_seconds as f32) / dur;
             if self.transition_alpha >= 1.0 {
                 // Finish transition: swap to new engine
                 if let Some(new_engine) = self.transition_engine.take() {
@@ -900,21 +1040,30 @@ impl Renderer {
                 }
                 self.transition_alpha = 0.0;
                 self.transitioning = false;
+                // If a scene scheduler exists, lock in the chosen pattern/theme so manual changes persist
+                if let Some(s) = &mut self.scene_scheduler {
+                    let cur_id = crate::pattern::REGISTRY.get_pattern_id(&self.engine.config().params).unwrap_or("horizontal");
+                    s.set_current_pattern(cur_id);
+                    if self.theme_mode == 1 {
+                        if let Some(theme) = self.available_themes.get(self.current_theme_index) { s.set_current_theme(theme); }
+                    }
+                }
             }
         }
 
         // Update status bar
         self.status_bar.render(&mut stdout, &self.scroll)?;
 
+        // Flush main content before optional overlay
+        stdout.flush()?;
+        drop(stdout);
+
         // Render overlay if enabled (always draw after content to avoid flicker)
         if self.overlay_visible {
-            self.render_overlay(&mut stdout)?;
+            self.render_overlay()?;
             self.last_overlay_draw = Instant::now();
             self.overlay_dirty = false;
         }
-
-        stdout.flush()?;
-        drop(stdout);
 
         // Scene scheduler
         if let Some(next) = self
@@ -922,8 +1071,26 @@ impl Renderer {
             .as_mut()
             .and_then(|s| if s.is_enabled() { s.tick(delta_seconds as f32).cloned() } else { None })
         {
-            // Apply theme outside of scheduler borrow
-            self.set_theme_by_name(&next.theme_name)?;
+            // Determine theme based on mode
+            match self.theme_mode {
+                0 => { // Scene mode
+                    self.apply_theme_by_name(&next.theme_name, false)?;
+                }
+                1 => { // Locked mode
+                    if let Some(theme) = self.locked_theme.clone() {
+                        self.apply_theme_by_name(&theme, false)?;
+                    }
+                }
+                2 => { // Random mode
+                    if !self.available_themes.is_empty() {
+                        let mut rng = rand::thread_rng();
+                        let idx = rng.gen_range(0..self.available_themes.len());
+                        let theme = self.available_themes[idx].clone();
+                        self.apply_theme_by_name(&theme, false)?;
+                    }
+                }
+                _ => {}
+            }
             if let Some(params) = crate::pattern::REGISTRY.create_pattern_params(&next.pattern_id) {
                 let mut new_engine = self.engine.clone();
                 new_engine.update_pattern_config(PatternConfig { common: self.engine.config().common.clone(), params });
@@ -932,7 +1099,7 @@ impl Renderer {
                 self.transitioning = true;
                 self.status_bar.set_pattern(&next.pattern_id);
             }
-        } else if self.scheduler_enabled && now.duration_since(self.scheduler_last_switch) >= self.scheduler_interval {
+        } else if self.scheduler_enabled && self.scene_scheduler.is_none() && now.duration_since(self.scheduler_last_switch) >= self.scheduler_interval {
             // Fallback: time-interval scheduler if no scene scheduler configured
             self.next_pattern()?;
             self.scheduler_last_switch = now;
@@ -962,17 +1129,69 @@ impl Renderer {
         match key.code {
             KeyCode::Char(';') => {
                 self.overlay_visible = !self.overlay_visible;
+                let msg = if self.overlay_visible { "Overlay: ON" } else { "Overlay: OFF" };
+                self.status_bar.set_custom_text(Some(msg));
+                // Force TUI terminal recreation if overlay is being shown
+                #[cfg(feature = "playground-ui")]
+                if self.overlay_visible && self.tui.is_none() {
+                    let backend = CrosstermBackend::new(std::io::stdout());
+                    if let Ok(t) = TuiTerminal::new(backend) {
+                        self.tui = Some(t);
+                    }
+                }
                 self.draw_full_screen()?;
                 Ok(true)
             }
             KeyCode::Char('?') => {
                 self.help_visible = !self.help_visible;
-                if self.help_visible { self.status_bar.set_custom_text(Some("? Help: ; overlay | Tab navigate | Enter apply | -= adjust | b bind | m mod | S scenes | R save | L load | q quit")); }
+                if self.help_visible { self.status_bar.set_custom_text(Some("? Help: ; overlay | Tab navigate | Enter apply | -= adjust | b bind | m mod | S scenes | V reseed | n/b step | t lock theme | u unlock | Y theme mode | R save | L load | q quit")); } else { self.status_bar.set_custom_text(None); }
                 self.draw_full_screen()?;
                 Ok(true)
             }
             KeyCode::Char('t') | KeyCode::Char('T') => {
-                self.next_theme()?;
+                self.next_theme()?; // manual action keeps lock semantics
+                if let Some(name) = self.available_themes.get(self.current_theme_index).cloned() {
+                    self.locked_theme = Some(name.clone());
+                    self.theme_mode = 1;
+                    self.toast_text = Some(format!("Theme locked: {}", name));
+                    self.toast_time = Some(Instant::now());
+                }
+                self.draw_full_screen()?;
+                Ok(true)
+            }
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                // Cycle theme advance mode: 0 Scene -> 1 Locked -> 2 Random -> 0
+                self.theme_mode = (self.theme_mode + 1) % 3;
+                let label = match self.theme_mode { 0 => "Theme Mode: Scene", 1 => "Theme Mode: Locked", 2 => "Theme Mode: Random", _ => "Theme Mode" };
+                self.status_bar.set_custom_text(Some(label));
+                self.toast_text = Some(label.to_string());
+                self.toast_time = Some(Instant::now());
+                // If switching to Locked and no lock yet, lock current
+                if self.theme_mode == 1 && self.locked_theme.is_none() {
+                    if let Some(name) = self.available_themes.get(self.current_theme_index).cloned() { self.locked_theme = Some(name); }
+                }
+                self.draw_full_screen()?;
+                Ok(true)
+            }
+            KeyCode::Char('u') | KeyCode::Char('U') => {
+                // Unlock theme and return to Scene mode
+                self.theme_mode = 0;
+                self.locked_theme = None;
+                self.status_bar.set_custom_text(Some("Theme Mode: Scene (unlocked)"));
+                self.toast_text = Some("Theme unlocked".to_string());
+                self.toast_time = Some(Instant::now());
+                self.draw_full_screen()?;
+                Ok(true)
+            }
+            KeyCode::Char('z') | KeyCode::Char('Z') => {
+                // Cycle crossfade duration: 0.5 -> 1.0 -> 2.0 seconds
+                let next = if self.transition_duration < 0.75 { 1.0 } else if self.transition_duration < 1.5 { 2.0 } else { 0.5 };
+                self.transition_duration = next;
+                let label = match next as u32 { 0 => "Crossfade: Short", 1 => "Crossfade: Medium", 2 => "Crossfade: Long", _ => "Crossfade" };
+                let msg = format!("{} ({:.1}s)", label, next);
+                self.status_bar.set_custom_text(Some(&msg));
+                self.toast_text = Some(msg);
+                self.toast_time = Some(Instant::now());
                 self.draw_full_screen()?;
                 Ok(true)
             }
@@ -983,19 +1202,35 @@ impl Renderer {
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 if self.scene_scheduler.is_none() {
-                    // Seed a small scene list using current pattern/theme
-                    let current_id = crate::pattern::REGISTRY.get_pattern_id(&self.engine.config().params).unwrap_or("horizontal").to_string();
-                    let current_theme = self.available_themes.get(self.current_theme_index).cloned().unwrap_or_else(|| "rainbow".to_string());
-                    let alt_index = (self.current_pattern_index + 1) % self.available_patterns.len();
-                    let alt_pattern = self.available_patterns.get(alt_index).cloned().unwrap_or_else(|| current_id.clone());
-                    self.scene_scheduler = Some(SceneScheduler::new(vec![
-                        Scene { pattern_id: current_id, theme_name: current_theme, duration_secs: 12.0 },
-                        Scene { pattern_id: alt_pattern, theme_name: "rainbow".to_string(), duration_secs: 12.0 },
-                    ]));
+                    // Seed a richer cycle with alternating patterns/themes
+                    let mut sched = SceneScheduler::new(vec![]);
+                    let mut pats = self.available_patterns.clone();
+                    let plen = pats.len();
+                    if plen > 1 { let k = self.current_pattern_index % plen; pats.rotate_left(k); }
+                    let mut ths = self.available_themes.clone();
+                    let tlen = ths.len();
+                    if tlen > 1 { let k = self.current_theme_index % tlen; ths.rotate_left(k); }
+                    sched.reseed_variety(&pats, &ths, 8);
+                    self.scene_scheduler = Some(sched);
                 }
                 let enabled = if let Some(s) = self.scene_scheduler.as_mut() { let en = !s.is_enabled(); s.set_enabled(en); en } else { false };
                 let msg = if enabled { "Scene Scheduler: ON" } else { "Scene Scheduler: OFF" };
                 self.status_bar.set_custom_text(Some(msg));
+                self.draw_full_screen()?;
+                Ok(true)
+            }
+            KeyCode::Char('v') | KeyCode::Char('V') => {
+                // Force reseed with a varied multi-scene cycle
+                let mut sched = self.scene_scheduler.take().unwrap_or_else(|| SceneScheduler::new(vec![]));
+                let mut pats = self.available_patterns.clone();
+                let plen = pats.len();
+                if plen > 1 { let k = self.current_pattern_index % plen; pats.rotate_left(k); }
+                let mut ths = self.available_themes.clone();
+                let tlen = ths.len();
+                if tlen > 1 { let k = self.current_theme_index % tlen; ths.rotate_left(k); }
+                sched.reseed_variety(&pats, &ths, 10);
+                self.scene_scheduler = Some(sched);
+                self.status_bar.set_custom_text(Some("Variety cycle reseeded"));
                 self.draw_full_screen()?;
                 Ok(true)
             }
@@ -1019,11 +1254,17 @@ impl Renderer {
                 // Minimal export: if build-tools enabled, suggest using webp-generator; otherwise hint
                 #[cfg(feature = "build-tools")]
                 {
-                    self.status_bar.set_custom_text(Some("Export: run `cargo run --bin webp-generator --features build-tools --release` for full control"));
+                    let msg = "Export: run `cargo run --bin webp-generator --features build-tools --release` for full control";
+                    self.status_bar.set_custom_text(Some(msg));
+                    self.toast_text = Some(msg.to_string());
+                    self.toast_time = Some(Instant::now());
                 }
                 #[cfg(not(feature = "build-tools"))]
                 {
-                    self.status_bar.set_custom_text(Some("Export disabled. Build with --features build-tools for WebP export"));
+                    let msg = "Export disabled. Build with --features build-tools for WebP export";
+                    self.status_bar.set_custom_text(Some(msg));
+                    self.toast_text = Some(msg.to_string());
+                    self.toast_time = Some(Instant::now());
                 }
                 self.draw_full_screen()?;
                 Ok(true)
@@ -1036,6 +1277,42 @@ impl Renderer {
                         Err(e) => { self.status_bar.set_custom_text(Some(&format!("Failed to parse recipe: {e}"))); }
                     },
                     Err(e) => { self.status_bar.set_custom_text(Some(&format!("Failed to read recipe: {e}"))); }
+                }
+                Ok(true)
+            }
+            KeyCode::Char('n') | KeyCode::Char('.') | KeyCode::Char('>') => {
+                if let Some(s) = self.scene_scheduler.as_mut() {
+                    if let Some(next) = s.jump_next().cloned() {
+                        self.set_theme_by_name(&next.theme_name)?;
+                        if let Some(params) = crate::pattern::REGISTRY.create_pattern_params(&next.pattern_id) {
+                            let mut new_engine = self.engine.clone();
+                            new_engine.update_pattern_config(PatternConfig { common: self.engine.config().common.clone(), params });
+                            self.transition_engine = Some(new_engine);
+                            self.transition_alpha = 0.0;
+                            self.transitioning = true;
+                            self.status_bar.set_pattern(&next.pattern_id);
+                        }
+                    }
+                    self.draw_full_screen()?;
+                    return Ok(true);
+                }
+                Ok(true)
+            }
+            KeyCode::Char('b') | KeyCode::Char(',') | KeyCode::Char('<') => {
+                if let Some(s) = self.scene_scheduler.as_mut() {
+                    if let Some(prev) = s.jump_prev().cloned() {
+                        self.set_theme_by_name(&prev.theme_name)?;
+                        if let Some(params) = crate::pattern::REGISTRY.create_pattern_params(&prev.pattern_id) {
+                            let mut new_engine = self.engine.clone();
+                            new_engine.update_pattern_config(PatternConfig { common: self.engine.config().common.clone(), params });
+                            self.transition_engine = Some(new_engine);
+                            self.transition_alpha = 0.0;
+                            self.transitioning = true;
+                            self.status_bar.set_pattern(&prev.pattern_id);
+                        }
+                    }
+                    self.draw_full_screen()?;
+                    return Ok(true);
                 }
                 Ok(true)
             }
@@ -1100,8 +1377,12 @@ impl Renderer {
         use crossterm::event::{MouseEventKind, MouseButton};
         if !self.overlay_visible { return Ok(()); }
         let size = self.terminal.size();
-        let overlay_height = 8u16.min(size.1.saturating_sub(2));
+        // Mirror the compact floating panel geometry from the ratatui path
+        let overlay_height = (12u16).min(size.1.saturating_sub(4));
+        let panel_w = (((size.0 as u32) * 90) / 100) as u16;
+        let panel_w = panel_w.max(48).min(size.0.saturating_sub(2));
         let start_y = size.1.saturating_sub(overlay_height + 2);
+        let start_x = ((size.0.saturating_sub(panel_w)) / 2).max(1);
         let titles_y = start_y + 1;
         let list_rows = overlay_height.saturating_sub(3) as usize;
         let x = me.column;
@@ -1127,29 +1408,31 @@ impl Renderer {
                 }
                 self.draw_full_screen()?;
             }
-            MouseEventKind::Down(MouseButton::Left) => {
-                // Determine column based on x
-                // Use dynamic columns
-                let width = self.terminal.size().0 as usize;
-                let colw = (width / 4).max(18) as u16;
-                let col = if x < colw { 0 } else if x < colw * 2 { 1 } else if x < colw * 3 { 2 } else { 3 };
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
+                // Determine column based on x using floating panel geometry
+                let size = self.terminal.size();
+                let overlay_height = (12u16).min(size.1.saturating_sub(4));
+                let panel_w = (((size.0 as u32) * 90) / 100) as u16;
+                let panel_w = panel_w.max(48).min(size.0.saturating_sub(2));
+                let start_x = ((size.0.saturating_sub(panel_w)) / 2).max(1);
+                let colw = (panel_w as usize / 4).max(18) as u16;
+                let rel_x = x.saturating_sub(start_x);
+                let col = if rel_x < colw { 0 } else if rel_x < colw * 2 + 1 { 1 } else if rel_x < colw * 3 + 2 { 2 } else { 3 };
                 if y >= titles_y + 1 && y < titles_y + 1 + list_rows as u16 {
                     let row_index = (y - (titles_y + 1)) as usize;
                     match col {
-                        0 => { self.overlay_section = 0; let idx = self.overlay_pattern_offset + row_index; if idx < self.available_patterns.len() { self.overlay_pattern_sel = idx; let apply = self.available_patterns.get(idx).cloned(); if let Some(pat) = apply { let _ = self.set_pattern_by_id(&pat); } } }
+                        0 => { self.overlay_section = 0; let idx = self.overlay_pattern_offset + row_index; if idx < self.available_patterns.len() { self.overlay_pattern_sel = idx; let apply = self.available_patterns.get(idx).cloned(); if let Some(pat) = apply { let _ = self.set_pattern_by_id(&pat); if let Some(s) = self.scene_scheduler.as_mut() { s.set_current_pattern(&pat); } } } }
                         1 => { self.overlay_section = 1; let idx = self.overlay_param_offset + row_index; if idx < self.current_param_names().len() { self.overlay_param_sel = idx; } }
-                        2 => { self.overlay_section = 2; let idx = self.overlay_theme_offset + row_index; if idx < self.available_themes.len() { self.overlay_theme_sel = idx; let apply = self.available_themes.get(idx).cloned(); if let Some(theme) = apply { let _ = self.set_theme_by_name(&theme); } } }
-                        3 => { self.overlay_section = 3; let idx = self.overlay_art_offset + row_index; if idx < self.available_arts.len() { self.overlay_art_sel = idx; } }
+                        2 => { self.overlay_section = 2; let idx = self.overlay_theme_offset + row_index; if idx < self.available_themes.len() { self.overlay_theme_sel = idx; let apply = self.available_themes.get(idx).cloned(); if let Some(theme) = apply { let _ = self.set_theme_by_name(&theme); if let Some(s) = self.scene_scheduler.as_mut() { s.set_current_theme(&theme); } } } }
+                        3 => { self.overlay_section = 3; let idx = self.overlay_art_offset + row_index; if idx < self.available_arts.len() { self.overlay_art_sel = idx; if self.demo_mode { if let Some(a) = self.available_arts.get(idx) { let art = a.clone(); let _ = self.set_demo_art(&art); } } } }
                         _ => {}
                     }
-                    self.draw_full_screen()?;
+                    if !matches!(me.kind, MouseEventKind::Drag(_)) { self.draw_full_screen()?; }
                 }
 
                 // Click in params column slider area to set numeric value
                 if self.overlay_section == 1 && y >= titles_y + 1 {
-                    let width = self.terminal.size().0 as u16;
-                    let colw = (width / 4).max(18) as u16;
-                    let x_prm = colw; // params column start
+                    let x_prm = start_x + colw + 1; // params column start with gutter
                     if x >= x_prm && x < x_prm + colw {
                     if let Some((name, ptype)) = self.param_meta_at(self.overlay_param_sel) {
                         if let crate::pattern::ParamType::Number { min, max } = ptype {
@@ -1160,7 +1443,7 @@ impl Renderer {
                             let csv = format!("{}={}", name, val);
                             let _ = self.update_params_from_str(&csv);
                             self.overlay_param_values.insert(name, format!("{val:.3}"));
-                            self.draw_full_screen()?;
+                            if !matches!(me.kind, MouseEventKind::Drag(_)) { self.draw_full_screen()?; }
                         }
                     }
                     }
@@ -1186,20 +1469,34 @@ impl Renderer {
         )?;
         self.status_bar.render(&mut stdout, &self.scroll)?;
 
+        // Flush before drawing overlay to release borrow of stdout
+        stdout.flush()?;
+        drop(stdout);
+
         if self.overlay_visible {
-            self.render_overlay(&mut stdout)?;
+            // Recreate TUI terminal if needed and draw overlay last every frame
+            #[cfg(feature = "playground-ui")]
+            if self.tui.is_none() {
+                let backend = CrosstermBackend::new(std::io::stdout());
+                if let Ok(t) = TuiTerminal::new(backend) { self.tui = Some(t); }
+            }
+            self.render_overlay()?;
             self.overlay_dirty = false;
             self.last_overlay_draw = Instant::now();
         }
-
-        stdout.flush()?;
         Ok(())
     }
 
     fn redraw_overlay_only(&mut self) -> Result<(), RendererError> {
         if !self.overlay_visible { return Ok(()); }
+        // Recreate TUI terminal if it was dropped by content updates
+        #[cfg(feature = "playground-ui")]
+        if self.tui.is_none() {
+            let backend = CrosstermBackend::new(std::io::stdout());
+            if let Ok(t) = TuiTerminal::new(backend) { self.tui = Some(t); }
+        }
+        self.render_overlay()?;
         let mut stdout = self.terminal.stdout();
-        self.render_overlay(&mut stdout)?;
         stdout.flush()?;
         self.overlay_dirty = false;
         self.last_overlay_draw = Instant::now();
@@ -1235,6 +1532,24 @@ impl Renderer {
                 self.status_bar.set_theme(&entry.theme);
             }
         }
+        Ok(())
+    }
+
+    /// Apply demo art content into the buffer (only in demo mode)
+    fn set_demo_art(&mut self, art: &str) -> Result<(), RendererError> {
+        if !self.demo_mode { return Ok(()); }
+        let demo = DemoArt::try_from_str(art).ok_or_else(|| RendererError::Other("Unknown demo art".to_string()))?;
+        let mut reader = InputReader::from_demo(true, None, Some(&demo))?;
+        let mut new_content = String::new();
+        reader.read_to_string(&mut new_content)?;
+        self.content = new_content;
+        self.buffer.prepare_text(&self.content)?;
+        self.scroll.set_total_lines(self.buffer.line_count());
+        // Ensure overlay remains visible and is drawn immediately after art switch
+        self.overlay_visible = true;
+        self.overlay_dirty = true;
+        // Repaint everything so the overlay floats above the new content
+        let _ = self.draw_full_screen();
         Ok(())
     }
 

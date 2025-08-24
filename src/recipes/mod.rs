@@ -27,6 +27,8 @@ pub struct Recipe {
     pub current_pattern: Option<String>,
     pub scenes: Vec<SceneRecipe>,
     pub routes: Vec<RouteRecipe>,
+    pub theme_mode: Option<u8>,
+    pub crossfade_seconds: Option<f32>,
 }
 
 
