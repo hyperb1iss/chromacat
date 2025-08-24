@@ -2,9 +2,9 @@
 //! Tests common behaviors and interactions between patterns and the engine.
 
 use chromacat::pattern::{
-    PatternConfig, PatternEngine, PatternParams,
-    CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
-    PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
+    CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams, PatternConfig,
+    PatternEngine, PatternParams, PerlinParams, PlasmaParams, RippleParams, SpiralParams,
+    WaveParams,
 };
 use colorgrad::{Color, Gradient};
 
@@ -93,7 +93,8 @@ fn test_pattern_animation() {
         let mut config = PatternConfig::new(pattern.clone());
         // Set speed to ensure animation occurs
         config.common.speed = 1.0;
-        let mut engine = PatternEngine::new(create_test_gradient(), config, test.width, test.height);
+        let mut engine =
+            PatternEngine::new(create_test_gradient(), config, test.width, test.height);
 
         // Get initial value
         let initial = engine.get_value_at(50, 50).unwrap();

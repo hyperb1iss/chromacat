@@ -1,4 +1,4 @@
-use chromacat::pattern::{PatternParam, DiagonalParams};
+use chromacat::pattern::{DiagonalParams, PatternParam};
 
 #[test]
 fn test_diagonal_params_validation() {
@@ -20,11 +20,11 @@ fn test_diagonal_params_validation() {
 #[test]
 fn test_diagonal_params_parsing() {
     let params = DiagonalParams::default();
-    
-    let parsed = params.parse("angle=90,frequency=2.0")
-        .unwrap();
-    
-    let diagonal_params = parsed.as_any()
+
+    let parsed = params.parse("angle=90,frequency=2.0").unwrap();
+
+    let diagonal_params = parsed
+        .as_any()
         .downcast_ref::<DiagonalParams>()
         .expect("Failed to downcast parsed parameters");
 

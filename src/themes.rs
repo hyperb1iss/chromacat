@@ -332,8 +332,9 @@ impl ThemeRegistry {
         let content = std::fs::read_to_string(path)
             .map_err(|e| ChromaCatError::InputError(format!("Failed to read theme file: {}", e)))?;
 
-        let themes = from_str::<Vec<ThemeDefinition>>(&content)
-            .map_err(|e| ChromaCatError::InvalidTheme(format!("Invalid theme file format: {}", e)))?;
+        let themes = from_str::<Vec<ThemeDefinition>>(&content).map_err(|e| {
+            ChromaCatError::InvalidTheme(format!("Invalid theme file format: {}", e))
+        })?;
 
         for theme in themes {
             if let Err(e) = theme.validate() {
@@ -497,27 +498,20 @@ pub fn get_theme(name: &str) -> Result<ThemeDefinition> {
 }
 
 pub fn list_category(category: &str) -> Option<Vec<String>> {
-    THEME_REGISTRY
-        .read()
-        .ok()
-        .and_then(|registry| {
-            registry.categories.get(category).map(|themes| {
-                let mut themes = themes.clone();
-                themes.sort(); // Sort themes alphabetically
-                themes
-            })
+    THEME_REGISTRY.read().ok().and_then(|registry| {
+        registry.categories.get(category).map(|themes| {
+            let mut themes = themes.clone();
+            themes.sort(); // Sort themes alphabetically
+            themes
         })
+    })
 }
 
 pub fn list_categories() -> Vec<String> {
     THEME_REGISTRY
         .read()
         .map(|registry| {
-            let mut categories: Vec<String> = registry
-                .categories
-                .keys()
-                .cloned()
-                .collect();
+            let mut categories: Vec<String> = registry.categories.keys().cloned().collect();
             categories.sort(); // Sort categories alphabetically
             categories
         })

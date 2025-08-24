@@ -1,7 +1,7 @@
 use crate::pattern::patterns::{
-    CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
-    PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
-    PixelRainParams, FireParams, AuroraParams, KaleidoscopeParams,
+    AuroraParams, CheckerboardParams, DiagonalParams, DiamondParams, FireParams, HorizontalParams,
+    KaleidoscopeParams, PerlinParams, PixelRainParams, PlasmaParams, RippleParams, SpiralParams,
+    WaveParams,
 };
 
 /// Common parameters that apply to all pattern types

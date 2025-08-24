@@ -5,16 +5,24 @@ fn test_perlin_params_validation() {
     let params = PerlinParams::default();
 
     // Test valid values
-    assert!(params.validate("octaves=4,persistence=0.5,scale=1.0,seed=42").is_ok());
+    assert!(params
+        .validate("octaves=4,persistence=0.5,scale=1.0,seed=42")
+        .is_ok());
 
     // Test invalid octaves
-    assert!(params.validate("octaves=9,persistence=0.5,scale=1.0,seed=42").is_err());
+    assert!(params
+        .validate("octaves=9,persistence=0.5,scale=1.0,seed=42")
+        .is_err());
 
     // Test invalid persistence
-    assert!(params.validate("octaves=4,persistence=1.5,scale=1.0,seed=42").is_err());
+    assert!(params
+        .validate("octaves=4,persistence=1.5,scale=1.0,seed=42")
+        .is_err());
 
     // Test invalid scale
-    assert!(params.validate("octaves=4,persistence=0.5,scale=0.05,seed=42").is_err());
+    assert!(params
+        .validate("octaves=4,persistence=0.5,scale=0.05,seed=42")
+        .is_err());
 
     // Test invalid format
     assert!(params.validate("octaves=4,invalid").is_err());
@@ -23,11 +31,13 @@ fn test_perlin_params_validation() {
 #[test]
 fn test_perlin_params_parsing() {
     let params = PerlinParams::default();
-    
-    let parsed = params.parse("octaves=6,persistence=0.7,scale=2.0,seed=123")
+
+    let parsed = params
+        .parse("octaves=6,persistence=0.7,scale=2.0,seed=123")
         .unwrap();
-    
-    let perlin_params = parsed.as_any()
+
+    let perlin_params = parsed
+        .as_any()
         .downcast_ref::<PerlinParams>()
         .expect("Failed to downcast parsed parameters");
 
@@ -51,20 +61,44 @@ fn test_perlin_params_bounds() {
     let params = PerlinParams::default();
 
     // Test octaves bounds
-    assert!(params.validate("octaves=1,persistence=0.5,scale=1.0,seed=0").is_ok());
-    assert!(params.validate("octaves=8,persistence=0.5,scale=1.0,seed=0").is_ok());
-    assert!(params.validate("octaves=0,persistence=0.5,scale=1.0,seed=0").is_err());
-    assert!(params.validate("octaves=9,persistence=0.5,scale=1.0,seed=0").is_err());
+    assert!(params
+        .validate("octaves=1,persistence=0.5,scale=1.0,seed=0")
+        .is_ok());
+    assert!(params
+        .validate("octaves=8,persistence=0.5,scale=1.0,seed=0")
+        .is_ok());
+    assert!(params
+        .validate("octaves=0,persistence=0.5,scale=1.0,seed=0")
+        .is_err());
+    assert!(params
+        .validate("octaves=9,persistence=0.5,scale=1.0,seed=0")
+        .is_err());
 
     // Test persistence bounds
-    assert!(params.validate("octaves=4,persistence=0.0,scale=1.0,seed=0").is_ok());
-    assert!(params.validate("octaves=4,persistence=1.0,scale=1.0,seed=0").is_ok());
-    assert!(params.validate("octaves=4,persistence=-0.1,scale=1.0,seed=0").is_err());
-    assert!(params.validate("octaves=4,persistence=1.1,scale=1.0,seed=0").is_err());
+    assert!(params
+        .validate("octaves=4,persistence=0.0,scale=1.0,seed=0")
+        .is_ok());
+    assert!(params
+        .validate("octaves=4,persistence=1.0,scale=1.0,seed=0")
+        .is_ok());
+    assert!(params
+        .validate("octaves=4,persistence=-0.1,scale=1.0,seed=0")
+        .is_err());
+    assert!(params
+        .validate("octaves=4,persistence=1.1,scale=1.0,seed=0")
+        .is_err());
 
     // Test scale bounds
-    assert!(params.validate("octaves=4,persistence=0.5,scale=0.1,seed=0").is_ok());
-    assert!(params.validate("octaves=4,persistence=0.5,scale=5.0,seed=0").is_ok());
-    assert!(params.validate("octaves=4,persistence=0.5,scale=0.09,seed=0").is_err());
-    assert!(params.validate("octaves=4,persistence=0.5,scale=5.1,seed=0").is_err());
+    assert!(params
+        .validate("octaves=4,persistence=0.5,scale=0.1,seed=0")
+        .is_ok());
+    assert!(params
+        .validate("octaves=4,persistence=0.5,scale=5.0,seed=0")
+        .is_ok());
+    assert!(params
+        .validate("octaves=4,persistence=0.5,scale=0.09,seed=0")
+        .is_err());
+    assert!(params
+        .validate("octaves=4,persistence=0.5,scale=5.1,seed=0")
+        .is_err());
 }

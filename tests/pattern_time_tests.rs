@@ -1,4 +1,4 @@
-use chromacat::pattern::config::{PatternConfig, PatternParams, CommonParams};
+use chromacat::pattern::config::{CommonParams, PatternConfig, PatternParams};
 use chromacat::pattern::engine::PatternEngine;
 use chromacat::pattern::patterns::PlasmaParams;
 use colorgrad::preset::greys;
@@ -29,7 +29,7 @@ fn test_time_consistency() {
     let mut last_value = engine.get_value_at(50, 50).unwrap();
     let mut max_delta = 0.0;
     let mut max_delta_time = 0.0;
-    
+
     // Test smaller time increments for smoother animation
     let time_step = 0.016; // ~60fps
     for i in 1..100 {
@@ -37,7 +37,7 @@ fn test_time_consistency() {
         engine.update(time_step);
         let value = engine.get_value_at(50, 50).unwrap();
         let delta = (value - last_value).abs();
-        
+
         // Track maximum change
         if delta > max_delta {
             max_delta = delta;
@@ -51,12 +51,17 @@ fn test_time_consistency() {
             println!("  Current value:  {:.6}", value);
             println!("  Delta:          {:.6}", delta);
         }
-        
+
         // Ensure changes between frames are not too drastic
-        assert!(delta < 0.15, 
-            "Value change too large at time {}: {} (prev: {}, curr: {})", 
-            time, delta, last_value, value);
-        
+        assert!(
+            delta < 0.15,
+            "Value change too large at time {}: {} (prev: {}, curr: {})",
+            time,
+            delta,
+            last_value,
+            value
+        );
+
         last_value = value;
     }
 
@@ -93,7 +98,10 @@ fn test_consistent_animation_speed() {
 
     println!("\nTesting animation speed consistency:");
     println!("Delta time: {:.6} seconds", delta);
-    println!("Testing {} periods of {} steps each", periods, steps_per_period);
+    println!(
+        "Testing {} periods of {} steps each",
+        periods, steps_per_period
+    );
 
     // Track time progression instead of value changes
     let mut times = Vec::new();
@@ -115,7 +123,7 @@ fn test_consistent_animation_speed() {
 
         let time_diff = period_times.last().unwrap() - period_times.first().unwrap();
         println!("Period {} time progression: {:.6}", period, time_diff);
-        
+
         times.push(period_times);
         values.push(period_values);
     }
@@ -124,24 +132,34 @@ fn test_consistent_animation_speed() {
     println!("\nComparing time progression between periods:");
     for i in 1..times.len() {
         let current_diff = times[i].last().unwrap() - times[i].first().unwrap();
-        let prev_diff = times[i-1].last().unwrap() - times[i-1].first().unwrap();
+        let prev_diff = times[i - 1].last().unwrap() - times[i - 1].first().unwrap();
         let ratio = current_diff / prev_diff;
-        
-        println!("Period {}/{} time ratio: {:.6} ({:.6} / {:.6})",
-            i-1, i, ratio, prev_diff, current_diff);
-        
+
+        println!(
+            "Period {}/{} time ratio: {:.6} ({:.6} / {:.6})",
+            i - 1,
+            i,
+            ratio,
+            prev_diff,
+            current_diff
+        );
+
         // Time progression should be very consistent
-        assert!((ratio - 1.0).abs() < 0.001, 
+        assert!(
+            (ratio - 1.0).abs() < 0.001,
             "Time progression should be consistent between periods\n\
              Period {}/{} ratio: {:.6} exceeds threshold",
-            i-1, i, ratio);
+            i - 1,
+            i,
+            ratio
+        );
     }
 
     // Verify that values are changing
     for period_values in values {
         let mut has_change = false;
         for i in 1..period_values.len() {
-            if (period_values[i] - period_values[i-1]).abs() > 0.001 {
+            if (period_values[i] - period_values[i - 1]).abs() > 0.001 {
                 has_change = true;
                 break;
             }

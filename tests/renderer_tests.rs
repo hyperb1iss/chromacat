@@ -3,7 +3,9 @@
 //! Tests the rendering pipeline, including static and animated rendering,
 //! terminal interaction, color handling, and performance.
 
-use chromacat::pattern::{CommonParams, PatternConfig, PatternEngine, PatternParams, HorizontalParams};
+use chromacat::pattern::{
+    CommonParams, HorizontalParams, PatternConfig, PatternEngine, PatternParams,
+};
 use chromacat::renderer::{AnimationConfig, Renderer};
 use colorgrad::{Color, Gradient};
 use std::time::Duration;
@@ -55,8 +57,8 @@ impl RendererTest {
 
     fn create_renderer(&self) -> Result<Renderer, Box<dyn std::error::Error>> {
         let renderer = Renderer::new(
-            self.engine.clone(), 
-            self.config.clone(), 
+            self.engine.clone(),
+            self.config.clone(),
             None,  // playlist
             false, // demo_mode
         )?;
@@ -149,9 +151,9 @@ fn test_animation_progress() {
 
     // Test different points in time (in seconds)
     let progress_points = [
-        0.0,    // Start
-        0.5,    // Middle
-        0.999,  // Just before end
+        0.0,   // Start
+        0.5,   // Middle
+        0.999, // Just before end
     ];
 
     for seconds in progress_points {
@@ -172,9 +174,9 @@ fn test_unicode_width() {
     let test_cases = vec![
         "Hello",         // ASCII
         "世界",          // CJK
-        "👨‍👩‍👧‍👦",      // Wide emoji
+        "👨‍👩‍👧‍👦",            // Wide emoji
         "α β γ",         // Greek
-        "🏳️‍🌈",          // Flag
+        "🏳️‍🌈",            // Flag
         "ｆｕｌｌwidth", // Full-width
     ];
 
@@ -220,7 +222,9 @@ fn test_animation_performance() {
 
     // Render frames with small, fixed time increments
     for _ in 0..frame_count {
-        renderer.render_frame("Animation test", delta_seconds).unwrap();
+        renderer
+            .render_frame("Animation test", delta_seconds)
+            .unwrap();
     }
 
     let duration = start.elapsed();

@@ -1,9 +1,9 @@
-use colorgrad::{Color, Gradient, GradientBuilder, LinearGradient};
 use chromacat::pattern::{
-    PatternConfig, PatternEngine, PatternParams, CommonParams,
-    CheckerboardParams, DiagonalParams, DiamondParams, HorizontalParams,
-    PerlinParams, PlasmaParams, RippleParams, SpiralParams, WaveParams,
+    CheckerboardParams, CommonParams, DiagonalParams, DiamondParams, HorizontalParams,
+    PatternConfig, PatternEngine, PatternParams, PerlinParams, PlasmaParams, RippleParams,
+    SpiralParams, WaveParams,
 };
+use colorgrad::{Color, Gradient, GradientBuilder, LinearGradient};
 
 fn create_test_gradient() -> Box<dyn Gradient + Send + Sync> {
     let gradient = GradientBuilder::new()
@@ -80,18 +80,18 @@ fn test_pattern_animation() {
         let mut config = create_test_config();
         config.params = pattern.clone();
         // Ensure animation speed is high enough to see changes
-        config.common.speed = 2.0;  // Increase speed
+        config.common.speed = 2.0; // Increase speed
         let mut engine = PatternEngine::new(create_test_gradient(), config, 100, 100);
 
         // Test that animation updates produce different values
         let initial = engine.get_value_at(50, 50).unwrap();
         eprintln!("DEBUG: Initial value at (50,50): {}", initial);
         eprintln!("DEBUG: Current time: {}", engine.time());
-        
+
         // Use a larger time delta to ensure visible change
-        engine.update(2.0);  // Increase time delta
+        engine.update(2.0); // Increase time delta
         eprintln!("DEBUG: Updated time to: {}", engine.time());
-        
+
         let after_update = engine.get_value_at(50, 50).unwrap();
         eprintln!("DEBUG: Value after update at (50,50): {}", after_update);
 

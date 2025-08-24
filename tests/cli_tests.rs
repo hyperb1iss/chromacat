@@ -172,7 +172,9 @@ fn test_comma_separated_params() {
 
     for (args, expected_params) in test_cases {
         let cli = Cli::try_parse_from(args).unwrap();
-        let actual_params: Vec<String> = cli.params.iter()
+        let actual_params: Vec<String> = cli
+            .params
+            .iter()
             .flat_map(|p| p.split(','))
             .map(|s| s.trim().to_string())
             .collect();
@@ -186,7 +188,12 @@ fn test_comma_separated_params() {
 
 #[test]
 fn test_aspect_ratio_settings() {
-    let args = vec!["chromacat", "--no-aspect-correction", "--aspect-ratio", "0.7"];
+    let args = vec![
+        "chromacat",
+        "--no-aspect-correction",
+        "--aspect-ratio",
+        "0.7",
+    ];
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.no_aspect_correction);
     assert_eq!(cli.aspect_ratio, 0.7);

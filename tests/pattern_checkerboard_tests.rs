@@ -1,20 +1,28 @@
-use chromacat::pattern::{PatternParam, CheckerboardParams};
+use chromacat::pattern::{CheckerboardParams, PatternParam};
 
 #[test]
 fn test_checkerboard_params_validation() {
     let params = CheckerboardParams::default();
 
     // Test valid values
-    assert!(params.validate("size=2,blur=0.1,rotation=45,scale=1.0").is_ok());
+    assert!(params
+        .validate("size=2,blur=0.1,rotation=45,scale=1.0")
+        .is_ok());
 
     // Test invalid size
-    assert!(params.validate("size=11,blur=0.1,rotation=45,scale=1.0").is_err());
+    assert!(params
+        .validate("size=11,blur=0.1,rotation=45,scale=1.0")
+        .is_err());
 
     // Test invalid blur
-    assert!(params.validate("size=2,blur=1.5,rotation=45,scale=1.0").is_err());
+    assert!(params
+        .validate("size=2,blur=1.5,rotation=45,scale=1.0")
+        .is_err());
 
     // Test invalid rotation
-    assert!(params.validate("size=2,blur=0.1,rotation=400,scale=1.0").is_err());
+    assert!(params
+        .validate("size=2,blur=0.1,rotation=400,scale=1.0")
+        .is_err());
 
     // Test invalid format
     assert!(params.validate("size=2,invalid").is_err());
@@ -23,11 +31,13 @@ fn test_checkerboard_params_validation() {
 #[test]
 fn test_checkerboard_params_parsing() {
     let params = CheckerboardParams::default();
-    
-    let parsed = params.parse("size=4,blur=0.3,rotation=90,scale=2.0")
+
+    let parsed = params
+        .parse("size=4,blur=0.3,rotation=90,scale=2.0")
         .unwrap();
-    
-    let checker_params = parsed.as_any()
+
+    let checker_params = parsed
+        .as_any()
         .downcast_ref::<CheckerboardParams>()
         .expect("Failed to downcast parsed parameters");
 

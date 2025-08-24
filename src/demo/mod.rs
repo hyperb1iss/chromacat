@@ -79,6 +79,5 @@ pub enum Error {
 
 /// Utility function to parse art type from string
 pub fn parse_art(s: &str) -> Result<DemoArt> {
-    DemoArt::try_from_str(s)
-        .ok_or_else(|| Error::InvalidPattern(s.to_string()))
+    DemoArt::try_from_str(s).ok_or_else(|| Error::InvalidPattern(s.to_string()))
 }

@@ -18,22 +18,22 @@ pub enum ParamType {
 pub trait PatternParam: Debug + Any {
     /// Name of the parameter for CLI help text
     fn name(&self) -> &'static str;
-    
+
     /// Description of the parameter for CLI help text
     fn description(&self) -> &'static str;
-    
+
     /// Type of the parameter
     fn param_type(&self) -> ParamType;
-    
+
     /// Default value as a string
     fn default_value(&self) -> String;
-    
+
     /// Validate a string value for this parameter
     fn validate(&self, value: &str) -> Result<(), String>;
-    
+
     /// Parse a string value into the appropriate type
     fn parse(&self, value: &str) -> Result<Box<dyn PatternParam>, String>;
-    
+
     /// List of sub-parameters if this is a composite type
     fn sub_params(&self) -> Vec<Box<dyn PatternParam>> {
         Vec::new()
@@ -41,7 +41,7 @@ pub trait PatternParam: Debug + Any {
 
     /// Clone implementation for trait object
     fn clone_param(&self) -> Box<dyn PatternParam>;
-    
+
     /// Convert to Any for downcasting
     fn as_any(&self) -> &dyn Any;
 }
@@ -59,11 +59,11 @@ macro_rules! define_param {
             impl $crate::pattern::params::PatternParam for [<$pattern $name>] {
                 fn name(&self) -> &'static str { $cli_name }
                 fn description(&self) -> &'static str { $desc }
-                fn param_type(&self) -> $crate::pattern::params::ParamType { 
-                    $crate::pattern::params::ParamType::Number { min: $min, max: $max } 
+                fn param_type(&self) -> $crate::pattern::params::ParamType {
+                    $crate::pattern::params::ParamType::Number { min: $min, max: $max }
                 }
                 fn default_value(&self) -> String { $default.to_string() }
-                
+
                 fn validate(&self, value: &str) -> Result<(), String> {
                     let val = value.parse::<f64>().map_err(|_| "Invalid number".to_string())?;
                     if !($min..=$max).contains(&val) {
@@ -71,7 +71,7 @@ macro_rules! define_param {
                     }
                     Ok(())
                 }
-                
+
                 fn parse(&self, _: &str) -> Result<Box<dyn $crate::pattern::params::PatternParam>, String> {
                     unimplemented!("Individual parameters don't support parsing")
                 }
@@ -93,18 +93,18 @@ macro_rules! define_param {
             impl $crate::pattern::params::PatternParam for [<$pattern $name>] {
                 fn name(&self) -> &'static str { $cli_name }
                 fn description(&self) -> &'static str { $desc }
-                fn param_type(&self) -> $crate::pattern::params::ParamType { 
-                    $crate::pattern::params::ParamType::Boolean 
+                fn param_type(&self) -> $crate::pattern::params::ParamType {
+                    $crate::pattern::params::ParamType::Boolean
                 }
                 fn default_value(&self) -> String { $default.to_string() }
-                
+
                 fn validate(&self, value: &str) -> Result<(), String> {
                     match value {
                         "true" | "false" => Ok(()),
                         _ => Err(format!("{} must be true or false", self.name())),
                     }
                 }
-                
+
                 fn parse(&self, _: &str) -> Result<Box<dyn $crate::pattern::params::PatternParam>, String> {
                     unimplemented!("Individual parameters don't support parsing")
                 }
@@ -126,11 +126,11 @@ macro_rules! define_param {
             impl $crate::pattern::params::PatternParam for [<$pattern $name>] {
                 fn name(&self) -> &'static str { $cli_name }
                 fn description(&self) -> &'static str { $desc }
-                fn param_type(&self) -> $crate::pattern::params::ParamType { 
-                    $crate::pattern::params::ParamType::Enum { options: $options } 
+                fn param_type(&self) -> $crate::pattern::params::ParamType {
+                    $crate::pattern::params::ParamType::Enum { options: $options }
                 }
                 fn default_value(&self) -> String { $default.to_string() }
-                
+
                 fn validate(&self, value: &str) -> Result<(), String> {
                     if $options.contains(&value) {
                         Ok(())
@@ -138,7 +138,7 @@ macro_rules! define_param {
                         Err(format!("{} must be one of: {:?}", self.name(), $options))
                     }
                 }
-                
+
                 fn parse(&self, _: &str) -> Result<Box<dyn $crate::pattern::params::PatternParam>, String> {
                     unimplemented!("Individual parameters don't support parsing")
                 }
@@ -154,11 +154,11 @@ macro_rules! define_param {
     ($(#[$meta:meta])* num $pattern:ident, $name:ident, $desc:expr, $min:expr, $max:expr, $default:expr) => {
         define_param!($(#[$meta])* num $pattern, $name, stringify!($name), $desc, $min, $max, $default);
     };
-    
+
     ($(#[$meta:meta])* bool $pattern:ident, $name:ident, $desc:expr, $default:expr) => {
         define_param!($(#[$meta])* bool $pattern, $name, stringify!($name), $desc, $default);
     };
-    
+
     ($(#[$meta:meta])* enum $pattern:ident, $name:ident, $desc:expr, $options:expr, $default:expr) => {
         define_param!($(#[$meta])* enum $pattern, $name, stringify!($name), $desc, $options, $default);
     };

@@ -1,6 +1,5 @@
 use chromacat::renderer::StatusBar;
 
-
 #[test]
 fn test_status_bar_creation() {
     let status_bar = StatusBar::new((80, 24));

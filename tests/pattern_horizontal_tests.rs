@@ -1,4 +1,4 @@
-use chromacat::pattern::{PatternParam, HorizontalParams};
+use chromacat::pattern::{HorizontalParams, PatternParam};
 
 #[test]
 fn test_horizontal_params_validation() {
@@ -18,11 +18,11 @@ fn test_horizontal_params_validation() {
 #[test]
 fn test_horizontal_params_parsing() {
     let params = HorizontalParams::default();
-    
-    let parsed = params.parse("invert=true")
-        .unwrap();
-    
-    let horizontal_params = parsed.as_any()
+
+    let parsed = params.parse("invert=true").unwrap();
+
+    let horizontal_params = parsed
+        .as_any()
         .downcast_ref::<HorizontalParams>()
         .expect("Failed to downcast parsed parameters");
 

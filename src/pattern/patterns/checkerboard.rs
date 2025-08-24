@@ -342,14 +342,15 @@ impl super::Patterns {
             let x_smooth = PatternUtils::smoothstep(x_blend);
             let y_smooth = PatternUtils::smoothstep(y_blend);
 
-            let blur_value =
-                if ((x_rot * size_scaled).floor() as i32 + (y_rot * size_scaled).floor() as i32) & 1
-                    == 0
-                {
-                    (1.0 - x_smooth) * (1.0 - y_smooth) + x_smooth * y_smooth
-                } else {
-                    x_smooth * (1.0 - y_smooth) + (1.0 - x_smooth) * y_smooth
-                };
+            let blur_value = if ((x_rot * size_scaled).floor() as i32
+                + (y_rot * size_scaled).floor() as i32)
+                & 1
+                == 0
+            {
+                (1.0 - x_smooth) * (1.0 - y_smooth) + x_smooth * y_smooth
+            } else {
+                x_smooth * (1.0 - y_smooth) + (1.0 - x_smooth) * y_smooth
+            };
 
             // Smoother blend between original and blurred value
             final_value = final_value * (1.0 - blur_amount) + blur_value * blur_amount;

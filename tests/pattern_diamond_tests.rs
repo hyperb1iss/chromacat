@@ -1,11 +1,13 @@
-use chromacat::pattern::{PatternParam, DiamondParams};
+use chromacat::pattern::{DiamondParams, PatternParam};
 
 #[test]
 fn test_diamond_params_validation() {
     let params = DiamondParams::default();
 
     // Test valid values
-    assert!(params.validate("size=1.0,offset=0.5,sharpness=2.0,rotation=45,speed=1.0,mode=zoom").is_ok());
+    assert!(params
+        .validate("size=1.0,offset=0.5,sharpness=2.0,rotation=45,speed=1.0,mode=zoom")
+        .is_ok());
     assert!(params.validate("mode=scroll,speed=2.0").is_ok());
     assert!(params.validate("mode=static").is_ok());
 
@@ -22,11 +24,13 @@ fn test_diamond_params_validation() {
 #[test]
 fn test_diamond_params_parsing() {
     let params = DiamondParams::default();
-    
-    let parsed = params.parse("size=2.0,offset=0.3,sharpness=3.0,rotation=90,speed=2.5,mode=scroll")
+
+    let parsed = params
+        .parse("size=2.0,offset=0.3,sharpness=3.0,rotation=90,speed=2.5,mode=scroll")
         .unwrap();
-    
-    let diamond_params = parsed.as_any()
+
+    let diamond_params = parsed
+        .as_any()
         .downcast_ref::<DiamondParams>()
         .expect("Failed to downcast parsed parameters");
 
@@ -52,18 +56,39 @@ fn test_diamond_params_defaults() {
 #[test]
 fn test_diamond_animation_modes() {
     let params = DiamondParams::default();
-    
+
     // Test each valid animation mode
     assert!(params.validate("mode=zoom").is_ok());
     assert!(params.validate("mode=scroll").is_ok());
     assert!(params.validate("mode=static").is_ok());
-    
+
     // Test parsing of each mode
     let zoom_params = params.parse("mode=zoom").unwrap();
     let scroll_params = params.parse("mode=scroll").unwrap();
     let static_params = params.parse("mode=static").unwrap();
-    
-    assert_eq!(zoom_params.as_any().downcast_ref::<DiamondParams>().unwrap().mode, "zoom");
-    assert_eq!(scroll_params.as_any().downcast_ref::<DiamondParams>().unwrap().mode, "scroll");
-    assert_eq!(static_params.as_any().downcast_ref::<DiamondParams>().unwrap().mode, "static");
+
+    assert_eq!(
+        zoom_params
+            .as_any()
+            .downcast_ref::<DiamondParams>()
+            .unwrap()
+            .mode,
+        "zoom"
+    );
+    assert_eq!(
+        scroll_params
+            .as_any()
+            .downcast_ref::<DiamondParams>()
+            .unwrap()
+            .mode,
+        "scroll"
+    );
+    assert_eq!(
+        static_params
+            .as_any()
+            .downcast_ref::<DiamondParams>()
+            .unwrap()
+            .mode,
+        "static"
+    );
 }

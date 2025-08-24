@@ -34,7 +34,12 @@ pub fn debug_log(msg: &str) -> std::io::Result<()> {
     // eprintln!("DEBUG LOG: {}", msg); // Comment out stderr output for cleaner terminal
     if let Ok(mut guard) = DEBUG_FILE.lock() {
         if let Some(ref mut file) = *guard {
-            writeln!(file, "[{}] {}", chrono::Local::now().format("%H:%M:%S%.3f"), msg)?;
+            writeln!(
+                file,
+                "[{}] {}",
+                chrono::Local::now().format("%H:%M:%S%.3f"),
+                msg
+            )?;
             file.flush()?;
         }
     }

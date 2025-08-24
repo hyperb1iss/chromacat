@@ -1,7 +1,7 @@
 //! Tests for terminal state management
 
-use std::env;
 use chromacat::renderer::TerminalState;
+use std::env;
 
 /// Set up test environment variables
 fn setup_test_env() {

@@ -14,7 +14,7 @@ use crate::streaming::StreamingInput;
 use crate::themes;
 
 use crossterm::cursor::{Hide, Show};
-use crossterm::event::{self, Event, EnableMouseCapture, DisableMouseCapture};
+use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -54,7 +54,7 @@ impl ChromaCat {
             crate::debug_log::debug_log("Playground mode started").ok();
             crate::debug_log::debug_log("After initializing debug log").ok();
         }
-        
+
         debug!("Starting ChromaCat with configuration: {:?}", self.cli);
 
         // Handle --list-art flag
@@ -161,7 +161,7 @@ impl ChromaCat {
             engine,
             animation_config,
             playlist,
-            self.cli.demo || self.cli.playground  // Treat playground as demo mode for art selection
+            self.cli.demo || self.cli.playground, // Treat playground as demo mode for art selection
         )?;
 
         // Process input and render
@@ -169,9 +169,11 @@ impl ChromaCat {
         if playground {
             crate::debug_log::debug_log("Setting up playground mode").ok();
             renderer.set_overlay_visible(true);
-            renderer.set_status_message("Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load");
+            renderer.set_status_message(
+                "Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load",
+            );
             renderer.enable_default_scenes();
-            
+
             // Load the art specified by CLI or use default
             // Don't override what was already loaded from InputReader::from_demo
             if self.cli.art.is_none() {
@@ -251,11 +253,8 @@ impl ChromaCat {
         // Handle demo mode
         if self.cli.demo {
             info!("Running in demo mode");
-            let mut reader = InputReader::from_demo(
-                self.cli.animate,
-                self.cli.art.as_deref(),
-                None
-            )?;
+            let mut reader =
+                InputReader::from_demo(self.cli.animate, self.cli.art.as_deref(), None)?;
 
             if self.cli.animate {
                 // For animated demo, we'll keep generating new content
@@ -310,15 +309,17 @@ impl ChromaCat {
             debug!("Processing stdin in terminal mode");
             // In playground mode (or when animating without input), seed with demo content instead of blocking on stdin
             if self.cli.playground {
-                crate::debug_log::debug_log(&format!("Loading demo content with art: {:?}", self.cli.art)).ok();
-                let mut reader = InputReader::from_demo(
-                    /*animate*/ true,
-                    self.cli.art.as_deref(),
-                    None,
-                )?;
+                crate::debug_log::debug_log(&format!(
+                    "Loading demo content with art: {:?}",
+                    self.cli.art
+                ))
+                .ok();
+                let mut reader =
+                    InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
                 let mut buffer = String::new();
                 reader.read_to_string(&mut buffer)?;
-                crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len())).ok();
+                crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len()))
+                    .ok();
                 self.run_playground(renderer, &buffer)?;
             } else {
                 // Terminal input - use normal processing
@@ -389,7 +390,7 @@ impl ChromaCat {
         }
 
         // Terminal already set up in setup() method, no need to duplicate
-        
+
         crate::debug_log::debug_log("Entering main animation loop").ok();
 
         // Main animation loop
@@ -466,7 +467,11 @@ impl ChromaCat {
         // Playground reuses animation loop; ensure overlay is visible at start and content is non-empty
         renderer.set_overlay_visible(true);
         let non_empty = if content.is_empty() { "\n" } else { content };
-        crate::debug_log::debug_log(&format!("Calling run_animation with {} chars of content", non_empty.len())).ok();
+        crate::debug_log::debug_log(&format!(
+            "Calling run_animation with {} chars of content",
+            non_empty.len()
+        ))
+        .ok();
         self.run_animation(renderer, non_empty)
     }
 }

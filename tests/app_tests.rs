@@ -258,7 +258,7 @@ fn test_demo_mode() {
     // Set larger terminal dimensions for testing
     env::set_var("COLUMNS", "120");
     env::set_var("LINES", "40");
-    
+
     println!("Testing static demo mode");
     let cli = Cli {
         files: vec![],
@@ -288,18 +288,19 @@ fn test_demo_mode() {
 
     let mut cat = ChromaCat::new(cli);
     println!("Running static demo mode");
-    
-    println!("Terminal dimensions: {}x{}", 
+
+    println!(
+        "Terminal dimensions: {}x{}",
         env::var("COLUMNS").unwrap_or_default(),
         env::var("LINES").unwrap_or_default()
     );
-    
+
     match cat.run() {
         Ok(_) => println!("Static demo mode completed successfully"),
         Err(e) => {
             println!("Error details: {:?}", e);
             panic!("Static demo mode failed with error: {:?}", e)
-        },
+        }
     }
 
     println!("Demo mode test completed");

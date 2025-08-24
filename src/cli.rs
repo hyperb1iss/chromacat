@@ -4,12 +4,12 @@
 //! It handles all user input configuration and converts it into the internal configuration
 //! types used by the pattern engine and renderer.
 
+use crate::cli_format::{CliFormat, PadToWidth};
 use crate::demo::DemoArt;
 use crate::error::{ChromaCatError, Result};
-use crate::pattern::{CommonParams, PatternConfig, REGISTRY, ParamType};
+use crate::pattern::{CommonParams, ParamType, PatternConfig, REGISTRY};
 use crate::renderer::AnimationConfig;
 use crate::themes;
-use crate::cli_format::{CliFormat, PadToWidth};
 
 use clap::Parser;
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ use std::time::Duration;
 /// ChromaCat - A versatile command-line tool for applying animated color gradients to text
 #[derive(Parser, Debug)]
 #[command(
-    author, 
+    author,
     version,
     about = format!("😺 {}Chroma{}Cat{} - Create magical color gradients for your text ✨", 
         CliFormat::TITLE_1, CliFormat::TITLE_2, CliFormat::RESET),
@@ -240,7 +240,8 @@ impl Cli {
         // Get pattern params from registry
         let pattern_params = if self.params.is_empty() {
             // Use default parameters
-            REGISTRY.create_pattern_params(&self.pattern)
+            REGISTRY
+                .create_pattern_params(&self.pattern)
                 .ok_or_else(|| ChromaCatError::PatternError {
                     pattern: self.pattern.clone(),
                     param: String::new(),
@@ -249,7 +250,8 @@ impl Cli {
         } else {
             // Parse provided parameters
             let params_str = self.params.join(",");
-            REGISTRY.parse_params(&self.pattern, &params_str)
+            REGISTRY
+                .parse_params(&self.pattern, &params_str)
                 .map_err(|e| ChromaCatError::PatternError {
                     pattern: self.pattern.clone(),
                     param: "params".to_string(),
@@ -323,7 +325,8 @@ impl Cli {
         // Validate pattern exists and its parameters
         if !self.params.is_empty() {
             let params_str = self.params.join(",");
-            REGISTRY.validate_params(&self.pattern, &params_str)
+            REGISTRY
+                .validate_params(&self.pattern, &params_str)
                 .map_err(|e| ChromaCatError::PatternError {
                     pattern: self.pattern.clone(),
                     param: "params".to_string(),
@@ -343,7 +346,7 @@ impl Cli {
         if let Some(art) = &self.art {
             if !(self.demo || self.playground) {
                 return Err(ChromaCatError::InputError(
-                    "--art requires --demo or --playground".to_string()
+                    "--art requires --demo or --playground".to_string(),
                 ));
             }
 
@@ -374,7 +377,10 @@ impl Cli {
     /// Prints available themes and patterns
     pub fn print_available_options() {
         // Title and introduction
-        println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Help ✨"));
+        println!(
+            "\n{}",
+            CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Help ✨")
+        );
         println!("{}", CliFormat::separator(&"═".repeat(90)));
         println!("\n{}", CliFormat::highlight_description(
             "ChromaCat is a command-line tool that adds beautiful color gradients to text output. \
@@ -384,17 +390,21 @@ impl Cli {
         // Patterns section
         println!("\n{}", CliFormat::core("Available Patterns:"));
         println!("{}", CliFormat::separator(&"─".repeat(85)));
-        
+
         for pattern_id in REGISTRY.list_patterns() {
             if let Some(metadata) = REGISTRY.get_pattern(pattern_id) {
-                println!("  {} {}",
+                println!(
+                    "  {} {}",
                     CliFormat::param(&format!("{:<12}", metadata.name)),
                     CliFormat::description(metadata.description)
                 );
             }
         }
 
-        println!("\n{}", CliFormat::general("Use --pattern-help for detailed pattern parameters"));
+        println!(
+            "\n{}",
+            CliFormat::general("Use --pattern-help for detailed pattern parameters")
+        );
 
         Self::print_themes();
         Self::print_usage_examples();
@@ -402,7 +412,10 @@ impl Cli {
 
     pub fn print_pattern_help() {
         // Title and introduction
-        println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Pattern Reference ✨"));
+        println!(
+            "\n{}",
+            CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Pattern Reference ✨")
+        );
         println!("{}", CliFormat::separator(&"═".repeat(90)));
         println!("\n{}", CliFormat::highlight_description(
             "Each pattern supports specific parameters that can be customized using the --param flag. \
@@ -412,7 +425,8 @@ impl Cli {
         for pattern_id in REGISTRY.list_patterns() {
             if let Some(metadata) = REGISTRY.get_pattern(pattern_id) {
                 // Pattern header
-                println!("\n{} {}",
+                println!(
+                    "\n{} {}",
                     CliFormat::core(&format!("▶ {}", metadata.name)),
                     CliFormat::description(metadata.description)
                 );
@@ -421,7 +435,8 @@ impl Cli {
                 let params = metadata.params().sub_params();
                 if !params.is_empty() {
                     println!("{}", CliFormat::separator(&"─".repeat(85)));
-                    println!("  {}  {}  {}",
+                    println!(
+                        "  {}  {}  {}",
                         CliFormat::param(&"Parameter".pad_to_width(20)),
                         CliFormat::param_value(&"Value Range".pad_to_width(20)),
                         CliFormat::param("Description")
@@ -436,7 +451,8 @@ impl Cli {
                             _ => String::new(),
                         };
 
-                        println!("  {}  {}  {}",
+                        println!(
+                            "  {}  {}  {}",
                             CliFormat::param(&format!("{}=", param.name()).pad_to_width(20)),
                             CliFormat::param_value(&range.pad_to_width(20)),
                             CliFormat::description(param.description())
@@ -445,9 +461,13 @@ impl Cli {
                 }
 
                 // Example usage
-                println!("\n  {} {}",
+                println!(
+                    "\n  {} {}",
                     CliFormat::param("Example:"),
-                    CliFormat::param_value(&format!("chromacat -p {} --param frequency=1.5 input.txt", pattern_id))
+                    CliFormat::param_value(&format!(
+                        "chromacat -p {} --param frequency=1.5 input.txt",
+                        pattern_id
+                    ))
                 );
                 println!("{}", CliFormat::separator(&"─".repeat(85)));
             }
@@ -502,14 +522,24 @@ impl Cli {
             ("Using a specific theme:", "chromacat -t ocean input.txt"),
             ("Animated output:", "chromacat -a --fps 60 input.txt"),
             ("Pipe from another command:", "ls -la | chromacat -t neon"),
-            ("Pattern with parameters:", "chromacat -p wave --param amplitude=1.5,frequency=2.0 input.txt"),
+            (
+                "Pattern with parameters:",
+                "chromacat -p wave --param amplitude=1.5,frequency=2.0 input.txt",
+            ),
             ("Multiple files:", "chromacat -a *.txt"),
-            ("Custom diagonal gradient:", "chromacat -p diagonal --param angle=45,speed=0.8 input.txt"),
-            ("Interactive plasma:", "chromacat -p plasma --param complexity=3.0,scale=1.5 -a input.txt"),
+            (
+                "Custom diagonal gradient:",
+                "chromacat -p diagonal --param angle=45,speed=0.8 input.txt",
+            ),
+            (
+                "Interactive plasma:",
+                "chromacat -p plasma --param complexity=3.0,scale=1.5 -a input.txt",
+            ),
         ];
 
         for (desc, cmd) in examples {
-            println!("  {} {}",
+            println!(
+                "  {} {}",
                 CliFormat::param(&format!("{:<25}", desc)),
                 CliFormat::param_value(cmd)
             );
@@ -520,12 +550,16 @@ impl Cli {
 
         let playlist_examples = [
             ("Play default playlist:", "chromacat -a"),
-            ("Use custom playlist:", "chromacat -a --playlist my-playlist.yaml"),
+            (
+                "Use custom playlist:",
+                "chromacat -a --playlist my-playlist.yaml",
+            ),
             ("Disable playlist:", "chromacat -a --no-playlist"),
         ];
 
         for (desc, cmd) in playlist_examples {
-            println!("  {} {}",
+            println!(
+                "  {} {}",
                 CliFormat::param(&format!("{:<25}", desc)),
                 CliFormat::param_value(cmd)
             );
@@ -534,7 +568,10 @@ impl Cli {
 
     /// Print available demo art patterns
     pub fn print_art_patterns() {
-        println!("\n{}", CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Demo Art ✨"));
+        println!(
+            "\n{}",
+            CliFormat::wrap(CliFormat::TITLE_1, "✨ ChromaCat Demo Art ✨")
+        );
         println!("{}", CliFormat::separator(&"═".repeat(90)));
         println!("\n{}", CliFormat::highlight_description(
             "ChromaCat's demo art patterns showcase different artistic effects and capabilities.\n\
@@ -543,9 +580,10 @@ impl Cli {
 
         println!("\n{}", CliFormat::core("Available Patterns:"));
         println!("{}", CliFormat::separator(&"─".repeat(85)));
-        
+
         for art in DemoArt::all_types() {
-            println!("  {} {} - {}",
+            println!(
+                "  {} {} - {}",
                 CliFormat::param(&format!("{:<12}", art.as_str())),
                 CliFormat::param_value(art.display_name()),
                 CliFormat::description(art.description())
@@ -553,22 +591,26 @@ impl Cli {
         }
 
         println!("\n{}", CliFormat::param("Special Values:"));
-        println!("  {} {} - {}",
+        println!(
+            "  {} {} - {}",
             CliFormat::param(&format!("{:<12}", "all")),
             CliFormat::param_value("All Patterns"),
             CliFormat::description("Show all patterns in sequence")
         );
 
         println!("\n{}", CliFormat::general("Examples:"));
-        println!("  {} {}", 
+        println!(
+            "  {} {}",
             CliFormat::param("Basic demo:"),
             CliFormat::description("chromacat --demo")
         );
-        println!("  {} {}", 
+        println!(
+            "  {} {}",
             CliFormat::param("Specific art:"),
             CliFormat::description("chromacat --demo --art matrix")
         );
-        println!("  {} {}", 
+        println!(
+            "  {} {}",
             CliFormat::param("With playlist:"),
             CliFormat::description("chromacat --demo --playlist my-playlist.yaml")
         );

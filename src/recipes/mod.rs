@@ -30,5 +30,3 @@ pub struct Recipe {
     pub theme_mode: Option<u8>,
     pub crossfade_seconds: Option<f32>,
 }
-
-

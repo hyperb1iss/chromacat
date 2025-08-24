@@ -1,33 +1,33 @@
+mod aurora;
 mod checkerboard;
 mod diagonal;
 mod diamond;
 mod fire;
 mod horizontal;
+mod kaleidoscope;
 mod perlin;
+mod pixel_rain;
 mod plasma;
 mod ripple;
 mod spiral;
 mod wave;
-mod pixel_rain;
-mod aurora;
-mod kaleidoscope;
 
+pub use aurora::AuroraParams;
 pub use checkerboard::CheckerboardParams;
 pub use diagonal::DiagonalParams;
 pub use diamond::DiamondParams;
 pub use fire::FireParams;
 pub use horizontal::HorizontalParams;
+pub use kaleidoscope::KaleidoscopeParams;
 pub use perlin::PerlinParams;
-pub use plasma::{PlasmaParams, PlasmaBlendMode};
+pub use pixel_rain::PixelRainParams;
+pub use plasma::{PlasmaBlendMode, PlasmaParams};
 pub use ripple::RippleParams;
 pub use spiral::SpiralParams;
 pub use wave::WaveParams;
-pub use pixel_rain::PixelRainParams;
-pub use aurora::AuroraParams;
-pub use kaleidoscope::KaleidoscopeParams;
 
-use crate::pattern::utils::PatternUtils;
 use crate::pattern::config::PatternParams;
+use crate::pattern::utils::PatternUtils;
 
 /// Core pattern generation struct that handles various visual effects
 pub struct Patterns {
@@ -54,7 +54,7 @@ impl Patterns {
             height,
             time,
             char_aspect_ratio: 0.5, // Default terminal character aspect ratio
-            correct_aspect: true,  // Enable by default
+            correct_aspect: true,   // Enable by default
         }
     }
 
@@ -87,7 +87,7 @@ impl Patterns {
     /// Generate a pattern value at the given coordinates
     pub fn generate(&self, x: usize, y: usize, params: &PatternParams) -> f64 {
         let (x_norm, y_norm) = self.normalize_coords(x, y);
-        
+
         match params {
             PatternParams::Horizontal(p) => self.horizontal(x_norm + 0.5, p.clone()),
             PatternParams::Diagonal(p) => self.diagonal(x_norm, y_norm, p.clone()),

@@ -321,9 +321,9 @@ fn get_recommended_theme(pattern: &str) -> &'static str {
         "perlin" => "nebula", // Organic noise works well with nebula colors
 
         // Dynamic patterns
-        "rain" => "hackerman",   // Digital rain effect with matrix colors
-        "fire" => "fire",     // Fire pattern with matching heat colors
-        "aurora" => "neon", // Aurora pattern with matching colors
+        "rain" => "hackerman", // Digital rain effect with matrix colors
+        "fire" => "fire",      // Fire pattern with matching heat colors
+        "aurora" => "neon",    // Aurora pattern with matching colors
 
         // Default to rainbow if no specific recommendation
         _ => "rainbow",

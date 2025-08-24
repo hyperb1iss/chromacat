@@ -1,6 +1,6 @@
 use chromacat::cli::Cli;
-use chromacat::ChromaCat;
 use chromacat::error::Result;
+use chromacat::ChromaCat;
 use clap::Parser;
 use std::process;
 
