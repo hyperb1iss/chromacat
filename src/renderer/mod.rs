@@ -30,6 +30,7 @@ pub use scroll::{Action, ScrollState};
 pub use status_bar::StatusBar;
 pub use terminal::TerminalState;
 
+use crate::debug_log::debug_log;
 use crate::pattern::PatternEngine;
 use crate::playlist::{Playlist, PlaylistPlayer};
 use crate::{themes, PatternConfig};
@@ -304,10 +305,7 @@ impl Renderer {
             last_overlay_draw: now,
             overlay_refresh: Duration::from_millis(33),
             #[cfg(feature = "playground-ui")]
-            tui: {
-                let backend = CrosstermBackend::new(std::io::stdout());
-                match TuiTerminal::new(backend) { Ok(t) => Some(t), Err(_) => None }
-            },
+            tui: None, // Don't create immediately - will be created on first render
             toast_text: None,
             toast_time: None,
             toast_duration: Duration::from_millis(2200),
@@ -317,18 +315,42 @@ impl Renderer {
         })
     }
 
+    /// Ensures TUI terminal is healthy and ready for rendering
+    #[cfg(feature = "playground-ui")]
+    fn ensure_tui_healthy(&mut self) -> bool {
+        let _ = debug_log(&format!("ensure_tui_healthy called, tui.is_some()={}", self.tui.is_some()));
+        if self.tui.is_none() {
+            let _ = debug_log("Creating CrosstermBackend...");
+            // Try to create TUI terminal once if missing
+            let backend = CrosstermBackend::new(std::io::stdout());
+            let _ = debug_log("Creating TuiTerminal...");
+            match TuiTerminal::new(backend) {
+                Ok(t) => {
+                    let _ = debug_log("TUI terminal created successfully");
+                    self.tui = Some(t);
+                    true
+                }
+                Err(e) => {
+                    let _ = debug_log(&format!("TUI terminal creation failed: {}", e));
+                    self.status_bar.set_custom_text(Some(&format!("TUI init failed: {}", e)));
+                    self.overlay_visible = false; // Disable overlay on TUI failure
+                    false
+                }
+            }
+        } else {
+            true
+        }
+    }
+
     /// Renders the overlay with three columns: patterns, params, themes
     fn render_overlay(&mut self) -> Result<(), RendererError> {
+        let _ = debug_log(&format!("render_overlay called, overlay_visible={}", self.overlay_visible));
         #[cfg(feature = "playground-ui")]
         {
-            // Draw overlay using ratatui for flicker-free UI
-            if self.tui.is_none() {
-                let backend = CrosstermBackend::new(std::io::stdout());
-                if let Ok(t) = TuiTerminal::new(backend) {
-                    self.tui = Some(t);
-                } else {
-                    self.status_bar.set_custom_text(Some("Overlay unavailable: TUI init failed"));
-                }
+            // Ensure TUI is healthy before attempting to render
+            if !self.ensure_tui_healthy() {
+                let _ = debug_log("TUI not healthy, cannot render overlay");
+                return Err(RendererError::Other("TUI terminal not available".to_string()));
             }
             let term_size = self.terminal.size();
             let width = term_size.0 as u16;
@@ -397,7 +419,12 @@ impl Renderer {
             let art_slice = &art_names[art_off..art_end];
             let art_high = art_sel.saturating_sub(art_off).min(art_slice.len().saturating_sub(1));
 
-            if let Some(term) = self.tui.as_mut() {
+            // After ensure_tui_healthy succeeds, tui should be Some
+            let term = self.tui.as_mut().ok_or_else(|| {
+                let _ = debug_log("CRITICAL: TUI is None after ensure_tui_healthy returned true!");
+                RendererError::Other("TUI unexpectedly None".to_string())
+            })?;
+            
             term.draw(|f: &mut ratatui::Frame| {
                 // Only clear inside the compact panel; leave surroundings untouched for a floating look
                 f.render_widget(Clear, overlay_rect);
@@ -476,17 +503,19 @@ impl Renderer {
                         f.render_widget(toast, toast_rect);
                     }
                 }
-            }).map_err(|e| RendererError::Other(format!("tui draw: {e}")))?;
-            } else {
-                // TUI terminal failed to initialize
-                self.status_bar.set_custom_text(Some("Overlay error: No TUI terminal"));
-            }
+            }).map_err(|e| {
+                let _ = debug_log(&format!("TUI draw error: {}", e));
+                eprintln!("TUI draw error (overlay will retry): {}", e);
+                RendererError::Other(format!("TUI draw failed: {}", e))
+            })?;
 
             return Ok(());
         }
         #[cfg(not(feature = "playground-ui"))]
-        { /* Legacy overlay removed */ }
-        Ok(())
+        { 
+            /* Legacy overlay removed */ 
+            Ok(())
+        }
     }
 
     fn current_param_names(&self) -> Vec<String> {
@@ -1060,9 +1089,22 @@ impl Renderer {
 
         // Render overlay if enabled (always draw after content to avoid flicker)
         if self.overlay_visible {
-            self.render_overlay()?;
-            self.last_overlay_draw = Instant::now();
-            self.overlay_dirty = false;
+            #[cfg(feature = "playground-ui")]
+            let _ = debug_log(&format!("render_frame: About to render overlay, tui.is_some()={}", self.tui.is_some()));
+            #[cfg(not(feature = "playground-ui"))]
+            let _ = debug_log("render_frame: About to render overlay");
+            // Don't fail the entire frame if overlay has issues
+            if let Err(e) = self.render_overlay() {
+                let _ = debug_log(&format!("render_frame: Overlay render error: {}", e));
+                eprintln!("Overlay render warning: {}", e);
+                // Only disable overlay for persistent TUI failures
+                if format!("{}", e).contains("TUI terminal not available") {
+                    self.overlay_visible = false;
+                }
+            } else {
+                self.last_overlay_draw = Instant::now();
+                self.overlay_dirty = false;
+            }
         }
 
         // Scene scheduler
@@ -1131,14 +1173,7 @@ impl Renderer {
                 self.overlay_visible = !self.overlay_visible;
                 let msg = if self.overlay_visible { "Overlay: ON" } else { "Overlay: OFF" };
                 self.status_bar.set_custom_text(Some(msg));
-                // Force TUI terminal recreation if overlay is being shown
-                #[cfg(feature = "playground-ui")]
-                if self.overlay_visible && self.tui.is_none() {
-                    let backend = CrosstermBackend::new(std::io::stdout());
-                    if let Ok(t) = TuiTerminal::new(backend) {
-                        self.tui = Some(t);
-                    }
-                }
+                // TUI terminal will be created/validated when render_overlay is called
                 self.draw_full_screen()?;
                 Ok(true)
             }
@@ -1375,7 +1410,18 @@ impl Renderer {
     /// Handles mouse events for overlay interaction
     pub fn handle_mouse_event(&mut self, me: MouseEvent) -> Result<(), RendererError> {
         use crossterm::event::{MouseEventKind, MouseButton};
+        
+        // Validate both overlay visibility and TUI health before processing
         if !self.overlay_visible { return Ok(()); }
+        
+        #[cfg(feature = "playground-ui")]
+        {
+            // Don't process mouse events if TUI is not available
+            if self.tui.is_none() {
+                self.overlay_visible = false; // Disable overlay if TUI missing
+                return Ok(());
+            }
+        }
         let size = self.terminal.size();
         // Mirror the compact floating panel geometry from the ratatui path
         let overlay_height = (12u16).min(size.1.saturating_sub(4));
@@ -1411,7 +1457,7 @@ impl Renderer {
             MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
                 // Determine column based on x using floating panel geometry
                 let size = self.terminal.size();
-                let overlay_height = (12u16).min(size.1.saturating_sub(4));
+                let _overlay_height = (12u16).min(size.1.saturating_sub(4));
                 let panel_w = (((size.0 as u32) * 90) / 100) as u16;
                 let panel_w = panel_w.max(48).min(size.0.saturating_sub(2));
                 let start_x = ((size.0.saturating_sub(panel_w)) / 2).max(1);
@@ -1474,27 +1520,25 @@ impl Renderer {
         drop(stdout);
 
         if self.overlay_visible {
-            // Recreate TUI terminal if needed and draw overlay last every frame
-            #[cfg(feature = "playground-ui")]
-            if self.tui.is_none() {
-                let backend = CrosstermBackend::new(std::io::stdout());
-                if let Ok(t) = TuiTerminal::new(backend) { self.tui = Some(t); }
+            // Draw overlay last every frame (TUI health check happens inside render_overlay)
+            // Don't fail the entire draw if overlay has issues
+            if let Err(e) = self.render_overlay() {
+                eprintln!("Overlay render warning in draw_full_screen: {}", e);
+                // Only disable overlay for persistent TUI failures
+                if format!("{}", e).contains("TUI terminal not available") {
+                    self.overlay_visible = false;
+                }
+            } else {
+                self.overlay_dirty = false;
+                self.last_overlay_draw = Instant::now();
             }
-            self.render_overlay()?;
-            self.overlay_dirty = false;
-            self.last_overlay_draw = Instant::now();
         }
         Ok(())
     }
 
     fn redraw_overlay_only(&mut self) -> Result<(), RendererError> {
         if !self.overlay_visible { return Ok(()); }
-        // Recreate TUI terminal if it was dropped by content updates
-        #[cfg(feature = "playground-ui")]
-        if self.tui.is_none() {
-            let backend = CrosstermBackend::new(std::io::stdout());
-            if let Ok(t) = TuiTerminal::new(backend) { self.tui = Some(t); }
-        }
+        // TUI health check happens inside render_overlay
         self.render_overlay()?;
         let mut stdout = self.terminal.stdout();
         stdout.flush()?;
@@ -1536,7 +1580,8 @@ impl Renderer {
     }
 
     /// Apply demo art content into the buffer (only in demo mode)
-    fn set_demo_art(&mut self, art: &str) -> Result<(), RendererError> {
+    pub fn set_demo_art(&mut self, art: &str) -> Result<(), RendererError> {
+        let _ = debug_log(&format!("set_demo_art called with art='{}'", art));
         if !self.demo_mode { return Ok(()); }
         let demo = DemoArt::try_from_str(art).ok_or_else(|| RendererError::Other("Unknown demo art".to_string()))?;
         let mut reader = InputReader::from_demo(true, None, Some(&demo))?;
@@ -1546,10 +1591,21 @@ impl Renderer {
         self.buffer.prepare_text(&self.content)?;
         self.scroll.set_total_lines(self.buffer.line_count());
         // Ensure overlay remains visible and is drawn immediately after art switch
+        let _ = debug_log("Setting overlay_visible=true after art switch");
         self.overlay_visible = true;
         self.overlay_dirty = true;
         // Repaint everything so the overlay floats above the new content
-        let _ = self.draw_full_screen();
+        // Be more resilient - don't kill overlay on minor rendering issues
+        if let Err(e) = self.draw_full_screen() {
+            // Log the error but don't disable overlay unless it's a TUI-specific failure
+            let _ = debug_log(&format!("draw_full_screen error in set_demo_art: {}", e));
+            eprintln!("Warning: Render issue after art switch: {}", e);
+            // Only disable overlay if TUI specifically failed
+            if format!("{}", e).contains("TUI") {
+                self.overlay_visible = false;
+                self.tui = None;
+            }
+        }
         Ok(())
     }
 

@@ -7,6 +7,7 @@ pub mod pattern;
 pub mod app;
 pub mod cli;
 pub mod cli_format;
+pub mod debug_log;
 pub mod demo;
 pub mod error;
 pub mod gradient;

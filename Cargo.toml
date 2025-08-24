@@ -24,6 +24,7 @@ debug = false        # No debug info
 anstyle = "1.0.9"
 atty = "0.2"
 anyhow = "1.0"
+chrono = "0.4"
 clap = { version = "4.1", features = ["derive"] }
 colorgrad = "0.7.0"
 crossterm = "0.28.1"

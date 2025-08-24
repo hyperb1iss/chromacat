@@ -48,6 +48,13 @@ impl ChromaCat {
 
     /// Runs the ChromaCat application
     pub fn run(&mut self) -> Result<()> {
+        // Initialize debug logging for playground mode
+        if self.cli.playground {
+            crate::debug_log::init_debug_log();
+            crate::debug_log::debug_log("Playground mode started").ok();
+            crate::debug_log::debug_log("After initializing debug log").ok();
+        }
+        
         debug!("Starting ChromaCat with configuration: {:?}", self.cli);
 
         // Handle --list-art flag
@@ -160,9 +167,20 @@ impl ChromaCat {
         // Process input and render
         // If playground, show overlay and status, and seed scenes
         if playground {
+            crate::debug_log::debug_log("Setting up playground mode").ok();
             renderer.set_overlay_visible(true);
             renderer.set_status_message("Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load");
             renderer.enable_default_scenes();
+            
+            // Load the art specified by CLI or use default
+            // Don't override what was already loaded from InputReader::from_demo
+            if self.cli.art.is_none() {
+                crate::debug_log::debug_log("No art specified, setting rainbow").ok();
+                // Only set default if no art was specified
+                let _ = renderer.set_demo_art("rainbow");
+            } else {
+                crate::debug_log::debug_log(&format!("Using CLI art: {:?}", self.cli.art)).ok();
+            }
         }
 
         let result = self.process_input(&mut renderer);
@@ -292,6 +310,7 @@ impl ChromaCat {
             debug!("Processing stdin in terminal mode");
             // In playground mode (or when animating without input), seed with demo content instead of blocking on stdin
             if self.cli.playground {
+                crate::debug_log::debug_log(&format!("Loading demo content with art: {:?}", self.cli.art)).ok();
                 let mut reader = InputReader::from_demo(
                     /*animate*/ true,
                     self.cli.art.as_deref(),
@@ -299,6 +318,7 @@ impl ChromaCat {
                 )?;
                 let mut buffer = String::new();
                 reader.read_to_string(&mut buffer)?;
+                crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len())).ok();
                 self.run_playground(renderer, &buffer)?;
             } else {
                 // Terminal input - use normal processing
@@ -368,8 +388,9 @@ impl ChromaCat {
             return Ok(());
         }
 
-        // Set up terminal
-        enable_raw_mode()?;
+        // Terminal already set up in setup() method, no need to duplicate
+        
+        crate::debug_log::debug_log("Entering main animation loop").ok();
 
         // Main animation loop
         'main: loop {
@@ -441,9 +462,11 @@ impl ChromaCat {
 
     /// Runs the playground UI loop (stub: delegates to animation for now)
     fn run_playground(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
+        crate::debug_log::debug_log("run_playground started").ok();
         // Playground reuses animation loop; ensure overlay is visible at start and content is non-empty
         renderer.set_overlay_visible(true);
         let non_empty = if content.is_empty() { "\n" } else { content };
+        crate::debug_log::debug_log(&format!("Calling run_animation with {} chars of content", non_empty.len())).ok();
         self.run_animation(renderer, non_empty)
     }
 }
