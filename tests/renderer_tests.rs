@@ -9,6 +9,7 @@ use colorgrad::{Color, Gradient};
 use std::time::Duration;
 
 /// Mock gradient for testing
+#[derive(Clone)]
 struct MockGradient;
 
 impl Gradient for MockGradient {

@@ -215,6 +215,14 @@ pub struct Cli {
         help = CliFormat::highlight_description("Show available art patterns")
     )]
     pub list_art: bool,
+
+    /// Enable playground UI mode (no behavior change yet)
+    #[arg(
+        long = "playground",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Enable playground UI (experimental)")
+    )]
+    pub playground: bool,
 }
 
 impl Cli {
@@ -331,14 +339,14 @@ impl Cli {
             eprintln!("Warning: Demo mode is enabled, playlist will be ignored");
         }
 
-        // Validate art selection if specified
+        // Validate art selection if specified (allowed in --demo or --playground)
         if let Some(art) = &self.art {
-            if !self.demo {
+            if !(self.demo || self.playground) {
                 return Err(ChromaCatError::InputError(
-                    "--art can only be used with --demo".to_string()
+                    "--art requires --demo or --playground".to_string()
                 ));
             }
-            
+
             if DemoArt::try_from_str(art).is_none() {
                 return Err(ChromaCatError::InputError(format!(
                     "Invalid art type '{}'. Use --list-art to see available options.",

@@ -257,6 +257,55 @@ impl RenderBuffer {
         Ok(())
     }
 
+    /// Updates colors by blending two engines with alpha (0..1)
+    pub fn update_colors_blend(
+        &mut self,
+        engine_a: &PatternEngine,
+        engine_b: &PatternEngine,
+        alpha: f32,
+        viewport_start: usize,
+    ) -> Result<(), RendererError> {
+        let width = self.term_size.0 as usize;
+        let height = self.term_size.1 as usize;
+
+        let width_f = width as f64;
+        let height_f = height as f64;
+
+        let mut values_a = vec![0.0f64; width];
+        let mut values_b = vec![0.0f64; width];
+
+        for (buffer_y, line) in self.back.iter_mut().enumerate() {
+            let viewport_y = if buffer_y >= viewport_start {
+                (buffer_y - viewport_start) as f64
+            } else {
+                continue;
+            };
+            if viewport_y >= height_f { continue; }
+
+            let norm_y = viewport_y / height_f - 0.5;
+            for x in 0..width {
+                let norm_x = (x as f64 / width_f) - 0.5;
+                values_a[x] = engine_a.get_value_at_normalized(norm_x, norm_y)?;
+                values_b[x] = engine_b.get_value_at_normalized(norm_x, norm_y)?;
+            }
+
+            for x in 0..width {
+                let ca = engine_a.gradient().at(values_a[x] as f32);
+                let cb = engine_b.gradient().at(values_b[x] as f32);
+                let r = ((1.0 - alpha) * ca.r + alpha * cb.r) * 255.0;
+                let g = ((1.0 - alpha) * ca.g + alpha * cb.g) * 255.0;
+                let b = ((1.0 - alpha) * ca.b + alpha * cb.b) * 255.0;
+                let color = Color::Rgb { r: r as u8, g: g as u8, b: b as u8 };
+                if line[x].color != color {
+                    line[x].color = color;
+                    line[x].dirty = true;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Updates colors in static mode, creating a flowing effect by advancing the pattern per line.
     pub fn update_colors_static(&mut self, engine: &PatternEngine) -> Result<(), RendererError> {
         let width = self.term_size.0 as usize;

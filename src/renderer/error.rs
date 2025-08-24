@@ -34,6 +34,10 @@ pub enum RendererError {
     #[error("Invalid pattern: {0}")]
     InvalidPattern(String),
 
+    /// Invalid parameter string for current pattern
+    #[error("Invalid parameters: {0}")]
+    InvalidParams(String),
+
     /// General error with message
     #[error("{0}")]
     Other(String),

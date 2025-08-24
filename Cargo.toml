@@ -39,6 +39,7 @@ thiserror = "1.0"
 unicode-segmentation = "1.10"
 unicode-width = "0.2.0"
 dirs = "5.0.1"
+ratatui = { version = "0.26", optional = true, default-features = false, features = ["crossterm"] }
 
 [lib]
 name = "chromacat"
@@ -67,6 +68,7 @@ build-tools = [
     "webp-animation",
     "rayon",
 ]
+playground-ui = ["ratatui"]
 
 # Development dependencies
 [dev-dependencies]

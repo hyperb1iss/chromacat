@@ -9,6 +9,7 @@ use chromacat::pattern::{
 use colorgrad::{Color, Gradient};
 
 /// Mock gradient for testing
+#[derive(Clone)]
 struct MockGradient;
 
 impl Gradient for MockGradient {

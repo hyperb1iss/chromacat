@@ -53,6 +53,7 @@ fn test_chromacat_basic() {
         playlist: None,
         art: None,
         list_art: false,
+        playground: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -90,6 +91,7 @@ fn test_chromacat_invalid_angle() {
         playlist: None,
         art: None,
         list_art: false,
+        playground: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -157,6 +159,7 @@ fn test_chromacat_pattern_params() {
             playlist: None,
             art: None,
             list_art: false,
+            playground: false,
         };
 
         let mut cat = ChromaCat::new(cli);
@@ -198,6 +201,7 @@ fn test_chromacat_animation_settings() {
         playlist: None,
         art: None,
         list_art: false,
+        playground: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -236,6 +240,7 @@ fn test_streaming_mode() {
         playlist: None,
         art: None,
         list_art: false,
+        playground: false,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -278,6 +283,7 @@ fn test_demo_mode() {
         playlist: None,
         art: Some("matrix".to_string()),
         list_art: false,
+        playground: false,
     };
 
     let mut cat = ChromaCat::new(cli);

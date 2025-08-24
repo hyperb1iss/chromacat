@@ -14,7 +14,7 @@ use crate::streaming::StreamingInput;
 use crate::themes;
 
 use crossterm::cursor::{Hide, Show};
-use crossterm::event::{self, Event};
+use crossterm::event::{self, Event, EnableMouseCapture, DisableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -67,6 +67,9 @@ impl ChromaCat {
 
         // Initialize terminal
         self.setup_terminal()?;
+
+        // Playground: ensure animation is on by default
+        let playground = self.cli.playground;
 
         // Load custom theme file if specified
         if let Some(theme_file) = &self.cli.theme_file {
@@ -130,7 +133,7 @@ impl ChromaCat {
                     )));
                 }
             }
-        } else if self.cli.animate {
+        } else if self.cli.animate || playground {
             // Try loading default playlist in animation mode
             match load_default_playlist()? {
                 Some(p) => {
@@ -155,6 +158,13 @@ impl ChromaCat {
         )?;
 
         // Process input and render
+        // If playground, show overlay and status, and seed scenes
+        if playground {
+            renderer.set_overlay_visible(true);
+            renderer.set_status_message("Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load");
+            renderer.enable_default_scenes();
+        }
+
         let result = self.process_input(&mut renderer);
 
         // Cleanup terminal
@@ -192,7 +202,7 @@ impl ChromaCat {
             self.raw_mode = true;
 
             // Enter alternate screen
-            execute!(stdout(), EnterAlternateScreen, Hide)?;
+            execute!(stdout(), EnterAlternateScreen, Hide, EnableMouseCapture)?;
             self.alternate_screen = true;
         }
 
@@ -204,7 +214,7 @@ impl ChromaCat {
         let mut stdout = stdout();
 
         if self.alternate_screen {
-            execute!(stdout, Show, LeaveAlternateScreen)?;
+            execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen)?;
             self.alternate_screen = false;
         }
 
@@ -233,7 +243,11 @@ impl ChromaCat {
                 // For animated demo, we'll keep generating new content
                 let mut buffer = String::new();
                 reader.read_to_string(&mut buffer)?;
-                self.run_animation(renderer, &buffer)?;
+                if self.cli.playground {
+                    self.run_playground(renderer, &buffer)?;
+                } else {
+                    self.run_animation(renderer, &buffer)?;
+                }
             } else {
                 // For static demo, read all generated content
                 let mut buffer = String::new();
@@ -258,7 +272,11 @@ impl ChromaCat {
             reader.read_to_string(&mut buffer)?;
 
             if self.cli.animate {
-                self.run_animation(renderer, &buffer)?;
+                if self.cli.playground {
+                    self.run_playground(renderer, &buffer)?;
+                } else {
+                    self.run_animation(renderer, &buffer)?;
+                }
             } else {
                 renderer.render_static(&buffer)?;
             }
@@ -272,15 +290,27 @@ impl ChromaCat {
         // Check if stdin is a terminal or a pipe
         if atty::is(atty::Stream::Stdin) {
             debug!("Processing stdin in terminal mode");
-            // Terminal input - use normal processing
-            let mut reader = InputReader::from_stdin()?;
-            let mut buffer = String::new();
-            reader.read_to_string(&mut buffer)?;
-
-            if self.cli.animate {
-                self.run_animation(renderer, &buffer)?;
+            // In playground mode (or when animating without input), seed with demo content instead of blocking on stdin
+            if self.cli.playground {
+                let mut reader = InputReader::from_demo(
+                    /*animate*/ true,
+                    self.cli.art.as_deref(),
+                    None,
+                )?;
+                let mut buffer = String::new();
+                reader.read_to_string(&mut buffer)?;
+                self.run_playground(renderer, &buffer)?;
             } else {
-                renderer.render_static(&buffer)?;
+                // Terminal input - use normal processing
+                let mut reader = InputReader::from_stdin()?;
+                let mut buffer = String::new();
+                reader.read_to_string(&mut buffer)?;
+
+                if self.cli.animate {
+                    self.run_animation(renderer, &buffer)?;
+                } else {
+                    renderer.render_static(&buffer)?;
+                }
             }
         } else {
             debug!("Processing stdin in streaming mode");
@@ -376,6 +406,12 @@ impl ChromaCat {
                         }
                         continue 'main;
                     }
+                    Event::Mouse(me) => {
+                        if let Err(e) = renderer.handle_mouse_event(me) {
+                            eprintln!("Mouse error: {}", e);
+                        }
+                        continue 'main;
+                    }
                     _ => continue 'main,
                 }
             }
@@ -401,6 +437,12 @@ impl ChromaCat {
         disable_raw_mode()?;
 
         Ok(())
+    }
+
+    /// Runs the playground UI loop (stub: delegates to animation for now)
+    fn run_playground(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
+        // Placeholder: reuse animation loop until ratatui overlay is implemented
+        self.run_animation(renderer, content)
     }
 }
 

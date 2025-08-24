@@ -125,6 +125,7 @@ impl From<RendererError> for ChromaCatError {
                 message: msg,
             },
             RendererError::InvalidPattern(msg) => Self::InvalidPattern(msg),
+            RendererError::InvalidParams(msg) => Self::ParseError(msg),
             RendererError::Other(msg) => Self::RenderError(msg),
         }
     }

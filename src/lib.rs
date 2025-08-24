@@ -15,6 +15,9 @@ pub mod playlist;
 pub mod renderer;
 pub mod streaming;
 pub mod themes;
+#[cfg(feature = "playground-ui")]
+pub mod playground;
+pub mod recipes;
 
 pub use app::ChromaCat;
 pub use error::{ChromaCatError, Result};
