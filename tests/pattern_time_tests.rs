@@ -94,9 +94,7 @@ fn test_consistent_animation_speed() {
 
     println!("\nTesting animation speed consistency:");
     println!("Delta time: {delta:.6} seconds");
-    println!(
-        "Testing {periods} periods of {steps_per_period} steps each"
-    );
+    println!("Testing {periods} periods of {steps_per_period} steps each");
 
     // Track time progression instead of value changes
     let mut times = Vec::new();

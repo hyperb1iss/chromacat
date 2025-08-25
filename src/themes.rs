@@ -332,9 +332,8 @@ impl ThemeRegistry {
         let content = std::fs::read_to_string(path)
             .map_err(|e| ChromaCatError::InputError(format!("Failed to read theme file: {e}")))?;
 
-        let themes = from_str::<Vec<ThemeDefinition>>(&content).map_err(|e| {
-            ChromaCatError::InvalidTheme(format!("Invalid theme file format: {e}"))
-        })?;
+        let themes = from_str::<Vec<ThemeDefinition>>(&content)
+            .map_err(|e| ChromaCatError::InvalidTheme(format!("Invalid theme file format: {e}")))?;
 
         for theme in themes {
             if let Err(e) = theme.validate() {

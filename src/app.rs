@@ -209,7 +209,7 @@ impl ChromaCat {
         renderer.enable_default_scenes();
 
         // Load demo content
-        let content = if atty::is(atty::Stream::Stdin) || true {
+        let content = {
             // Always load demo content in playground mode
             crate::debug_log::debug_log(&format!(
                 "Loading demo content with art: {:?}",
@@ -222,9 +222,6 @@ impl ChromaCat {
             let mut buffer = String::new();
             reader.read_to_string(&mut buffer)?;
             buffer
-        } else {
-            // Fallback content
-            "\n".to_string()
         };
 
         // Load the art specified by CLI if any
@@ -422,9 +419,7 @@ impl ChromaCat {
 
         // Log processing statistics
         let (lines, bytes, rate) = processor.stats();
-        info!(
-            "Streaming complete: processed {lines} lines ({bytes} bytes) at {rate:.2} lines/sec"
-        );
+        info!("Streaming complete: processed {lines} lines ({bytes} bytes) at {rate:.2} lines/sec");
 
         result
     }

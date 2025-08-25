@@ -36,8 +36,7 @@ fn test_pattern_metadata() {
         let sub_params = params.sub_params();
         assert!(
             !sub_params.is_empty(),
-            "Pattern {} should have parameters",
-            pattern_id
+            "Pattern {pattern_id} should have parameters"
         );
 
         // Test each sub-parameter
@@ -70,7 +69,7 @@ fn test_pattern_parameter_creation() {
             ("fire", PatternParams::Fire(_)) => (),
             ("aurora", PatternParams::Aurora(_)) => (),
             ("kaleidoscope", PatternParams::Kaleidoscope(_)) => (),
-            _ => panic!("Unexpected pattern type for {}", pattern_id),
+            _ => panic!("Unexpected pattern type for {pattern_id}"),
         }
     }
 }
@@ -116,9 +115,7 @@ fn test_parameter_validation() {
         // Test valid parameters
         assert!(
             REGISTRY.validate_params(pattern_id, valid_params).is_ok(),
-            "Valid parameters rejected for {}: {}",
-            pattern_id,
-            valid_params
+            "Valid parameters rejected for {pattern_id}: {valid_params}"
         );
 
         // Test invalid parameters
@@ -126,8 +123,7 @@ fn test_parameter_validation() {
             REGISTRY
                 .validate_params(pattern_id, "invalid=value")
                 .is_err(),
-            "Invalid parameters accepted for {}",
-            pattern_id
+            "Invalid parameters accepted for {pattern_id}"
         );
     }
 }
@@ -152,9 +148,7 @@ fn test_parameter_parsing() {
         let result = REGISTRY.parse_params(pattern_id, params);
         assert!(
             result.is_ok(),
-            "Failed to parse valid parameters for {}: {}",
-            pattern_id,
-            params
+            "Failed to parse valid parameters for {pattern_id}: {params}"
         );
     }
 }

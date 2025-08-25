@@ -51,7 +51,7 @@ fn test_fire_params_parsing() {
     assert_eq!(fire_params.speed, 2.0);
     assert_eq!(fire_params.turbulence, 0.7);
     assert_eq!(fire_params.height, 1.2);
-    assert_eq!(fire_params.wind, false);
+    assert!(!fire_params.wind);
     assert_eq!(fire_params.wind_strength, 0.5);
 }
 
@@ -118,9 +118,7 @@ fn test_fire_animation_behavior() {
         let value = patterns.fire(*x, *y, params.clone());
         assert!(
             (0.0..=1.0).contains(&value),
-            "Fire intensity at {} should be between 0 and 1, got {}",
-            position,
-            value
+            "Fire intensity at {position} should be between 0 and 1, got {value}"
         );
     }
 
@@ -175,9 +173,7 @@ fn test_fire_animation_behavior() {
     // Wind should create more horizontal variation
     assert!(
         wind_var > no_wind_var,
-        "Wind should create more horizontal variation. With wind: {}, Without wind: {}",
-        wind_var,
-        no_wind_var
+        "Wind should create more horizontal variation. With wind: {wind_var}, Without wind: {no_wind_var}"
     );
 
     // Test temporal variation by sampling multiple points
@@ -213,10 +209,7 @@ fn test_fire_animation_behavior() {
 
     assert!(
         avg_diff > 0.01,
-        "Fire should show temporal variation. Average difference: {}, Initial samples: {:?}, Later samples: {:?}",
-        avg_diff,
-        initial_samples,
-        later_samples
+        "Fire should show temporal variation. Average difference: {avg_diff}, Initial samples: {initial_samples:?}, Later samples: {later_samples:?}"
     );
 }
 

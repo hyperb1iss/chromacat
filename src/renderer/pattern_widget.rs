@@ -46,8 +46,7 @@ impl<'a> Widget for PatternWidget<'a> {
                 0.0
             };
 
-            let mut x_pos = 0;
-            for ch in line.chars().take(width) {
+            for (x_pos, ch) in line.chars().take(width).enumerate() {
                 if x_pos >= width {
                     break;
                 }
@@ -76,8 +75,6 @@ impl<'a> Widget for PatternWidget<'a> {
                     cell.set_char(ch);
                     cell.set_style(Style::default().fg(color));
                 }
-
-                x_pos += 1;
             }
         }
     }

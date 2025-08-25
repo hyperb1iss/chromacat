@@ -204,7 +204,7 @@ impl PlaygroundUI {
     /// Render the overlay UI (static version)
     fn render_overlay_static(f: &mut ratatui::Frame, size: Rect, data: &OverlayRenderData) {
         // Create a bottom panel that takes up 1/4 of the screen height
-        let panel_height = (size.height / 4).max(10).min(20); // 1/4 height, min 10, max 20
+        let panel_height = (size.height / 4).clamp(10, 20); // 1/4 height, min 10, max 20
         let panel_y = size.height.saturating_sub(panel_height).saturating_sub(1); // Above status bar
 
         let panel_area = Rect {

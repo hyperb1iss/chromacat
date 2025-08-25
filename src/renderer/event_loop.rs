@@ -54,14 +54,7 @@ impl EventLoop {
             // No frame tracking needed anymore
 
             // Check for events (non-blocking with timeout)
-            let has_event = match event::poll(Duration::from_millis(1)) {
-                Ok(has_event) => has_event,
-                Err(_e) => {
-                    // Event polling can fail when raw mode isn't properly set up
-                    // Don't spam the logs, just continue
-                    false
-                }
-            };
+            let has_event = event::poll(Duration::from_millis(1)).unwrap_or_default();
 
             if has_event {
                 match event::read() {

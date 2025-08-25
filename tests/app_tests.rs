@@ -147,9 +147,7 @@ fn test_chromacat_pattern_params() {
         let mut cat = ChromaCat::new(cli);
         match cat.run() {
             Ok(_) => (),
-            Err(e) => panic!(
-                "Failed with pattern {pattern}: {e:?}\nParameters: {params:?}"
-            ),
+            Err(e) => panic!("Failed with pattern {pattern}: {e:?}\nParameters: {params:?}"),
         }
     }
 }

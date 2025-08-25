@@ -280,7 +280,7 @@ impl PlaygroundInputHandler {
     /// Helper to determine which section was clicked
     fn get_section_from_coords(x: u16, y: u16, ui: &PlaygroundUI) -> Option<usize> {
         // Calculate overlay area (bottom 1/4 of screen)
-        let panel_height = (ui.terminal_size.1 / 4).max(10).min(20);
+        let panel_height = (ui.terminal_size.1 / 4).clamp(10, 20);
         let panel_y = ui
             .terminal_size
             .1
@@ -302,7 +302,7 @@ impl PlaygroundInputHandler {
     /// Helper to determine which item in a list was clicked
     fn get_item_from_coords(_x: u16, y: u16, ui: &PlaygroundUI, section: usize) -> Option<usize> {
         // Calculate overlay area dimensions
-        let panel_height = (ui.terminal_size.1 / 4).max(10).min(20);
+        let panel_height = (ui.terminal_size.1 / 4).clamp(10, 20);
         let panel_y = ui
             .terminal_size
             .1
