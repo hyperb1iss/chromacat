@@ -47,10 +47,7 @@ impl PatternTest {
                 let value = engine.get_value_at(x, y).unwrap();
                 assert!(
                     (0.0..=1.0).contains(&value),
-                    "Pattern value out of bounds at ({}, {}): {}",
-                    x,
-                    y,
-                    value
+                    "Pattern value out of bounds at ({x}, {y}): {value}"
                 );
             }
         }
@@ -89,7 +86,7 @@ fn test_pattern_animation() {
     ];
 
     for pattern in animated_patterns {
-        eprintln!("\nDEBUG: Testing animation for pattern: {:?}", pattern);
+        eprintln!("\nDEBUG: Testing animation for pattern: {pattern:?}");
         let mut config = PatternConfig::new(pattern.clone());
         // Set speed to ensure animation occurs
         config.common.speed = 1.0;
@@ -98,7 +95,7 @@ fn test_pattern_animation() {
 
         // Get initial value
         let initial = engine.get_value_at(50, 50).unwrap();
-        eprintln!("DEBUG: Initial value: {}", initial);
+        eprintln!("DEBUG: Initial value: {initial}");
         eprintln!("DEBUG: Current time: {}", engine.time());
 
         // Update animation time
@@ -107,12 +104,11 @@ fn test_pattern_animation() {
 
         // Get value after animation
         let animated = engine.get_value_at(50, 50).unwrap();
-        eprintln!("DEBUG: Animated value: {}", animated);
+        eprintln!("DEBUG: Animated value: {animated}");
 
         assert_ne!(
             initial, animated,
-            "Pattern {:?} should produce different values after animation",
-            pattern
+            "Pattern {pattern:?} should produce different values after animation"
         );
     }
 }
@@ -134,8 +130,7 @@ fn test_pattern_determinism() {
         let second = engine.get_value_at(50, 50).unwrap();
         assert_eq!(
             first, second,
-            "Pattern {:?} should produce consistent values for same coordinates",
-            params
+            "Pattern {params:?} should produce consistent values for same coordinates"
         );
     }
 }

@@ -147,7 +147,7 @@ impl<'de> Deserialize<'de> for Repeat {
                         "none" => Ok(Repeat::Named(RepeatMode::None)),
                         "mirror" => Ok(Repeat::Named(RepeatMode::Mirror)),
                         "repeat" => Ok(Repeat::Named(RepeatMode::Repeat)),
-                        _ => Err(E::custom(format!("unknown repeat mode: {}", value))),
+                        _ => Err(E::custom(format!("unknown repeat mode: {value}"))),
                     }
                 }
             }
@@ -322,7 +322,7 @@ impl ThemeRegistry {
                     .insert(category.to_string(), category_themes);
             }
             Err(e) => {
-                eprintln!("Warning: Failed to load {} themes: {}", category, e);
+                eprintln!("Warning: Failed to load {category} themes: {e}");
             }
         }
     }
@@ -330,10 +330,10 @@ impl ThemeRegistry {
     // Add new method to load a custom theme file
     pub fn load_theme_file(&mut self, path: &Path) -> Result<()> {
         let content = std::fs::read_to_string(path)
-            .map_err(|e| ChromaCatError::InputError(format!("Failed to read theme file: {}", e)))?;
+            .map_err(|e| ChromaCatError::InputError(format!("Failed to read theme file: {e}")))?;
 
         let themes = from_str::<Vec<ThemeDefinition>>(&content).map_err(|e| {
-            ChromaCatError::InvalidTheme(format!("Invalid theme file format: {}", e))
+            ChromaCatError::InvalidTheme(format!("Invalid theme file format: {e}"))
         })?;
 
         for theme in themes {
@@ -490,7 +490,7 @@ impl ThemeDefinition {
 pub fn get_theme(name: &str) -> Result<ThemeDefinition> {
     THEME_REGISTRY
         .read()
-        .map_err(|e| ChromaCatError::Other(format!("Failed to read theme registry: {}", e)))?
+        .map_err(|e| ChromaCatError::Other(format!("Failed to read theme registry: {e}")))?
         .themes
         .get(name)
         .cloned()
@@ -536,7 +536,7 @@ pub fn theme_count() -> usize {
 pub fn load_theme_file(path: &Path) -> Result<()> {
     let mut registry = THEME_REGISTRY
         .write()
-        .map_err(|e| ChromaCatError::Other(format!("Failed to lock theme registry: {}", e)))?;
+        .map_err(|e| ChromaCatError::Other(format!("Failed to lock theme registry: {e}")))?;
 
     registry.load_theme_file(path)
 }

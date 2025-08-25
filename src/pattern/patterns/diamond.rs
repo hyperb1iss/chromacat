@@ -119,7 +119,7 @@ impl PatternParam for DiamondParams {
                     params.mode = kv[1].to_string();
                 }
                 invalid_param => {
-                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                    return Err(format!("Invalid parameter name: {invalid_param}"));
                 }
             }
         }

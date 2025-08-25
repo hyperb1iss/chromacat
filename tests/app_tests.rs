@@ -12,7 +12,7 @@ static INIT: Once = Once::new();
 // Helper function to create a temporary file with content
 fn create_test_file(content: &str) -> NamedTempFile {
     let mut file = NamedTempFile::new().unwrap();
-    write!(file, "{}", content).unwrap();
+    write!(file, "{content}").unwrap();
     file
 }
 
@@ -34,32 +34,26 @@ fn test_chromacat_basic() {
         files: vec![test_file.path().to_path_buf()],
         pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
-        animate: false,
-        fps: 30,
-        duration: 0,
         no_color: true,
         list_available: false,
-        smooth: false,
         frequency: 1.0,
         amplitude: 1.0,
-        speed: 1.0,
         params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
         buffer_size: None,
-        demo: false,
         playlist: None,
         art: None,
         list_art: false,
-        playground: false,
+        no_playground: true,
     };
 
     let mut cat = ChromaCat::new(cli);
     match cat.run() {
         Ok(_) => (),
-        Err(e) => panic!("Basic test failed with error: {:?}", e),
+        Err(e) => panic!("Basic test failed with error: {e:?}"),
     }
 }
 
@@ -72,26 +66,20 @@ fn test_chromacat_invalid_angle() {
         files: vec![test_file.path().to_path_buf()],
         pattern: "diagonal".to_string(),
         theme: String::from("rainbow"),
-        animate: false,
-        fps: 30,
-        duration: 0,
         no_color: true,
         list_available: false,
-        smooth: false,
         frequency: 1.0,
         amplitude: 1.0,
-        speed: 1.0,
         params: vec!["angle=400".to_string()],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
         buffer_size: None,
-        demo: false,
         playlist: None,
         art: None,
         list_art: false,
-        playground: false,
+        no_playground: true,
     };
 
     let mut cat = ChromaCat::new(cli);
@@ -140,34 +128,27 @@ fn test_chromacat_pattern_params() {
             files: vec![test_file.path().to_path_buf()],
             pattern: pattern.to_string(),
             theme: String::from("rainbow"),
-            animate: false,
-            fps: 30,
-            duration: 0,
             no_color: true,
             list_available: false,
-            smooth: false,
             frequency: 1.0,
             amplitude: 1.0,
-            speed: 1.0,
             params: params.iter().map(|s| s.to_string()).collect(),
             theme_file: None,
             pattern_help: false,
             no_aspect_correction: false,
             aspect_ratio: 0.5,
             buffer_size: None,
-            demo: false,
             playlist: None,
             art: None,
             list_art: false,
-            playground: false,
+            no_playground: true,
         };
 
         let mut cat = ChromaCat::new(cli);
         match cat.run() {
             Ok(_) => (),
             Err(e) => panic!(
-                "Failed with pattern {}: {:?}\nParameters: {:?}",
-                pattern, e, params
+                "Failed with pattern {pattern}: {e:?}\nParameters: {params:?}"
             ),
         }
     }
@@ -182,32 +163,26 @@ fn test_chromacat_animation_settings() {
         files: vec![test_file.path().to_path_buf()],
         pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
-        animate: true,
-        fps: 60,
-        duration: 5,
         no_color: false,
         list_available: false,
-        smooth: true,
         frequency: 1.0,
         amplitude: 1.0,
-        speed: 1.0,
         params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
         buffer_size: None,
-        demo: false,
         playlist: None,
         art: None,
         list_art: false,
-        playground: false,
+        no_playground: true,
     };
 
     let mut cat = ChromaCat::new(cli);
     match cat.run() {
         Ok(_) => (),
-        Err(e) => panic!("Animation test failed with error: {:?}", e),
+        Err(e) => panic!("Animation test failed with error: {e:?}"),
     }
 }
 
@@ -221,87 +196,63 @@ fn test_streaming_mode() {
         files: vec![test_file.path().to_path_buf()],
         pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
-        animate: false,
-        fps: 30,
-        duration: 0,
         no_color: true,
         list_available: false,
-        smooth: false,
         frequency: 1.0,
         amplitude: 1.0,
-        speed: 1.0,
         params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: false,
         aspect_ratio: 0.5,
         buffer_size: Some(4096),
-        demo: false,
         playlist: None,
         art: None,
         list_art: false,
-        playground: false,
+        no_playground: true,
     };
 
     let mut cat = ChromaCat::new(cli);
     match cat.run() {
         Ok(_) => (),
-        Err(e) => panic!("Streaming test failed with error: {:?}", e),
+        Err(e) => panic!("Streaming test failed with error: {e:?}"),
     }
 }
 
 #[test]
-fn test_demo_mode() {
+fn test_playground_mode_disabled_in_tests() {
     setup_test_env();
-    println!("Starting demo mode test");
+    println!("Testing that playground mode is disabled in test environment");
 
-    // Set larger terminal dimensions for testing
-    env::set_var("COLUMNS", "120");
-    env::set_var("LINES", "40");
-
-    println!("Testing static demo mode");
+    // This should have playground mode disabled due to test environment
     let cli = Cli {
         files: vec![],
         pattern: "horizontal".to_string(),
         theme: String::from("rainbow"),
-        animate: false,
-        fps: 30,
-        duration: 0,
         no_color: true,
         list_available: false,
-        smooth: false,
         frequency: 0.5,
         amplitude: 0.5,
-        speed: 0.5,
         params: vec![],
         theme_file: None,
         pattern_help: false,
         no_aspect_correction: true,
         aspect_ratio: 1.0,
         buffer_size: Some(1024),
-        demo: true,
         playlist: None,
         art: Some("matrix".to_string()),
         list_art: false,
-        playground: false,
+        no_playground: false, // Even though this is false, test env should disable playground
     };
 
     let mut cat = ChromaCat::new(cli);
-    println!("Running static demo mode");
 
-    println!(
-        "Terminal dimensions: {}x{}",
-        env::var("COLUMNS").unwrap_or_default(),
-        env::var("LINES").unwrap_or_default()
-    );
-
+    // This should run quickly since playground mode is disabled in tests
     match cat.run() {
-        Ok(_) => println!("Static demo mode completed successfully"),
+        Ok(_) => println!("Test completed successfully - playground was disabled"),
         Err(e) => {
-            println!("Error details: {:?}", e);
-            panic!("Static demo mode failed with error: {:?}", e)
+            println!("Error details: {e:?}");
+            panic!("Test failed with error: {e:?}")
         }
     }
-
-    println!("Demo mode test completed");
 }

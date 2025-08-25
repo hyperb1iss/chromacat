@@ -139,7 +139,7 @@ impl PadToWidth for String {
         if self.len() >= width {
             self.clone()
         } else {
-            format!("{:<width$}", self, width = width)
+            format!("{self:<width$}")
         }
     }
 }
@@ -149,7 +149,7 @@ impl PadToWidth for &str {
         if self.len() >= width {
             self.to_string()
         } else {
-            format!("{:<width$}", self, width = width)
+            format!("{self:<width$}")
         }
     }
 }

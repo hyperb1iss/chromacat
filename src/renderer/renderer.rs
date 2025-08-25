@@ -25,17 +25,14 @@ pub struct Renderer {
     /// Playground UI manager
     playground: PlaygroundUI,
 
-    /// Whether we're in demo mode
-    demo_mode: bool,
-
     /// Available patterns
-    available_patterns: Vec<String>,
+    _available_patterns: Vec<String>,
 
     /// Available themes
-    available_themes: Vec<String>,
+    _available_themes: Vec<String>,
 
     /// Available demo arts
-    available_arts: Vec<String>,
+    _available_arts: Vec<String>,
 }
 
 impl Renderer {
@@ -44,7 +41,6 @@ impl Renderer {
         engine: PatternEngine,
         _animation_config: crate::renderer::config::AnimationConfig,
         _playlist: Option<crate::playlist::Playlist>,
-        demo_mode: bool,
     ) -> Result<Self, RendererError> {
         // Initialize available options and sort them
         let mut available_patterns: Vec<String> = REGISTRY
@@ -60,14 +56,10 @@ impl Renderer {
             .collect();
         available_themes.sort();
 
-        let mut available_arts: Vec<String> = if demo_mode {
-            crate::demo::DemoArt::all_types()
-                .iter()
-                .map(|art| art.as_str().to_string())
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let mut available_arts: Vec<String> = crate::demo::DemoArt::all_types()
+            .iter()
+            .map(|art| art.as_str().to_string())
+            .collect();
         available_arts.sort();
 
         // Initialize playground UI
@@ -76,24 +68,16 @@ impl Renderer {
         playground.theme_names = available_themes.clone();
         playground.art_names = available_arts.clone();
 
-        // Get initial content - load default art for demo mode
-        let content = if demo_mode {
-            // Load a default art if in demo mode, use rainbow as safer default
-            Self::load_demo_art("rainbow").unwrap_or_else(|_| {
-                String::new()
-            })
-        } else {
-            String::new()
-        };
+        // Get initial content - always load default art in playground mode
+        let content = Self::load_demo_art("rainbow").unwrap_or_else(|_| String::new());
 
         Ok(Self {
             engine,
             content,
             playground,
-            demo_mode,
-            available_patterns,
-            available_themes,
-            available_arts,
+            _available_patterns: available_patterns,
+            _available_themes: available_themes,
+            _available_arts: available_arts,
         })
     }
 
@@ -133,9 +117,7 @@ impl Renderer {
                 Ok(true)
             }
             InputAction::ApplyArt(art) => {
-                if self.demo_mode {
-                    self.apply_art(&art)?;
-                }
+                self.apply_art(&art)?;
                 Ok(true)
             }
             InputAction::AdjustParam { name, value } => {
@@ -162,9 +144,7 @@ impl Renderer {
                 Ok(true)
             }
             InputAction::ApplyArt(art) => {
-                if self.demo_mode {
-                    self.apply_art(&art)?;
-                }
+                self.apply_art(&art)?;
                 Ok(true)
             }
             InputAction::AdjustParam { name, value } => {
@@ -181,7 +161,7 @@ impl Renderer {
 
         // Update pattern engine dimensions
         self.engine = self.engine.recreate(width as usize, height as usize);
-        let _ = debug_log(&format!("Resized to {}x{}", width, height));
+        let _ = debug_log(&format!("Resized to {width}x{height}"));
 
         Ok(())
     }
@@ -189,7 +169,7 @@ impl Renderer {
     /// Load demo art content
     fn load_demo_art(art: &str) -> Result<String, RendererError> {
         let demo = DemoArt::try_from_str(art)
-            .ok_or_else(|| RendererError::Other(format!("Unknown art: {}", art)))?;
+            .ok_or_else(|| RendererError::Other(format!("Unknown art: {art}")))?;
 
         let mut reader = InputReader::from_demo(true, None, Some(&demo))?;
         let mut content = String::new();
@@ -210,7 +190,7 @@ impl Renderer {
         };
 
         self.engine.update_pattern_config(config);
-        self.playground.show_toast(&format!("Pattern: {}", pattern));
+        self.playground.show_toast(format!("Pattern: {pattern}"));
         Ok(())
     }
 
@@ -218,14 +198,14 @@ impl Renderer {
     fn apply_theme(&mut self, theme: &str) -> Result<(), RendererError> {
         let gradient = themes::get_theme(theme)?.create_gradient()?;
         self.engine.update_gradient(gradient);
-        self.playground.show_toast(&format!("Theme: {}", theme));
+        self.playground.show_toast(format!("Theme: {theme}"));
         Ok(())
     }
 
     /// Apply demo art
     fn apply_art(&mut self, art: &str) -> Result<(), RendererError> {
         self.content = Self::load_demo_art(art)?;
-        self.playground.show_toast(&format!("Art: {}", art));
+        self.playground.show_toast(format!("Art: {art}"));
         Ok(())
     }
 
@@ -233,15 +213,13 @@ impl Renderer {
     fn adjust_param(&mut self, name: &str, value: f64) -> Result<(), RendererError> {
         // TODO: Implement parameter adjustment
         self.playground
-            .show_toast(&format!("Param: {} = {:.2}", name, value));
+            .show_toast(format!("Param: {name} = {value:.2}"));
         Ok(())
     }
 
     /// Set initial demo art (called before run)
     pub fn set_demo_art(&mut self, art: &str) -> Result<(), RendererError> {
-        if self.demo_mode {
-            self.content = Self::load_demo_art(art)?;
-        }
+        self.content = Self::load_demo_art(art)?;
         Ok(())
     }
 

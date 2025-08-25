@@ -55,11 +55,7 @@ fn test_pattern_value_ranges() {
                 let value = engine.get_value_at(x, y).unwrap();
                 assert!(
                     (0.0..=1.0).contains(&value),
-                    "Pattern {:?} value out of range: {} at ({}, {})",
-                    pattern,
-                    value,
-                    x,
-                    y
+                    "Pattern {pattern:?} value out of range: {value} at ({x}, {y})"
                 );
             }
         }
@@ -76,7 +72,7 @@ fn test_pattern_animation() {
     ];
 
     for pattern in animated_patterns {
-        eprintln!("\nDEBUG: Testing animation for pattern: {:?}", pattern);
+        eprintln!("\nDEBUG: Testing animation for pattern: {pattern:?}");
         let mut config = create_test_config();
         config.params = pattern.clone();
         // Ensure animation speed is high enough to see changes
@@ -85,7 +81,7 @@ fn test_pattern_animation() {
 
         // Test that animation updates produce different values
         let initial = engine.get_value_at(50, 50).unwrap();
-        eprintln!("DEBUG: Initial value at (50,50): {}", initial);
+        eprintln!("DEBUG: Initial value at (50,50): {initial}");
         eprintln!("DEBUG: Current time: {}", engine.time());
 
         // Use a larger time delta to ensure visible change
@@ -93,12 +89,11 @@ fn test_pattern_animation() {
         eprintln!("DEBUG: Updated time to: {}", engine.time());
 
         let after_update = engine.get_value_at(50, 50).unwrap();
-        eprintln!("DEBUG: Value after update at (50,50): {}", after_update);
+        eprintln!("DEBUG: Value after update at (50,50): {after_update}");
 
         assert_ne!(
             initial, after_update,
-            "Pattern {:?} should animate over time",
-            pattern
+            "Pattern {pattern:?} should animate over time"
         );
     }
 }
@@ -124,8 +119,7 @@ fn test_pattern_determinism() {
 
         assert_eq!(
             first, second,
-            "Pattern {:?} should produce consistent values for same coordinates",
-            pattern
+            "Pattern {pattern:?} should produce consistent values for same coordinates"
         );
     }
 }

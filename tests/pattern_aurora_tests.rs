@@ -87,9 +87,7 @@ fn test_aurora_animation_behavior() {
         let value = patterns.aurora(*x, *y, params.clone());
         assert!(
             (0.0..=1.0).contains(&value),
-            "Aurora intensity at {} should be between 0 and 1, got {}",
-            position,
-            value
+            "Aurora intensity at {position} should be between 0 and 1, got {value}"
         );
     }
 
@@ -119,10 +117,7 @@ fn test_aurora_animation_behavior() {
 
     assert!(
         avg_diff > 0.01,
-        "Aurora should show temporal variation. Average difference: {}, Initial samples: {:?}, Later samples: {:?}",
-        avg_diff,
-        initial_samples,
-        later_samples
+        "Aurora should show temporal variation. Average difference: {avg_diff}, Initial samples: {initial_samples:?}, Later samples: {later_samples:?}"
     );
 
     // Test layer interaction with multiple time samples
@@ -176,17 +171,13 @@ fn test_aurora_animation_behavior() {
     // Test that multi-layer creates different intensity patterns
     assert!(
         (multi_max_intensity - single_max_intensity).abs() > 0.01,
-        "Multiple layers should create different intensity patterns. Single max: {}, Multi max: {}",
-        single_max_intensity,
-        multi_max_intensity
+        "Multiple layers should create different intensity patterns. Single max: {single_max_intensity}, Multi max: {multi_max_intensity}"
     );
 
     // Test that multi-layer shows more variation
     assert!(
         multi_avg != single_avg,
-        "Multiple layers should show different average intensity. Single avg: {}, Multi avg: {}",
-        single_avg,
-        multi_avg
+        "Multiple layers should show different average intensity. Single avg: {single_avg}, Multi avg: {multi_avg}"
     );
 
     // Keep the non-zero checks
@@ -231,9 +222,7 @@ fn test_aurora_parameter_effects() {
 
     assert!(
         max_high > max_low,
-        "Higher intensity should produce higher values. High: {}, Low: {}",
-        max_high,
-        max_low
+        "Higher intensity should produce higher values. High: {max_high}, Low: {max_low}"
     );
 
     // Updated waviness test
@@ -267,9 +256,7 @@ fn test_aurora_parameter_effects() {
 
     assert!(
         high_wave_diff != low_wave_diff,
-        "Different waviness settings should produce different patterns. High diff: {}, Low diff: {}",
-        high_wave_diff,
-        low_wave_diff
+        "Different waviness settings should produce different patterns. High diff: {high_wave_diff}, Low diff: {low_wave_diff}"
     );
 
     // Test height and spread interaction

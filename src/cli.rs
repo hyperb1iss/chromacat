@@ -78,8 +78,6 @@ pub struct Cli {
     )]
     pub amplitude: f64,
 
-
-
     #[arg(
         short = 'n',
         long = "no-color",
@@ -144,7 +142,6 @@ pub struct Cli {
     pub buffer_size: Option<usize>,
 
     // Demo mode removed - playground is now the default
-
     #[arg(
         long,
         value_name = "FILE",
@@ -244,7 +241,6 @@ impl Cli {
             std::process::exit(0);
         }
 
-
         // Validate input files exist
         for path in &self.files {
             if !path.exists() {
@@ -284,8 +280,7 @@ impl Cli {
         if let Some(art) = &self.art {
             if DemoArt::try_from_str(art).is_none() {
                 return Err(ChromaCatError::InputError(format!(
-                    "Invalid art type '{}'. Use --list-art to see available options.",
-                    art
+                    "Invalid art type '{art}'. Use --list-art to see available options."
                 )));
             }
         }
@@ -377,7 +372,7 @@ impl Cli {
 
                     for param in params {
                         let range = match param.param_type() {
-                            ParamType::Number { min, max } => format!("{} to {}", min, max),
+                            ParamType::Number { min, max } => format!("{min} to {max}"),
                             ParamType::Boolean => "true/false".to_string(),
                             ParamType::Enum { options } => options.join(", "),
                             _ => String::new(),
@@ -397,8 +392,7 @@ impl Cli {
                     "\n  {} {}",
                     CliFormat::param("Example:"),
                     CliFormat::param_value(&format!(
-                        "chromacat -p {} --param frequency=1.5 input.txt",
-                        pattern_id
+                        "chromacat -p {pattern_id} --param frequency=1.5 input.txt"
                     ))
                 );
                 println!("{}", CliFormat::separator(&"─".repeat(85)));
@@ -418,7 +412,7 @@ impl Cli {
                         let preview = Self::create_theme_preview(&theme);
                         println!(
                             "    {} {} {}",
-                            CliFormat::param_value(&format!("{:<15}", name)),
+                            CliFormat::param_value(&format!("{name:<15}")),
                             preview,
                             CliFormat::description(&theme.desc)
                         );
@@ -437,7 +431,7 @@ impl Cli {
                 let r = (color.r * 255.0) as u8;
                 let g = (color.g * 255.0) as u8;
                 let b = (color.b * 255.0) as u8;
-                preview.push_str(&format!("\x1b[48;2;{};{};{}m \x1b[0m", r, g, b));
+                preview.push_str(&format!("\x1b[48;2;{r};{g};{b}m \x1b[0m"));
             }
             preview
         } else {
@@ -465,14 +459,14 @@ impl Cli {
             ),
             (
                 "Interactive plasma:",
-                "chromacat -p plasma --param complexity=3.0,scale=1.5 input.txt"
+                "chromacat -p plasma --param complexity=3.0,scale=1.5 input.txt",
             ),
         ];
 
         for (desc, cmd) in examples {
             println!(
                 "  {} {}",
-                CliFormat::param(&format!("{:<25}", desc)),
+                CliFormat::param(&format!("{desc:<25}")),
                 CliFormat::param_value(cmd)
             );
         }
@@ -491,7 +485,7 @@ impl Cli {
         for (desc, cmd) in playlist_examples {
             println!(
                 "  {} {}",
-                CliFormat::param(&format!("{:<25}", desc)),
+                CliFormat::param(&format!("{desc:<25}")),
                 CliFormat::param_value(cmd)
             );
         }

@@ -67,9 +67,15 @@ pub struct PlaygroundUI {
     /// Toast message
     toast_message: Option<(String, Instant)>,
     toast_duration: Duration,
-    
+
     /// Terminal size for mouse handling
     pub terminal_size: (u16, u16),
+}
+
+impl Default for PlaygroundUI {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlaygroundUI {
@@ -102,17 +108,17 @@ impl PlaygroundUI {
         if self.terminal.is_none() {
             let backend = CrosstermBackend::new(std::io::stdout());
             let terminal = Terminal::new(backend)
-                .map_err(|e| RendererError::Other(format!("Failed to create terminal: {}", e)))?;
+                .map_err(|e| RendererError::Other(format!("Failed to create terminal: {e}")))?;
             self.terminal = Some(terminal);
         }
-        
+
         // Update terminal size
         if let Some(term) = &self.terminal {
             if let Ok(size) = term.size() {
                 self.terminal_size = (size.width, size.height);
             }
         }
-        
+
         Ok(())
     }
 
@@ -168,7 +174,7 @@ impl PlaygroundUI {
             .ok_or_else(|| RendererError::Other("Terminal not initialized".into()))?;
 
         term.draw(|f| {
-            let size = f.size();
+            let size = f.area();
 
             // First render the pattern as background
             let pattern_widget = PatternWidget::new(content, engine, time);
@@ -188,8 +194,8 @@ impl PlaygroundUI {
             Self::render_status_bar(f, size);
         })
         .map_err(|e| {
-            let _ = debug_log(&format!("Ratatui draw error: {}", e));
-            RendererError::Other(format!("Draw failed: {}", e))
+            let _ = debug_log(&format!("Ratatui draw error: {e}"));
+            RendererError::Other(format!("Draw failed: {e}"))
         })?;
 
         Ok(())
@@ -401,7 +407,7 @@ impl PlaygroundUI {
     pub fn resize(&mut self) -> Result<(), RendererError> {
         if let Some(term) = &mut self.terminal {
             term.autoresize()
-                .map_err(|e| RendererError::Other(format!("Failed to resize: {}", e)))?;
+                .map_err(|e| RendererError::Other(format!("Failed to resize: {e}")))?;
         }
         Ok(())
     }
@@ -420,7 +426,7 @@ impl PlaygroundUI {
 
         // Create status text
         let status_text =
-            format!(" ChromaCat • Pattern: diagonal • Theme: terminal • [?] help • [q] quit ");
+            " ChromaCat • Pattern: diagonal • Theme: terminal • [?] help • [q] quit ".to_string();
 
         let status = Paragraph::new(status_text)
             .style(Style::default().bg(TuiColor::Blue).fg(TuiColor::White))

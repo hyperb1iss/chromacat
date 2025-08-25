@@ -166,7 +166,7 @@ impl<'de> Deserialize<'de> for DemoArt {
     {
         let s = String::deserialize(deserializer)?;
         DemoArt::try_from_str(&s)
-            .ok_or_else(|| serde::de::Error::custom(format!("Invalid art type: {}", s)))
+            .ok_or_else(|| serde::de::Error::custom(format!("Invalid art type: {s}")))
     }
 }
 
@@ -191,7 +191,7 @@ impl FromStr for DemoArt {
             "mandala" => Ok(Self::Mandala),
             "cityscape" => Ok(Self::Cityscape),
             "all" => Ok(Self::All),
-            _ => Err(format!("Invalid art type: {}", s)),
+            _ => Err(format!("Invalid art type: {s}")),
         }
     }
 }

@@ -76,7 +76,7 @@ impl PatternParam for DiagonalParams {
                     params.frequency = kv[1].parse().unwrap();
                 }
                 invalid_param => {
-                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                    return Err(format!("Invalid parameter name: {invalid_param}"));
                 }
             }
         }

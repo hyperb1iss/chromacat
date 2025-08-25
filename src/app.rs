@@ -15,12 +15,12 @@ use crate::themes;
 
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
-use crossterm::{execute};
+use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use log::{debug, info};
-use std::io::{self, stdout, Write};
+use std::io::{stdout, Write};
 
 /// Main application struct that coordinates ChromaCat functionality
 pub struct ChromaCat {
@@ -47,8 +47,10 @@ impl ChromaCat {
 
     /// Runs the ChromaCat application
     pub fn run(&mut self) -> Result<()> {
-        // Playground is the default mode unless explicitly disabled
-        let playground = !self.cli.no_playground;
+        // Playground is the default mode unless explicitly disabled or in test environment
+        // (unless CHROMACAT_TEST_PLAYGROUND is set)
+        let playground = !self.cli.no_playground
+            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
         if playground {
             crate::debug_log::init_debug_log();
             crate::debug_log::debug_log("Playground mode started").ok();
@@ -71,11 +73,13 @@ impl ChromaCat {
         // Validate CLI arguments
         self.cli.validate()?;
 
-        // Initialize terminal  
+        // Initialize terminal
         self.setup_terminal()?;
 
-        // Playground is the default mode
-        let playground = !self.cli.no_playground;
+        // Playground is the default mode unless explicitly disabled or in test environment
+        // (unless CHROMACAT_TEST_PLAYGROUND is set)
+        let playground = !self.cli.no_playground
+            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
 
         // Load custom theme file if specified
         if let Some(theme_file) = &self.cli.theme_file {
@@ -101,7 +105,7 @@ impl ChromaCat {
 
         // Set up the renderer
         let animation_config = self.cli.create_animation_config();
-        info!("Creating renderer with config: {:?}", animation_config);
+        info!("Creating renderer with config: {animation_config:?}");
 
         // Load playlist if enabled
         let playlist = if let Some(playlist_path) = &self.cli.playlist {
@@ -156,12 +160,7 @@ impl ChromaCat {
         };
 
         info!("Creating renderer with playlist: {}", playlist.is_some());
-        let mut renderer = Renderer::new(
-            engine,
-            animation_config,
-            playlist,
-            playground, // Playground mode enables art selection
-        )?;
+        let mut renderer = Renderer::new(engine, animation_config, playlist)?;
 
         // Process input and render
         // If playground, show overlay and status, and seed scenes
@@ -193,10 +192,11 @@ impl ChromaCat {
             self.process_input(&mut renderer)
         };
 
-        // Cleanup terminal
-        self.cleanup_terminal()?;
+        // Always cleanup terminal, even if there was an error
+        let cleanup_result = self.cleanup_terminal();
 
-        result
+        // Return the original error if there was one, otherwise the cleanup error
+        result.and(cleanup_result)
     }
 
     /// Processes playground mode by loading demo content and handing over to renderer
@@ -216,8 +216,9 @@ impl ChromaCat {
                 self.cli.art
             ))
             .ok();
-            
-            let mut reader = InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
+
+            let mut reader =
+                InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
             let mut buffer = String::new();
             reader.read_to_string(&mut buffer)?;
             buffer
@@ -235,7 +236,7 @@ impl ChromaCat {
         }
 
         crate::debug_log::debug_log("Handing control to renderer.run()").ok();
-        
+
         // Hand over control to the renderer's event loop
         let result = renderer.run(content);
         result.map_err(|e| e.into())
@@ -258,7 +259,9 @@ impl ChromaCat {
                     self.term_size = size;
                 }
                 Err(e) => {
-                    return Err(ChromaCatError::Other(format!("Failed to get terminal size: {}", e)));
+                    return Err(ChromaCatError::Other(format!(
+                        "Failed to get terminal size: {e}"
+                    )));
                 }
             }
         }
@@ -273,33 +276,36 @@ impl ChromaCat {
         if playground {
             // For playground mode, we need BOTH raw mode AND alternate screen for ratatui
             // If we can't get both, we should fall back to non-playground mode
-            
+
             match enable_raw_mode() {
                 Ok(()) => {
                     self.raw_mode = true;
-                    
+
                     // Now try alternate screen - ratatui NEEDS this
                     let mut stdout = stdout();
-                    
+
                     // Try to enter alternate screen
-                    if let Err(e) = execute!(stdout, EnterAlternateScreen, Hide, EnableMouseCapture) {
+                    if let Err(_e) =
+                        execute!(stdout, EnterAlternateScreen, Hide, EnableMouseCapture)
+                    {
                         // Disable raw mode since we can't use it
                         let _ = disable_raw_mode();
                         self.raw_mode = false;
-                        
+
                         return Err(ChromaCatError::Other(
                             "Playground mode requires terminal features that are not available. \
-                             Try running with --no-playground or in a different terminal.".to_string()
+                             Try running with --no-playground or in a different terminal."
+                                .to_string(),
                         ));
                     }
-                    
+
                     self.alternate_screen = true;
                 }
                 Err(e) => {
-                    return Err(ChromaCatError::Other(
-                        format!("Cannot initialize terminal for playground mode: {}. \
-                                Try running with --no-playground", e)
-                    ));
+                    return Err(ChromaCatError::Other(format!(
+                        "Cannot initialize terminal for playground mode: {e}. \
+                                Try running with --no-playground"
+                    )));
                 }
             }
         }
@@ -318,7 +324,7 @@ impl ChromaCat {
 
         if self.raw_mode {
             disable_raw_mode()
-                .map_err(|e| ChromaCatError::Other(format!("Failed to disable raw mode: {}", e)))?;
+                .map_err(|e| ChromaCatError::Other(format!("Failed to disable raw mode: {e}")))?;
             self.raw_mode = false;
         }
 
@@ -328,8 +334,10 @@ impl ChromaCat {
 
     /// Processes input from files or stdin
     fn process_input(&self, renderer: &mut Renderer) -> Result<()> {
-        // Playground is the default mode
-        let playground = !self.cli.no_playground;
+        // Playground is the default mode unless explicitly disabled or in test environment
+        // (unless CHROMACAT_TEST_PLAYGROUND is set)
+        let playground = !self.cli.no_playground
+            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
 
         // If no files specified, read from stdin
         if self.cli.files.is_empty() {
@@ -357,9 +365,11 @@ impl ChromaCat {
 
     /// Processes input from stdin
     fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
-        // Playground is the default mode
-        let playground = !self.cli.no_playground;
-        
+        // Playground is the default mode unless explicitly disabled or in test environment
+        // (unless CHROMACAT_TEST_PLAYGROUND is set)
+        let playground = !self.cli.no_playground
+            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
+
         if playground {
             // Always load demo content in playground mode, regardless of stdin type
             crate::debug_log::debug_log(&format!(
@@ -371,9 +381,8 @@ impl ChromaCat {
                 InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
             let mut buffer = String::new();
             reader.read_to_string(&mut buffer)?;
-            crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len()))
-                .ok();
-            
+            crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len())).ok();
+
             self.run_playground(renderer, &buffer)?;
         } else if atty::is(atty::Stream::Stdin) {
             debug!("Processing stdin in terminal mode");
@@ -414,18 +423,16 @@ impl ChromaCat {
         // Log processing statistics
         let (lines, bytes, rate) = processor.stats();
         info!(
-            "Streaming complete: processed {} lines ({} bytes) at {:.2} lines/sec",
-            lines, bytes, rate
+            "Streaming complete: processed {lines} lines ({bytes} bytes) at {rate:.2} lines/sec"
         );
 
         result
     }
 
-
-    /// Runs the playground UI loop 
+    /// Runs the playground UI loop
     fn run_playground(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
         crate::debug_log::debug_log("run_playground started").ok();
-        
+
         // For now, just render static to see if it works
         renderer.set_overlay_visible(true);
         let non_empty = if content.is_empty() { "\n" } else { content };
@@ -438,7 +445,7 @@ impl Drop for ChromaCat {
         // Attempt to cleanup terminal state if something went wrong
         if self.raw_mode || self.alternate_screen {
             if let Err(e) = self.cleanup_terminal() {
-                eprintln!("Error cleaning up terminal: {}", e);
+                eprintln!("Error cleaning up terminal: {e}");
             }
         }
     }

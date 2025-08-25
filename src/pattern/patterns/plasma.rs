@@ -127,7 +127,7 @@ impl PatternParam for PlasmaParams {
                     };
                 }
                 invalid_param => {
-                    return Err(format!("Invalid parameter name: {}", invalid_param));
+                    return Err(format!("Invalid parameter name: {invalid_param}"));
                 }
             }
         }

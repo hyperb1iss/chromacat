@@ -72,9 +72,10 @@ impl<'a> Widget for PatternWidget<'a> {
                 );
 
                 // Set the character with color in the buffer
-                let cell = buf.get_mut(area.x + x_pos as u16, area.y + y as u16);
-                cell.set_char(ch);
-                cell.set_style(Style::default().fg(color));
+                if let Some(cell) = buf.cell_mut((area.x + x_pos as u16, area.y + y as u16)) {
+                    cell.set_char(ch);
+                    cell.set_style(Style::default().fg(color));
+                }
 
                 x_pos += 1;
             }

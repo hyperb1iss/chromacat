@@ -45,7 +45,7 @@ impl std::error::Error for ChromaCatError {}
 impl fmt::Display for ChromaCatError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::IoError(err) => write!(f, "I/O error: {}", err),
+            Self::IoError(err) => write!(f, "I/O error: {err}"),
             Self::InvalidParameter {
                 name,
                 value,
@@ -54,12 +54,11 @@ impl fmt::Display for ChromaCatError {
             } => {
                 write!(
                     f,
-                    "Invalid {} value {}: must be between {} and {}",
-                    name, value, min, max
+                    "Invalid {name} value {value}: must be between {min} and {max}"
                 )
             }
-            Self::InvalidTheme(msg) => write!(f, "Invalid theme: {}", msg),
-            Self::GradientError(msg) => write!(f, "Gradient error: {}", msg),
+            Self::InvalidTheme(msg) => write!(f, "Invalid theme: {msg}"),
+            Self::GradientError(msg) => write!(f, "Gradient error: {msg}"),
             Self::PatternError {
                 pattern,
                 param,
@@ -67,17 +66,16 @@ impl fmt::Display for ChromaCatError {
             } => {
                 write!(
                     f,
-                    "Pattern '{}' parameter '{}' error: {}",
-                    pattern, param, message
+                    "Pattern '{pattern}' parameter '{param}' error: {message}"
                 )
             }
-            Self::InputError(msg) => write!(f, "Input error: {}", msg),
-            Self::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            Self::RenderError(msg) => write!(f, "Render error: {}", msg),
-            Self::InvalidPattern(msg) => write!(f, "Invalid pattern: {}", msg),
-            Self::PlaylistError(msg) => write!(f, "Playlist error: {}", msg),
-            Self::Other(msg) => write!(f, "{}", msg),
-            Self::InvalidArt(msg) => write!(f, "Invalid art type: {}", msg),
+            Self::InputError(msg) => write!(f, "Input error: {msg}"),
+            Self::ParseError(msg) => write!(f, "Parse error: {msg}"),
+            Self::RenderError(msg) => write!(f, "Render error: {msg}"),
+            Self::InvalidPattern(msg) => write!(f, "Invalid pattern: {msg}"),
+            Self::PlaylistError(msg) => write!(f, "Playlist error: {msg}"),
+            Self::Other(msg) => write!(f, "{msg}"),
+            Self::InvalidArt(msg) => write!(f, "Invalid art type: {msg}"),
         }
     }
 }

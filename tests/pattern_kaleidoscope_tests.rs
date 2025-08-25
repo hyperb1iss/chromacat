@@ -194,10 +194,7 @@ fn test_kaleidoscope_segment_count() {
         // Each segment should have at least one peak
         assert!(
             peak_count >= segments,
-            "Expected at least {} peaks for {} segments, got {}",
-            segments,
-            segments,
-            peak_count
+            "Expected at least {segments} peaks for {segments} segments, got {peak_count}"
         );
 
         // Test rotational symmetry by comparing points at segment intervals
@@ -223,10 +220,7 @@ fn test_kaleidoscope_segment_count() {
             // Check that variance between segments is small
             assert!(
                 variance < 0.01,
-                "Segment values at position {} have too much variation. Variance: {}, Values: {:?}",
-                base_idx,
-                variance,
-                segment_values
+                "Segment values at position {base_idx} have too much variation. Variance: {variance}, Values: {segment_values:?}"
             );
         }
     }
@@ -275,8 +269,7 @@ fn test_kaleidoscope_zoom() {
     let avg_diff = total_diff / sample_count as f64;
     assert!(
         avg_diff > 0.001, // Much smaller threshold for detecting differences
-        "Zoom should create detectable pattern differences. Average diff: {}",
-        avg_diff
+        "Zoom should create detectable pattern differences. Average diff: {avg_diff}"
     );
 }
 
@@ -335,8 +328,7 @@ fn test_kaleidoscope_complexity() {
     let avg_detail_diff = total_detail_diff / sample_count as f64;
     assert!(
         avg_detail_diff > 0.001,
-        "Higher complexity should create more local detail variation. Average difference: {}",
-        avg_detail_diff
+        "Higher complexity should create more local detail variation. Average difference: {avg_detail_diff}"
     );
 }
 

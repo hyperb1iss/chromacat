@@ -164,7 +164,7 @@ impl PlaygroundInputHandler {
         event: MouseEvent,
     ) -> Result<InputAction, RendererError> {
         use crossterm::event::{MouseButton, MouseEventKind};
-        
+
         match event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 if ui.overlay_visible {
@@ -173,9 +173,11 @@ impl PlaygroundInputHandler {
                     let section = Self::get_section_from_coords(event.column, event.row, ui);
                     if let Some(section) = section {
                         ui.active_section = section;
-                        
+
                         // Calculate which item in the list was clicked
-                        if let Some(item_index) = Self::get_item_from_coords(event.column, event.row, ui, section) {
+                        if let Some(item_index) =
+                            Self::get_item_from_coords(event.column, event.row, ui, section)
+                        {
                             match section {
                                 0 => {
                                     ui.pattern_sel = item_index;
@@ -206,7 +208,7 @@ impl PlaygroundInputHandler {
                 }
                 Ok(InputAction::None)
             }
-            
+
             MouseEventKind::ScrollUp => {
                 if ui.overlay_visible {
                     // Scroll up in the active section
@@ -238,7 +240,7 @@ impl PlaygroundInputHandler {
                     Ok(InputAction::None)
                 }
             }
-            
+
             MouseEventKind::ScrollDown => {
                 if ui.overlay_visible {
                     // Scroll down in the active section
@@ -270,17 +272,21 @@ impl PlaygroundInputHandler {
                     Ok(InputAction::None)
                 }
             }
-            
-            _ => Ok(InputAction::None)
+
+            _ => Ok(InputAction::None),
         }
     }
-    
+
     /// Helper to determine which section was clicked
     fn get_section_from_coords(x: u16, y: u16, ui: &PlaygroundUI) -> Option<usize> {
         // Calculate overlay area (bottom 1/4 of screen)
         let panel_height = (ui.terminal_size.1 / 4).max(10).min(20);
-        let panel_y = ui.terminal_size.1.saturating_sub(panel_height).saturating_sub(1);
-        
+        let panel_y = ui
+            .terminal_size
+            .1
+            .saturating_sub(panel_height)
+            .saturating_sub(1);
+
         // Check if we're in the overlay area
         if y >= panel_y && y < panel_y + panel_height {
             // Divide width into 4 equal columns
@@ -292,21 +298,25 @@ impl PlaygroundInputHandler {
         }
         None
     }
-    
+
     /// Helper to determine which item in a list was clicked
     fn get_item_from_coords(_x: u16, y: u16, ui: &PlaygroundUI, section: usize) -> Option<usize> {
         // Calculate overlay area dimensions
         let panel_height = (ui.terminal_size.1 / 4).max(10).min(20);
-        let panel_y = ui.terminal_size.1.saturating_sub(panel_height).saturating_sub(1);
-        
+        let panel_y = ui
+            .terminal_size
+            .1
+            .saturating_sub(panel_height)
+            .saturating_sub(1);
+
         // Account for borders and headers (3 lines from top of panel)
         let list_start_y = panel_y + 3;
         let list_height = panel_height.saturating_sub(5); // 3 for header, 2 for footer
-        
+
         // Check if y is within the list area
         if y >= list_start_y && y < list_start_y + list_height {
             let relative_y = (y - list_start_y) as usize;
-            
+
             // Get the offset for the section
             let offset = match section {
                 0 => ui.pattern_offset,
@@ -315,10 +325,10 @@ impl PlaygroundInputHandler {
                 3 => ui.art_offset,
                 _ => 0,
             };
-            
+
             // Calculate actual item index
             let item_index = offset + relative_y;
-            
+
             // Validate it's within bounds
             let max_items = match section {
                 0 => ui.pattern_names.len(),
@@ -327,7 +337,7 @@ impl PlaygroundInputHandler {
                 3 => ui.art_names.len(),
                 _ => 0,
             };
-            
+
             if item_index < max_items {
                 Some(item_index)
             } else {

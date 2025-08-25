@@ -39,7 +39,7 @@ fn test_spiral_params_parsing() {
     assert_eq!(spiral_params.density, 2.0);
     assert_eq!(spiral_params.rotation, 90.0);
     assert_eq!(spiral_params.expansion, 1.5);
-    assert_eq!(spiral_params.clockwise, false);
+    assert!(!spiral_params.clockwise);
     assert_eq!(spiral_params.frequency, 3.0);
 }
 
@@ -49,6 +49,6 @@ fn test_spiral_params_defaults() {
     assert_eq!(params.density, 1.0);
     assert_eq!(params.rotation, 0.0);
     assert_eq!(params.expansion, 1.0);
-    assert_eq!(params.clockwise, true);
+    assert!(params.clockwise);
     assert_eq!(params.frequency, 1.0);
 }

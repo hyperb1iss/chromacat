@@ -48,25 +48,25 @@ impl From<ChromaCatError> for RendererError {
         match err {
             ChromaCatError::IoError(e) => Self::IoError(e),
             ChromaCatError::InvalidParameter { name, value, .. } => {
-                Self::InvalidConfig(format!("Invalid parameter {}: {}", name, value))
+                Self::InvalidConfig(format!("Invalid parameter {name}: {value}"))
             }
             ChromaCatError::PatternError { message, .. } => Self::PatternError(message),
             ChromaCatError::InvalidPattern(msg) => Self::InvalidPattern(msg),
-            ChromaCatError::InvalidTheme(msg) => Self::Other(format!("Invalid theme: {}", msg)),
-            ChromaCatError::GradientError(msg) => Self::Other(format!("Gradient error: {}", msg)),
-            ChromaCatError::InputError(msg) => Self::Other(format!("Input error: {}", msg)),
-            ChromaCatError::ParseError(msg) => Self::Other(format!("Parse error: {}", msg)),
-            ChromaCatError::RenderError(msg) => Self::Other(format!("Render error: {}", msg)),
-            ChromaCatError::PlaylistError(msg) => Self::Other(format!("Playlist error: {}", msg)),
+            ChromaCatError::InvalidTheme(msg) => Self::Other(format!("Invalid theme: {msg}")),
+            ChromaCatError::GradientError(msg) => Self::Other(format!("Gradient error: {msg}")),
+            ChromaCatError::InputError(msg) => Self::Other(format!("Input error: {msg}")),
+            ChromaCatError::ParseError(msg) => Self::Other(format!("Parse error: {msg}")),
+            ChromaCatError::RenderError(msg) => Self::Other(format!("Render error: {msg}")),
+            ChromaCatError::PlaylistError(msg) => Self::Other(format!("Playlist error: {msg}")),
             ChromaCatError::Other(msg) => Self::Other(msg),
-            ChromaCatError::InvalidArt(msg) => Self::Other(format!("Invalid art type: {}", msg)),
+            ChromaCatError::InvalidArt(msg) => Self::Other(format!("Invalid art type: {msg}")),
         }
     }
 }
 
 impl From<std::fmt::Error> for RendererError {
     fn from(err: std::fmt::Error) -> Self {
-        Self::Other(format!("Format error: {}", err))
+        Self::Other(format!("Format error: {err}"))
     }
 }
 

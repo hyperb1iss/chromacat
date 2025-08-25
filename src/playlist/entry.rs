@@ -203,7 +203,7 @@ impl Playlist {
     /// Loads a playlist from a file.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let contents = std::fs::read_to_string(path.as_ref()).map_err(|e| {
-            ChromaCatError::InputError(format!("Failed to read playlist file: {}", e))
+            ChromaCatError::InputError(format!("Failed to read playlist file: {e}"))
         })?;
 
         contents.parse()
@@ -215,7 +215,7 @@ impl FromStr for Playlist {
 
     fn from_str(contents: &str) -> std::result::Result<Self, Self::Err> {
         let playlist: Playlist = serde_yaml::from_str(contents)
-            .map_err(|e| ChromaCatError::InputError(format!("Invalid playlist format: {}", e)))?;
+            .map_err(|e| ChromaCatError::InputError(format!("Invalid playlist format: {e}")))?;
 
         // Validate all entries
         for entry in &playlist.entries {
@@ -243,13 +243,12 @@ fn params_to_string(params: &serde_yaml::Value) -> Result<String> {
                     serde_yaml::Value::String(s) => s.clone(),
                     _ => {
                         return Err(ChromaCatError::InputError(format!(
-                            "Invalid parameter value for '{}': must be number, boolean, or string",
-                            key_str
+                            "Invalid parameter value for '{key_str}': must be number, boolean, or string"
                         )))
                     }
                 };
 
-                param_strings.push(format!("{}={}", key_str, value_str));
+                param_strings.push(format!("{key_str}={value_str}"));
             }
         }
         _ => {

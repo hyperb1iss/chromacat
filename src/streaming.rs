@@ -82,7 +82,7 @@ impl StreamingInput {
     /// # Returns
     /// A new StreamingInput instance or an error if initialization fails
     pub fn new(config: PatternConfig, theme_name: &str) -> Result<Self> {
-        debug!("Creating StreamingInput with theme: {}", theme_name);
+        debug!("Creating StreamingInput with theme: {theme_name}");
 
         let theme = themes::get_theme(theme_name)?;
         let gradient = theme.create_gradient()?;
@@ -155,7 +155,7 @@ impl StreamingInput {
         }
 
         if !self.colors_enabled {
-            writeln!(writer, "{}", line)?;
+            writeln!(writer, "{line}")?;
             return Ok(());
         }
 
@@ -184,7 +184,7 @@ impl StreamingInput {
             if current_color != Some(color) {
                 match color {
                     Color::Rgb { r, g, b } => {
-                        write!(writer, "\x1b[38;2;{};{};{}m", r, g, b)?;
+                        write!(writer, "\x1b[38;2;{r};{g};{b}m")?;
                     }
                     _ => unreachable!("We only use RGB colors"),
                 }
@@ -192,7 +192,7 @@ impl StreamingInput {
             }
 
             // Write character
-            write!(writer, "{}", ch)?;
+            write!(writer, "{ch}")?;
         }
 
         // Reset color and add newline
@@ -250,7 +250,7 @@ impl StreamingInput {
                     break; // EOF
                 }
                 Ok(n) => {
-                    trace!("Read {} bytes from stdin", n);
+                    trace!("Read {n} bytes from stdin");
                     self.process_line(&buffer, &mut stdout)?;
                     self.stats.update(n);
                     buffer.clear();
@@ -261,7 +261,7 @@ impl StreamingInput {
                     continue;
                 }
                 Err(e) => {
-                    debug!("Error reading from stdin: {}", e);
+                    debug!("Error reading from stdin: {e}");
                     return Err(ChromaCatError::IoError(e));
                 }
             }

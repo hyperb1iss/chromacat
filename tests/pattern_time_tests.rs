@@ -46,28 +46,24 @@ fn test_time_consistency() {
 
         // Print values when change is significant
         if delta > 0.1 {
-            println!("Large value change at time {:.3}:", time);
-            println!("  Previous value: {:.6}", last_value);
-            println!("  Current value:  {:.6}", value);
-            println!("  Delta:          {:.6}", delta);
+            println!("Large value change at time {time:.3}:");
+            println!("  Previous value: {last_value:.6}");
+            println!("  Current value:  {value:.6}");
+            println!("  Delta:          {delta:.6}");
         }
 
         // Ensure changes between frames are not too drastic
         assert!(
             delta < 0.15,
-            "Value change too large at time {}: {} (prev: {}, curr: {})",
-            time,
-            delta,
-            last_value,
-            value
+            "Value change too large at time {time}: {delta} (prev: {last_value}, curr: {value})"
         );
 
         last_value = value;
     }
 
     println!("\nMaximum value change:");
-    println!("  Delta: {:.6}", max_delta);
-    println!("  Time:  {:.3}", max_delta_time);
+    println!("  Delta: {max_delta:.6}");
+    println!("  Time:  {max_delta_time:.3}");
 }
 
 #[test]
@@ -97,10 +93,9 @@ fn test_consistent_animation_speed() {
     let steps_per_period = 60; // 1 second worth of frames
 
     println!("\nTesting animation speed consistency:");
-    println!("Delta time: {:.6} seconds", delta);
+    println!("Delta time: {delta:.6} seconds");
     println!(
-        "Testing {} periods of {} steps each",
-        periods, steps_per_period
+        "Testing {periods} periods of {steps_per_period} steps each"
     );
 
     // Track time progression instead of value changes
@@ -108,9 +103,9 @@ fn test_consistent_animation_speed() {
     let mut values = Vec::new();
 
     for period in 0..periods {
-        println!("\nPeriod {}:", period);
+        println!("\nPeriod {period}:");
         let start_value = engine.get_value_at(x, y).unwrap();
-        println!("Initial value: {:.6}", start_value);
+        println!("Initial value: {start_value:.6}");
 
         let mut period_times = Vec::new();
         let mut period_values = Vec::new();
@@ -122,7 +117,7 @@ fn test_consistent_animation_speed() {
         }
 
         let time_diff = period_times.last().unwrap() - period_times.first().unwrap();
-        println!("Period {} time progression: {:.6}", period, time_diff);
+        println!("Period {period} time progression: {time_diff:.6}");
 
         times.push(period_times);
         values.push(period_values);

@@ -37,17 +37,15 @@ impl EventLoop {
         let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)
-            .map_err(|e| {
-                RendererError::Other(format!("Failed to create terminal: {}", e))
-            })?;
+            .map_err(|e| RendererError::Other(format!("Failed to create terminal: {e}")))?;
 
         // Clear the terminal
         terminal
             .clear()
-            .map_err(|e| RendererError::Other(format!("Failed to clear terminal: {}", e)))?;
+            .map_err(|e| RendererError::Other(format!("Failed to clear terminal: {e}")))?;
 
         let frame_duration = Duration::from_secs_f64(1.0 / self.target_fps as f64);
-        
+
         loop {
             let now = Instant::now();
             let delta = now.duration_since(self.last_frame).as_secs_f64();
@@ -58,13 +56,13 @@ impl EventLoop {
             // Check for events (non-blocking with timeout)
             let has_event = match event::poll(Duration::from_millis(1)) {
                 Ok(has_event) => has_event,
-                Err(e) => {
+                Err(_e) => {
                     // Event polling can fail when raw mode isn't properly set up
                     // Don't spam the logs, just continue
                     false
                 }
             };
-            
+
             if has_event {
                 match event::read() {
                     Ok(Event::Key(key)) => {
@@ -76,7 +74,7 @@ impl EventLoop {
                         self.handle_mouse(mouse)?;
                     }
                     Ok(Event::Resize(width, height)) => {
-                        let _ = debug_log(&format!("Terminal resized to {}x{}", width, height));
+                        let _ = debug_log(&format!("Terminal resized to {width}x{height}"));
                         self.renderer.handle_resize(width, height)?;
                     }
                     Ok(_) => {}
@@ -96,11 +94,10 @@ impl EventLoop {
             }
         }
 
-        // Terminal cleanup is handled by app.rs, don't do it here
-        // Just show the cursor
-        terminal
-            .show_cursor()
-            .map_err(|e| RendererError::Other(format!("Failed to show cursor: {}", e)))?;
+        // Terminal cleanup is handled by app.rs
+        // But we should ensure the terminal is in a good state
+        let _ = terminal.show_cursor();
+        let _ = terminal.clear();
 
         Ok(())
     }

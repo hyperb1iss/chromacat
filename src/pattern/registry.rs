@@ -180,7 +180,7 @@ impl PatternRegistry {
         if let Some(metadata) = self.get_pattern(id) {
             metadata.default_params.validate(params)
         } else {
-            Err(format!("Unknown pattern: {}", id))
+            Err(format!("Unknown pattern: {id}"))
         }
     }
 
@@ -190,7 +190,7 @@ impl PatternRegistry {
             let parsed = metadata.default_params.parse(params)?;
             self.pattern_to_params(id, parsed)
         } else {
-            Err(format!("Unknown pattern: {}", id))
+            Err(format!("Unknown pattern: {id}"))
         }
     }
 }
