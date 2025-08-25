@@ -1,8 +1,4 @@
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, MouseEvent},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::event::{self, Event, KeyEvent, MouseEvent};
 use ratatui::{backend::CrosstermBackend, Terminal};
 /// Event loop for the renderer - pure ratatui implementation
 /// Handles the main rendering loop with proper event handling
@@ -36,17 +32,14 @@ impl EventLoop {
 
     /// Run the main event loop
     pub fn run(mut self) -> Result<(), RendererError> {
-        // Setup terminal
-        enable_raw_mode()
-            .map_err(|e| RendererError::Other(format!("Failed to enable raw mode: {}", e)))?;
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen).map_err(|e| {
-            RendererError::Other(format!("Failed to enter alternate screen: {}", e))
-        })?;
-
+        // Terminal is already set up by app.rs, just create the ratatui terminal
+        // Don't call enable_raw_mode or EnterAlternateScreen again!
+        let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)
-            .map_err(|e| RendererError::Other(format!("Failed to create terminal: {}", e)))?;
+            .map_err(|e| {
+                RendererError::Other(format!("Failed to create terminal: {}", e))
+            })?;
 
         // Clear the terminal
         terminal
@@ -54,32 +47,42 @@ impl EventLoop {
             .map_err(|e| RendererError::Other(format!("Failed to clear terminal: {}", e)))?;
 
         let frame_duration = Duration::from_secs_f64(1.0 / self.target_fps as f64);
-
+        
         loop {
             let now = Instant::now();
             let delta = now.duration_since(self.last_frame).as_secs_f64();
             self.last_frame = now;
 
+            // No frame tracking needed anymore
+
             // Check for events (non-blocking with timeout)
-            if event::poll(Duration::from_millis(1))
-                .map_err(|e| RendererError::Other(format!("Event poll failed: {}", e)))?
-            {
-                match event::read()
-                    .map_err(|e| RendererError::Other(format!("Event read failed: {}", e)))?
-                {
-                    Event::Key(key) => {
+            let has_event = match event::poll(Duration::from_millis(1)) {
+                Ok(has_event) => has_event,
+                Err(e) => {
+                    // Event polling can fail when raw mode isn't properly set up
+                    // Don't spam the logs, just continue
+                    false
+                }
+            };
+            
+            if has_event {
+                match event::read() {
+                    Ok(Event::Key(key)) => {
                         if !self.handle_key(key)? {
                             break; // Exit requested
                         }
                     }
-                    Event::Mouse(mouse) => {
+                    Ok(Event::Mouse(mouse)) => {
                         self.handle_mouse(mouse)?;
                     }
-                    Event::Resize(width, height) => {
+                    Ok(Event::Resize(width, height)) => {
                         let _ = debug_log(&format!("Terminal resized to {}x{}", width, height));
                         self.renderer.handle_resize(width, height)?;
                     }
-                    _ => {}
+                    Ok(_) => {}
+                    Err(_) => {
+                        // Event read can fail, just continue
+                    }
                 }
             }
 
@@ -93,12 +96,8 @@ impl EventLoop {
             }
         }
 
-        // Cleanup terminal
-        disable_raw_mode()
-            .map_err(|e| RendererError::Other(format!("Failed to disable raw mode: {}", e)))?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen).map_err(|e| {
-            RendererError::Other(format!("Failed to leave alternate screen: {}", e))
-        })?;
+        // Terminal cleanup is handled by app.rs, don't do it here
+        // Just show the cursor
         terminal
             .show_cursor()
             .map_err(|e| RendererError::Other(format!("Failed to show cursor: {}", e)))?;
@@ -108,12 +107,7 @@ impl EventLoop {
 
     /// Handle keyboard events
     fn handle_key(&mut self, key: KeyEvent) -> Result<bool, RendererError> {
-        // Check for quit
-        if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
-            return Ok(false); // Signal exit
-        }
-
-        // Pass to renderer
+        // Pass to renderer - it will decide whether to exit
         self.renderer.handle_key(key)
     }
 

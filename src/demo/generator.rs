@@ -96,8 +96,8 @@ impl DemoArtGenerator {
 
         for _ in 0..self.settings.height {
             for _ in 0..self.settings.width {
-                output.push(if self.rng.gen_bool(0.7) {
-                    chars[self.rng.gen_range(0..2)]
+                output.push(if self.rng.random_bool(0.7) {
+                    chars[self.rng.random_range(0..2)]
                 } else {
                     ' '
                 });
@@ -124,7 +124,7 @@ impl DemoArtGenerator {
         ];
 
         // Add time variation for animation-like effect
-        let time_offset = self.rng.gen_range(0.0..2.0 * PI);
+        let time_offset = self.rng.random_range(0.0..2.0 * PI);
 
         for y in 0..self.settings.height {
             for x in 0..self.settings.width {
@@ -457,7 +457,7 @@ impl DemoArtGenerator {
 
         let freq_x = 0.1;
         let freq_y = 0.08;
-        let freq_t = self.rng.gen_range(0.0..=1.0) * PI;
+        let freq_t = self.rng.random_range(0.0..=1.0) * PI;
 
         for y in 0..self.settings.height {
             for x in 0..self.settings.width {
@@ -488,7 +488,7 @@ impl DemoArtGenerator {
 
         let center_x = self.settings.width as f64 / 2.0;
         let center_y = self.settings.height as f64 / 2.0;
-        let time_offset = self.rng.gen_range(0.0..=2.0 * PI);
+        let time_offset = self.rng.random_range(0.0..=2.0 * PI);
 
         for y in 0..self.settings.height {
             for x in 0..self.settings.width {
@@ -524,7 +524,7 @@ impl DemoArtGenerator {
             vec![vec![false; self.settings.width as usize]; self.settings.height as usize];
         for row in grid.iter_mut() {
             for cell in row.iter_mut() {
-                *cell = self.rng.gen_bool(0.3);
+                *cell = self.rng.random_bool(0.3);
             }
         }
 
@@ -595,7 +595,7 @@ impl DemoArtGenerator {
         let chars = ['█', '▓', '▒', '░', ' '];
         let char_count = chars.len() - 1;
 
-        let time = self.rng.gen_range(0.0..=2.0 * PI);
+        let time = self.rng.random_range(0.0..=2.0 * PI);
 
         // Multiple frequency layers for more organic motion
         let frequencies = [
@@ -689,7 +689,7 @@ impl DemoArtGenerator {
                 current_path.pop();
             } else {
                 // Choose random neighbor with bias towards straight paths
-                let next_idx = if neighbors.len() > 1 && self.rng.gen_bool(0.7) {
+                let next_idx = if neighbors.len() > 1 && self.rng.random_bool(0.7) {
                     // Try to continue in current direction if possible
                     let last_dx = if current_path.len() >= 2 {
                         (current_x as i32 - current_path[current_path.len() - 2].0 as i32).signum()
@@ -708,9 +708,9 @@ impl DemoArtGenerator {
                             (nx as i32 - current_x as i32).signum() == last_dx
                                 && (ny as i32 - current_y as i32).signum() == last_dy
                         })
-                        .unwrap_or_else(|| self.rng.gen_range(0..neighbors.len()))
+                        .unwrap_or_else(|| self.rng.random_range(0..neighbors.len()))
                 } else {
-                    self.rng.gen_range(0..neighbors.len())
+                    self.rng.random_range(0..neighbors.len())
                 };
 
                 let (next_x, next_y) = neighbors[next_idx];
@@ -739,7 +739,7 @@ impl DemoArtGenerator {
         ];
 
         // Choose random style
-        let style = &styles[self.rng.gen_range(0..styles.len())];
+        let style = &styles[self.rng.random_range(0..styles.len())];
 
         // Convert maze to box drawing characters
         for y in 0..cell_height {
@@ -921,7 +921,7 @@ impl DemoArtGenerator {
         let safe_sky_height = max_building_reach / 2; // Place moon in upper half of safe area
 
         // Moon coordinates - keep x position between 65-85% of width to avoid edge cases
-        let moon_x = (self.settings.width as f64 * self.rng.gen_range(0.65..0.85)) as usize;
+        let moon_x = (self.settings.width as f64 * self.rng.random_range(0.65..0.85)) as usize;
         let moon_y = (self.settings.height as f64 * 0.15).max(3.0) as usize; // Keep moon in top 15%
 
         // Adjust moon size relative to safe area
@@ -961,7 +961,7 @@ impl DemoArtGenerator {
                                 '█'
                             } else {
                                 // Create subtle texture inside the moon
-                                if self.rng.gen_bool(0.1) {
+                                if self.rng.random_bool(0.1) {
                                     '▓'
                                 } else {
                                     '█'
@@ -979,8 +979,8 @@ impl DemoArtGenerator {
 
         // Add a few subtle highlights
         for _ in 0..5 {
-            let angle = self.rng.gen_range(0.0..2.0 * std::f64::consts::PI);
-            let dist = self.rng.gen_range(0.0..0.7); // Normalized distance
+            let angle = self.rng.random_range(0.0..2.0 * std::f64::consts::PI);
+            let dist = self.rng.random_range(0.0..0.7); // Normalized distance
             let dx = (dist * angle.cos() * moon_radius_x as f64) as i32;
             let dy = (dist * angle.sin() * moon_radius_y as f64) as i32;
 
@@ -995,15 +995,15 @@ impl DemoArtGenerator {
         // Add stars with more variety and careful placement
         let star_chars = ['✦', '✧', '*', '⋆', '·'];
         for _ in 0..(self.settings.width * self.settings.height) / 60 {
-            let x = self.rng.gen_range(0..self.settings.width as usize);
-            let y = self.rng.gen_range(0..gradient_start);
+            let x = self.rng.random_range(0..self.settings.width as usize);
+            let y = self.rng.random_range(0..gradient_start);
 
             if x < canvas[0].len()
                 && y < canvas.len()
                 && !moon_pixels.contains(&(x, y))
                 && canvas[y][x] == ' '
             {
-                let star = match self.rng.gen_range(0..100) {
+                let star = match self.rng.random_range(0..100) {
                     0..=5 => star_chars[0],   // 5% ✦
                     6..=15 => star_chars[1],  // 10% ✧
                     16..=30 => star_chars[2], // 15% *
@@ -1021,9 +1021,9 @@ impl DemoArtGenerator {
             // Building parameters
             let width = self
                 .rng
-                .gen_range(6..12)
+                .random_range(6..12)
                 .min(self.settings.width as usize - x);
-            let height = (self.settings.height as f64 * self.rng.gen_range(0.3..0.8)) as usize;
+            let height = (self.settings.height as f64 * self.rng.random_range(0.3..0.8)) as usize;
 
             // Clear the space for the building including left and right borders
             for y in (self.settings.height as usize - height)..self.settings.height as usize {
@@ -1060,7 +1060,10 @@ impl DemoArtGenerator {
                 }
             }
 
-            // Add windows in a grid pattern
+            // Add windows in a grid pattern (only if building is large enough)
+            if height <= 2 || width <= 2 {
+                continue; // Skip windows for tiny buildings
+            }
             let window_rows = (height - 2) / 3;
             let window_cols = (width - 2) / 3;
 
@@ -1071,10 +1074,10 @@ impl DemoArtGenerator {
 
                     if window_y < canvas.len() && window_x < canvas[0].len() {
                         // Different window styles
-                        match self.rng.gen_range(0..100) {
+                        match self.rng.random_range(0..100) {
                             0..=60 => {
                                 // Lit window with variations
-                                let window_style = match self.rng.gen_range(0..4) {
+                                let window_style = match self.rng.random_range(0..4) {
                                     0 => [['▀', '▀'], ['░', '░']], // Half-shuttered top
                                     1 => [['░', '░'], ['▄', '▄']], // Half-shuttered bottom
                                     2 => [['░', '▓'], ['▓', '░']], // Diagonal light pattern
@@ -1126,13 +1129,13 @@ impl DemoArtGenerator {
                     0.5 // 50% chance for moderately tall buildings
                 };
 
-                if self.rng.gen_bool(spire_chance) {
+                if self.rng.random_bool(spire_chance) {
                     let spire_x = x + width / 2;
                     if spire_x < canvas[0].len() {
                         let spire_height = if width > 8 {
-                            self.rng.gen_range(3..6)
+                            self.rng.random_range(3..6)
                         } else {
-                            self.rng.gen_range(2..4)
+                            self.rng.random_range(2..4)
                         };
 
                         // Start at the building top (including the half block)

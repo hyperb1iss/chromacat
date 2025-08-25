@@ -14,14 +14,13 @@ use crate::streaming::StreamingInput;
 use crate::themes;
 
 use crossterm::cursor::{Hide, Show};
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
-use crossterm::execute;
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::{execute};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use log::{debug, info};
-use std::io::{stdout, Write};
-use std::time::{Duration, Instant};
+use std::io::{self, stdout, Write};
 
 /// Main application struct that coordinates ChromaCat functionality
 pub struct ChromaCat {
@@ -48,11 +47,11 @@ impl ChromaCat {
 
     /// Runs the ChromaCat application
     pub fn run(&mut self) -> Result<()> {
-        // Initialize debug logging for playground mode
-        if self.cli.playground {
+        // Playground is the default mode unless explicitly disabled
+        let playground = !self.cli.no_playground;
+        if playground {
             crate::debug_log::init_debug_log();
             crate::debug_log::debug_log("Playground mode started").ok();
-            crate::debug_log::debug_log("After initializing debug log").ok();
         }
 
         debug!("Starting ChromaCat with configuration: {:?}", self.cli);
@@ -72,11 +71,11 @@ impl ChromaCat {
         // Validate CLI arguments
         self.cli.validate()?;
 
-        // Initialize terminal
+        // Initialize terminal  
         self.setup_terminal()?;
 
-        // Playground: ensure animation is on by default
-        let playground = self.cli.playground;
+        // Playground is the default mode
+        let playground = !self.cli.no_playground;
 
         // Load custom theme file if specified
         if let Some(theme_file) = &self.cli.theme_file {
@@ -140,7 +139,7 @@ impl ChromaCat {
                     )));
                 }
             }
-        } else if self.cli.animate || playground {
+        } else if playground {
             // Try loading default playlist in animation mode
             match load_default_playlist()? {
                 Some(p) => {
@@ -161,7 +160,7 @@ impl ChromaCat {
             engine,
             animation_config,
             playlist,
-            self.cli.demo || self.cli.playground, // Treat playground as demo mode for art selection
+            playground, // Playground mode enables art selection
         )?;
 
         // Process input and render
@@ -185,12 +184,61 @@ impl ChromaCat {
             }
         }
 
-        let result = self.process_input(&mut renderer);
+        // Process input - handle playground mode separately since it takes ownership
+        let result = if playground {
+            // For playground mode, hand over control to the renderer
+            self.process_playground_mode(renderer)
+        } else {
+            // For non-playground mode, use the old approach
+            self.process_input(&mut renderer)
+        };
 
         // Cleanup terminal
         self.cleanup_terminal()?;
 
         result
+    }
+
+    /// Processes playground mode by loading demo content and handing over to renderer
+    fn process_playground_mode(&self, mut renderer: Renderer) -> Result<()> {
+        // Configure renderer for playground mode
+        renderer.set_overlay_visible(true);
+        renderer.set_status_message(
+            "Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load",
+        );
+        renderer.enable_default_scenes();
+
+        // Load demo content
+        let content = if atty::is(atty::Stream::Stdin) || true {
+            // Always load demo content in playground mode
+            crate::debug_log::debug_log(&format!(
+                "Loading demo content with art: {:?}",
+                self.cli.art
+            ))
+            .ok();
+            
+            let mut reader = InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
+            let mut buffer = String::new();
+            reader.read_to_string(&mut buffer)?;
+            buffer
+        } else {
+            // Fallback content
+            "\n".to_string()
+        };
+
+        // Load the art specified by CLI if any
+        if self.cli.art.is_none() {
+            crate::debug_log::debug_log("No art specified, using default demo content").ok();
+        } else {
+            crate::debug_log::debug_log(&format!("Using CLI art: {:?}", self.cli.art)).ok();
+            // The art is already loaded via InputReader::from_demo above
+        }
+
+        crate::debug_log::debug_log("Handing control to renderer.run()").ok();
+        
+        // Hand over control to the renderer's event loop
+        let result = renderer.run(content);
+        result.map_err(|e| e.into())
     }
 
     /// Returns true if running in a test environment
@@ -205,9 +253,14 @@ impl ChromaCat {
             // Use fixed size for tests
             self.term_size = (80, 24);
         } else {
-            self.term_size = crossterm::terminal::size().map_err(|e| {
-                ChromaCatError::Other(format!("Failed to get terminal size: {}", e))
-            })?;
+            match crossterm::terminal::size() {
+                Ok(size) => {
+                    self.term_size = size;
+                }
+                Err(e) => {
+                    return Err(ChromaCatError::Other(format!("Failed to get terminal size: {}", e)));
+                }
+            }
         }
 
         // Skip terminal setup in test environment
@@ -215,15 +268,40 @@ impl ChromaCat {
             return Ok(());
         }
 
-        if self.cli.animate || self.cli.playground {
-            // Enter raw mode for animation
-            enable_raw_mode()
-                .map_err(|e| ChromaCatError::Other(format!("Failed to enable raw mode: {}", e)))?;
-            self.raw_mode = true;
-
-            // Enter alternate screen
-            execute!(stdout(), EnterAlternateScreen, Hide, EnableMouseCapture)?;
-            self.alternate_screen = true;
+        let playground = !self.cli.no_playground;
+        // Setup terminal for playground mode, but only if we can
+        if playground {
+            // For playground mode, we need BOTH raw mode AND alternate screen for ratatui
+            // If we can't get both, we should fall back to non-playground mode
+            
+            match enable_raw_mode() {
+                Ok(()) => {
+                    self.raw_mode = true;
+                    
+                    // Now try alternate screen - ratatui NEEDS this
+                    let mut stdout = stdout();
+                    
+                    // Try to enter alternate screen
+                    if let Err(e) = execute!(stdout, EnterAlternateScreen, Hide, EnableMouseCapture) {
+                        // Disable raw mode since we can't use it
+                        let _ = disable_raw_mode();
+                        self.raw_mode = false;
+                        
+                        return Err(ChromaCatError::Other(
+                            "Playground mode requires terminal features that are not available. \
+                             Try running with --no-playground or in a different terminal.".to_string()
+                        ));
+                    }
+                    
+                    self.alternate_screen = true;
+                }
+                Err(e) => {
+                    return Err(ChromaCatError::Other(
+                        format!("Cannot initialize terminal for playground mode: {}. \
+                                Try running with --no-playground", e)
+                    ));
+                }
+            }
         }
 
         Ok(())
@@ -234,7 +312,7 @@ impl ChromaCat {
         let mut stdout = stdout();
 
         if self.alternate_screen {
-            execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen)?;
+            crossterm::execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen)?;
             self.alternate_screen = false;
         }
 
@@ -250,29 +328,8 @@ impl ChromaCat {
 
     /// Processes input from files or stdin
     fn process_input(&self, renderer: &mut Renderer) -> Result<()> {
-        // Handle demo mode
-        if self.cli.demo {
-            info!("Running in demo mode");
-            let mut reader =
-                InputReader::from_demo(self.cli.animate, self.cli.art.as_deref(), None)?;
-
-            if self.cli.animate {
-                // For animated demo, we'll keep generating new content
-                let mut buffer = String::new();
-                reader.read_to_string(&mut buffer)?;
-                if self.cli.playground {
-                    self.run_playground(renderer, &buffer)?;
-                } else {
-                    self.run_animation(renderer, &buffer)?;
-                }
-            } else {
-                // For static demo, read all generated content
-                let mut buffer = String::new();
-                reader.read_to_string(&mut buffer)?;
-                renderer.render_static(&buffer)?;
-            }
-            return Ok(());
-        }
+        // Playground is the default mode
+        let playground = !self.cli.no_playground;
 
         // If no files specified, read from stdin
         if self.cli.files.is_empty() {
@@ -288,12 +345,8 @@ impl ChromaCat {
             let mut buffer = String::new();
             reader.read_to_string(&mut buffer)?;
 
-            if self.cli.animate {
-                if self.cli.playground {
-                    self.run_playground(renderer, &buffer)?;
-                } else {
-                    self.run_animation(renderer, &buffer)?;
-                }
+            if playground {
+                self.run_playground(renderer, &buffer)?;
             } else {
                 renderer.render_static(&buffer)?;
             }
@@ -304,42 +357,34 @@ impl ChromaCat {
 
     /// Processes input from stdin
     fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
-        // Check if stdin is a terminal or a pipe
-        if atty::is(atty::Stream::Stdin) {
-            debug!("Processing stdin in terminal mode");
-            // In playground mode (or when animating without input), seed with demo content instead of blocking on stdin
-            if self.cli.playground {
-                crate::debug_log::debug_log(&format!(
-                    "Loading demo content with art: {:?}",
-                    self.cli.art
-                ))
+        // Playground is the default mode
+        let playground = !self.cli.no_playground;
+        
+        if playground {
+            // Always load demo content in playground mode, regardless of stdin type
+            crate::debug_log::debug_log(&format!(
+                "Loading demo content with art: {:?}",
+                self.cli.art
+            ))
+            .ok();
+            let mut reader =
+                InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
+            let mut buffer = String::new();
+            reader.read_to_string(&mut buffer)?;
+            crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len()))
                 .ok();
-                let mut reader =
-                    InputReader::from_demo(/*animate*/ true, self.cli.art.as_deref(), None)?;
-                let mut buffer = String::new();
-                reader.read_to_string(&mut buffer)?;
-                crate::debug_log::debug_log(&format!("Loaded {} chars of content", buffer.len()))
-                    .ok();
-                self.run_playground(renderer, &buffer)?;
-            } else {
-                // Terminal input - use normal processing
-                let mut reader = InputReader::from_stdin()?;
-                let mut buffer = String::new();
-                reader.read_to_string(&mut buffer)?;
+            
+            self.run_playground(renderer, &buffer)?;
+        } else if atty::is(atty::Stream::Stdin) {
+            debug!("Processing stdin in terminal mode");
+            // Terminal input - use normal processing
+            let mut reader = InputReader::from_stdin()?;
+            let mut buffer = String::new();
+            reader.read_to_string(&mut buffer)?;
 
-                if self.cli.animate {
-                    self.run_animation(renderer, &buffer)?;
-                } else {
-                    renderer.render_static(&buffer)?;
-                }
-            }
+            renderer.render_static(&buffer)?
         } else {
             debug!("Processing stdin in streaming mode");
-            if self.cli.animate {
-                return Err(ChromaCatError::Other(
-                    "Animation mode is not supported for streaming input. Please use static mode for pipes and real-time logs.".to_string()
-                ));
-            }
             // Streaming input - use streaming processor
             self.process_streaming()?;
         }
@@ -376,103 +421,15 @@ impl ChromaCat {
         result
     }
 
-    /// Runs the animation loop
-    fn run_animation(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
-        let frame_duration = renderer.frame_duration();
-        let mut last_frame = Instant::now();
-        let mut paused = false;
-        let start_time = Instant::now();
 
-        // Skip terminal setup and animation loop in test environment
-        if Self::is_test() {
-            renderer.render_frame(content, 0.016)?;
-            return Ok(());
-        }
-
-        // Terminal already set up in setup() method, no need to duplicate
-
-        crate::debug_log::debug_log("Entering main animation loop").ok();
-
-        // Main animation loop
-        'main: loop {
-            // Add duration check
-            if self.cli.duration > 0
-                && start_time.elapsed() >= Duration::from_secs(self.cli.duration)
-            {
-                break 'main;
-            }
-
-            // Handle input with minimal polling delay
-            if event::poll(Duration::from_millis(1))? {
-                match event::read()? {
-                    Event::Key(key) => {
-                        use crossterm::event::KeyCode;
-                        match key.code {
-                            KeyCode::Esc | KeyCode::Char('q') => break 'main,
-                            KeyCode::Char(' ') => {
-                                paused = !paused;
-                            }
-                            _ => match renderer.handle_key_event(key) {
-                                Ok(true) => continue 'main,
-                                Ok(false) => break 'main,
-                                Err(e) => {
-                                    eprintln!("Key handling error: {}", e);
-                                    continue 'main;
-                                }
-                            },
-                        }
-                    }
-                    Event::Resize(width, height) => {
-                        if let Err(e) = renderer.handle_resize(width, height) {
-                            eprintln!("Resize error: {}", e);
-                        }
-                        continue 'main;
-                    }
-                    Event::Mouse(me) => {
-                        if let Err(e) = renderer.handle_mouse_event(me) {
-                            eprintln!("Mouse error: {}", e);
-                        }
-                        continue 'main;
-                    }
-                    _ => continue 'main,
-                }
-            }
-
-            let now = Instant::now();
-
-            // Update and render frame
-            if !paused && now.duration_since(last_frame) >= frame_duration {
-                let delta_seconds = now.duration_since(last_frame).as_secs_f64();
-
-                if let Err(e) = renderer.render_frame(content, delta_seconds) {
-                    eprintln!("Render error: {}", e);
-                    continue 'main;
-                }
-
-                last_frame = now;
-            } else {
-                std::thread::sleep(Duration::from_millis(1));
-            }
-        }
-
-        // Clean up terminal
-        disable_raw_mode()?;
-
-        Ok(())
-    }
-
-    /// Runs the playground UI loop (stub: delegates to animation for now)
+    /// Runs the playground UI loop 
     fn run_playground(&self, renderer: &mut Renderer, content: &str) -> Result<()> {
         crate::debug_log::debug_log("run_playground started").ok();
-        // Playground reuses animation loop; ensure overlay is visible at start and content is non-empty
+        
+        // For now, just render static to see if it works
         renderer.set_overlay_visible(true);
         let non_empty = if content.is_empty() { "\n" } else { content };
-        crate::debug_log::debug_log(&format!(
-            "Calling run_animation with {} chars of content",
-            non_empty.len()
-        ))
-        .ok();
-        self.run_animation(renderer, non_empty)
+        renderer.render_static(non_empty).map_err(Into::into)
     }
 }
 

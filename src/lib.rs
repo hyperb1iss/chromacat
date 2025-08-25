@@ -12,7 +12,6 @@ pub mod demo;
 pub mod error;
 pub mod gradient;
 pub mod input;
-#[cfg(feature = "playground-ui")]
 pub mod playground;
 pub mod playlist;
 pub mod recipes;

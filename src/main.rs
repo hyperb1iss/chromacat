@@ -5,6 +5,14 @@ use clap::Parser;
 use std::process;
 
 fn main() -> Result<()> {
+    // Set up panic handler
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("ChromaCat panicked: {}", panic_info);
+        if let Some(location) = panic_info.location() {
+            eprintln!("Location: {}:{}", location.file(), location.line());
+        }
+    }));
+    
     // Initialize logging
     env_logger::init();
 
@@ -23,9 +31,12 @@ fn main() -> Result<()> {
 
     // Create and run ChromaCat
     let mut cat = ChromaCat::new(cli);
-    if let Err(e) = cat.run() {
-        eprintln!("Error: {}", e);
-        process::exit(1);
+    match cat.run() {
+        Ok(()) => {}
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
     }
 
     Ok(())

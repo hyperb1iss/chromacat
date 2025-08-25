@@ -78,48 +78,7 @@ pub struct Cli {
     )]
     pub amplitude: f64,
 
-    #[arg(
-        short = 'a',
-        long,
-        help_heading = CliFormat::HEADING_ANIMATION,
-        help = CliFormat::highlight_description("Enable animation mode")
-    )]
-    pub animate: bool,
 
-    #[arg(
-        long,
-        default_value = "30",
-        help_heading = CliFormat::HEADING_ANIMATION,
-        value_name = "NUM",
-        help = CliFormat::highlight_description("Frames per second (1-144)")
-    )]
-    pub fps: u32,
-
-    #[arg(
-        long,
-        default_value = "0",
-        help_heading = CliFormat::HEADING_ANIMATION,
-        value_name = "SECS",
-        help = CliFormat::highlight_description("Duration in seconds (0 = infinite)")
-    )]
-    pub duration: u64,
-
-    #[arg(
-        short = 's',
-        long,
-        default_value = "1.0",
-        help_heading = CliFormat::HEADING_ANIMATION,
-        value_name = "NUM",
-        help = CliFormat::highlight_description("Animation speed (0.0-1.0)")
-    )]
-    pub speed: f64,
-
-    #[arg(
-        long,
-        help_heading = CliFormat::HEADING_ANIMATION,
-        help = CliFormat::highlight_description("Enable smooth transitions")
-    )]
-    pub smooth: bool,
 
     #[arg(
         short = 'n',
@@ -184,12 +143,7 @@ pub struct Cli {
     )]
     pub buffer_size: Option<usize>,
 
-    #[arg(
-        long,
-        help_heading = CliFormat::HEADING_GENERAL,
-        help = CliFormat::highlight_description("Run in demo mode with generated patterns")
-    )]
-    pub demo: bool,
+    // Demo mode removed - playground is now the default
 
     #[arg(
         long,
@@ -216,13 +170,13 @@ pub struct Cli {
     )]
     pub list_art: bool,
 
-    /// Enable playground UI mode (no behavior change yet)
+    /// Disable playground UI mode (enabled by default for interactive terminals)
     #[arg(
-        long = "playground",
+        long = "no-playground",
         help_heading = CliFormat::HEADING_GENERAL,
-        help = CliFormat::highlight_description("Enable playground UI (experimental)")
+        help = CliFormat::highlight_description("Disable playground UI for simple output")
     )]
-    pub playground: bool,
+    pub no_playground: bool,
 }
 
 impl Cli {
@@ -231,7 +185,7 @@ impl Cli {
         let common = CommonParams {
             frequency: self.frequency,
             amplitude: self.amplitude,
-            speed: self.speed,
+            speed: 1.0,
             correct_aspect: !self.no_aspect_correction,
             aspect_ratio: self.aspect_ratio,
             theme_name: Some(self.theme.clone()),
@@ -265,18 +219,14 @@ impl Cli {
         })
     }
 
-    /// Creates animation configuration from CLI arguments
+    /// Creates animation configuration with default values for playground mode
     pub fn create_animation_config(&self) -> AnimationConfig {
         AnimationConfig {
-            fps: self.fps.clamp(1, 144),
-            cycle_duration: if self.duration == 0 {
-                Duration::from_secs(u64::MAX)
-            } else {
-                Duration::from_secs(self.duration)
-            },
-            infinite: self.duration == 0,
+            fps: 30,
+            cycle_duration: Duration::from_secs(u64::MAX),
+            infinite: true,
             show_progress: true,
-            smooth: self.smooth,
+            smooth: false,
         }
     }
 
@@ -294,15 +244,6 @@ impl Cli {
             std::process::exit(0);
         }
 
-        // Validate animation parameters
-        if self.fps < 1 || self.fps > 144 {
-            return Err(ChromaCatError::InvalidParameter {
-                name: "fps".to_string(),
-                value: self.fps as f64,
-                min: 1.0,
-                max: 144.0,
-            });
-        }
 
         // Validate input files exist
         for path in &self.files {
@@ -320,7 +261,6 @@ impl Cli {
         // Validate common parameters
         self.validate_range("frequency", self.frequency, 0.1, 10.0)?;
         self.validate_range("amplitude", self.amplitude, 0.1, 2.0)?;
-        self.validate_range("speed", self.speed, 0.0, 1.0)?;
 
         // Validate pattern exists and its parameters
         if !self.params.is_empty() {
@@ -338,18 +278,10 @@ impl Cli {
         self.validate_range("aspect-ratio", self.aspect_ratio, 0.1, 2.0)?;
 
         // Warn about demo mode overriding playlist
-        if self.demo && self.playlist.is_some() {
-            eprintln!("Warning: Demo mode is enabled, playlist will be ignored");
-        }
+        // Playlist is handled properly now
 
-        // Validate art selection if specified (allowed in --demo or --playground)
+        // Validate art selection if specified
         if let Some(art) = &self.art {
-            if !(self.demo || self.playground) {
-                return Err(ChromaCatError::InputError(
-                    "--art requires --demo or --playground".to_string(),
-                ));
-            }
-
             if DemoArt::try_from_str(art).is_none() {
                 return Err(ChromaCatError::InputError(format!(
                     "Invalid art type '{}'. Use --list-art to see available options.",
@@ -520,20 +452,20 @@ impl Cli {
         let examples = [
             ("Basic file colorization:", "chromacat input.txt"),
             ("Using a specific theme:", "chromacat -t ocean input.txt"),
-            ("Animated output:", "chromacat -a --fps 60 input.txt"),
+            ("Playground mode:", "chromacat input.txt"),
             ("Pipe from another command:", "ls -la | chromacat -t neon"),
             (
                 "Pattern with parameters:",
                 "chromacat -p wave --param amplitude=1.5,frequency=2.0 input.txt",
             ),
-            ("Multiple files:", "chromacat -a *.txt"),
+            ("Multiple files:", "chromacat *.txt"),
             (
                 "Custom diagonal gradient:",
                 "chromacat -p diagonal --param angle=45,speed=0.8 input.txt",
             ),
             (
                 "Interactive plasma:",
-                "chromacat -p plasma --param complexity=3.0,scale=1.5 -a input.txt",
+                "chromacat -p plasma --param complexity=3.0,scale=1.5 input.txt"
             ),
         ];
 
@@ -549,12 +481,11 @@ impl Cli {
         println!("{}", CliFormat::separator(&"─".repeat(85)));
 
         let playlist_examples = [
-            ("Play default playlist:", "chromacat -a"),
+            ("Play default playlist:", "chromacat"),
             (
                 "Use custom playlist:",
-                "chromacat -a --playlist my-playlist.yaml",
+                "chromacat --playlist my-playlist.yaml",
             ),
-            ("Disable playlist:", "chromacat -a --no-playlist"),
         ];
 
         for (desc, cmd) in playlist_examples {

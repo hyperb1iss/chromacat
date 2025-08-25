@@ -46,19 +46,21 @@ impl Renderer {
         _playlist: Option<crate::playlist::Playlist>,
         demo_mode: bool,
     ) -> Result<Self, RendererError> {
-        // Initialize available options
-        let available_patterns: Vec<String> = REGISTRY
+        // Initialize available options and sort them
+        let mut available_patterns: Vec<String> = REGISTRY
             .list_patterns()
             .into_iter()
             .map(|s| s.to_string())
             .collect();
+        available_patterns.sort();
 
-        let available_themes: Vec<String> = themes::all_themes()
+        let mut available_themes: Vec<String> = themes::all_themes()
             .iter()
             .map(|t| t.name.clone())
             .collect();
+        available_themes.sort();
 
-        let available_arts = if demo_mode {
+        let mut available_arts: Vec<String> = if demo_mode {
             crate::demo::DemoArt::all_types()
                 .iter()
                 .map(|art| art.as_str().to_string())
@@ -66,6 +68,7 @@ impl Renderer {
         } else {
             Vec::new()
         };
+        available_arts.sort();
 
         // Initialize playground UI
         let mut playground = PlaygroundUI::new();
@@ -75,8 +78,10 @@ impl Renderer {
 
         // Get initial content - load default art for demo mode
         let content = if demo_mode {
-            // Load a default art if in demo mode
-            Self::load_demo_art("cityscape").unwrap_or_else(|_| String::new())
+            // Load a default art if in demo mode, use rainbow as safer default
+            Self::load_demo_art("rainbow").unwrap_or_else(|_| {
+                String::new()
+            })
         } else {
             String::new()
         };
@@ -146,9 +151,27 @@ impl Renderer {
         let action = PlaygroundInputHandler::handle_mouse(&mut self.playground, event)?;
 
         match action {
-            InputAction::None => Ok(false),
+            InputAction::None => Ok(true), // Don't exit on unhandled mouse events
             InputAction::Redraw => Ok(true),
-            _ => Ok(true), // Handle other actions same as keyboard
+            InputAction::ApplyPattern(pattern) => {
+                self.apply_pattern(&pattern)?;
+                Ok(true)
+            }
+            InputAction::ApplyTheme(theme) => {
+                self.apply_theme(&theme)?;
+                Ok(true)
+            }
+            InputAction::ApplyArt(art) => {
+                if self.demo_mode {
+                    self.apply_art(&art)?;
+                }
+                Ok(true)
+            }
+            InputAction::AdjustParam { name, value } => {
+                self.adjust_param(&name, value)?;
+                Ok(true)
+            }
+            InputAction::Quit => Ok(false),
         }
     }
 

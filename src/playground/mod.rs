@@ -1,7 +1,6 @@
 // Playground UI scaffold (feature-gated). For now, this is a placeholder that
 // can later be replaced with a ratatui-driven overlay and layout.
 
-#[cfg(feature = "playground-ui")]
 pub mod ui {
     use crate::error::Result;
     use crate::renderer::Renderer;

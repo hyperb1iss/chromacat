@@ -160,11 +160,182 @@ impl PlaygroundInputHandler {
 
     /// Handle mouse input for playground
     pub fn handle_mouse(
-        _ui: &mut PlaygroundUI,
-        _event: MouseEvent,
+        ui: &mut PlaygroundUI,
+        event: MouseEvent,
     ) -> Result<InputAction, RendererError> {
-        // TODO: Implement mouse handling
-        Ok(InputAction::None)
+        use crossterm::event::{MouseButton, MouseEventKind};
+        
+        match event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if ui.overlay_visible {
+                    // Calculate which section was clicked based on coordinates
+                    // This is simplified - actual implementation would need to know the exact layout
+                    let section = Self::get_section_from_coords(event.column, event.row, ui);
+                    if let Some(section) = section {
+                        ui.active_section = section;
+                        
+                        // Calculate which item in the list was clicked
+                        if let Some(item_index) = Self::get_item_from_coords(event.column, event.row, ui, section) {
+                            match section {
+                                0 => {
+                                    ui.pattern_sel = item_index;
+                                    if let Some(pattern) = ui.pattern_names.get(item_index) {
+                                        return Ok(InputAction::ApplyPattern(pattern.clone()));
+                                    }
+                                }
+                                1 => {
+                                    ui.param_sel = item_index;
+                                }
+                                2 => {
+                                    ui.theme_sel = item_index;
+                                    if let Some(theme) = ui.theme_names.get(item_index) {
+                                        return Ok(InputAction::ApplyTheme(theme.clone()));
+                                    }
+                                }
+                                3 => {
+                                    ui.art_sel = item_index;
+                                    if let Some(art) = ui.art_names.get(item_index) {
+                                        return Ok(InputAction::ApplyArt(art.clone()));
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        return Ok(InputAction::Redraw);
+                    }
+                }
+                Ok(InputAction::None)
+            }
+            
+            MouseEventKind::ScrollUp => {
+                if ui.overlay_visible {
+                    // Scroll up in the active section
+                    match ui.active_section {
+                        0 => {
+                            if ui.pattern_sel > 0 {
+                                ui.pattern_sel -= 1;
+                            }
+                        }
+                        1 => {
+                            if ui.param_sel > 0 {
+                                ui.param_sel -= 1;
+                            }
+                        }
+                        2 => {
+                            if ui.theme_sel > 0 {
+                                ui.theme_sel -= 1;
+                            }
+                        }
+                        3 => {
+                            if ui.art_sel > 0 {
+                                ui.art_sel -= 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    Ok(InputAction::Redraw)
+                } else {
+                    Ok(InputAction::None)
+                }
+            }
+            
+            MouseEventKind::ScrollDown => {
+                if ui.overlay_visible {
+                    // Scroll down in the active section
+                    match ui.active_section {
+                        0 => {
+                            if ui.pattern_sel + 1 < ui.pattern_names.len() {
+                                ui.pattern_sel += 1;
+                            }
+                        }
+                        1 => {
+                            if ui.param_sel + 1 < ui.param_names.len() {
+                                ui.param_sel += 1;
+                            }
+                        }
+                        2 => {
+                            if ui.theme_sel + 1 < ui.theme_names.len() {
+                                ui.theme_sel += 1;
+                            }
+                        }
+                        3 => {
+                            if ui.art_sel + 1 < ui.art_names.len() {
+                                ui.art_sel += 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    Ok(InputAction::Redraw)
+                } else {
+                    Ok(InputAction::None)
+                }
+            }
+            
+            _ => Ok(InputAction::None)
+        }
+    }
+    
+    /// Helper to determine which section was clicked
+    fn get_section_from_coords(x: u16, y: u16, ui: &PlaygroundUI) -> Option<usize> {
+        // Calculate overlay area (bottom 1/4 of screen)
+        let panel_height = (ui.terminal_size.1 / 4).max(10).min(20);
+        let panel_y = ui.terminal_size.1.saturating_sub(panel_height).saturating_sub(1);
+        
+        // Check if we're in the overlay area
+        if y >= panel_y && y < panel_y + panel_height {
+            // Divide width into 4 equal columns
+            let column_width = ui.terminal_size.0 / 4;
+            let section = (x / column_width) as usize;
+            if section < 4 {
+                return Some(section);
+            }
+        }
+        None
+    }
+    
+    /// Helper to determine which item in a list was clicked
+    fn get_item_from_coords(_x: u16, y: u16, ui: &PlaygroundUI, section: usize) -> Option<usize> {
+        // Calculate overlay area dimensions
+        let panel_height = (ui.terminal_size.1 / 4).max(10).min(20);
+        let panel_y = ui.terminal_size.1.saturating_sub(panel_height).saturating_sub(1);
+        
+        // Account for borders and headers (3 lines from top of panel)
+        let list_start_y = panel_y + 3;
+        let list_height = panel_height.saturating_sub(5); // 3 for header, 2 for footer
+        
+        // Check if y is within the list area
+        if y >= list_start_y && y < list_start_y + list_height {
+            let relative_y = (y - list_start_y) as usize;
+            
+            // Get the offset for the section
+            let offset = match section {
+                0 => ui.pattern_offset,
+                1 => ui.param_offset,
+                2 => ui.theme_offset,
+                3 => ui.art_offset,
+                _ => 0,
+            };
+            
+            // Calculate actual item index
+            let item_index = offset + relative_y;
+            
+            // Validate it's within bounds
+            let max_items = match section {
+                0 => ui.pattern_names.len(),
+                1 => ui.param_names.len(),
+                2 => ui.theme_names.len(),
+                3 => ui.art_names.len(),
+                _ => 0,
+            };
+            
+            if item_index < max_items {
+                Some(item_index)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 

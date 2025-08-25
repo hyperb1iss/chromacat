@@ -67,6 +67,9 @@ pub struct PlaygroundUI {
     /// Toast message
     toast_message: Option<(String, Instant)>,
     toast_duration: Duration,
+    
+    /// Terminal size for mouse handling
+    pub terminal_size: (u16, u16),
 }
 
 impl PlaygroundUI {
@@ -90,6 +93,7 @@ impl PlaygroundUI {
             overlay_visible: true,
             toast_message: None,
             toast_duration: Duration::from_secs(2),
+            terminal_size: (80, 24),
         }
     }
 
@@ -101,6 +105,14 @@ impl PlaygroundUI {
                 .map_err(|e| RendererError::Other(format!("Failed to create terminal: {}", e)))?;
             self.terminal = Some(terminal);
         }
+        
+        // Update terminal size
+        if let Some(term) = &self.terminal {
+            if let Ok(size) = term.size() {
+                self.terminal_size = (size.width, size.height);
+            }
+        }
+        
         Ok(())
     }
 
@@ -212,7 +224,7 @@ impl PlaygroundUI {
                 Constraint::Min(3),    // Lists
                 Constraint::Length(1), // Footer with controls
             ])
-            .split(panel_area.inner(&ratatui::layout::Margin {
+            .split(panel_area.inner(ratatui::layout::Margin {
                 horizontal: 1,
                 vertical: 1,
             }));
@@ -377,7 +389,7 @@ impl PlaygroundUI {
             .style(Style::default().bg(TuiColor::Black).fg(TuiColor::White));
         f.render_widget(toast_block, toast_rect);
 
-        let toast_inner = toast_rect.inner(&ratatui::layout::Margin {
+        let toast_inner = toast_rect.inner(ratatui::layout::Margin {
             horizontal: 1,
             vertical: 1,
         });
