@@ -1,5 +1,6 @@
 /// Clean renderer architecture - all ratatui, no legacy code
 /// This is the new, simplified renderer module
+pub mod automix;
 pub mod config;
 pub mod core;
 pub mod error;
@@ -7,6 +8,7 @@ pub mod event_loop;
 pub mod input;
 pub mod pattern_widget;
 pub mod playground;
+pub mod scheduler;
 
 // Re-export the main types
 pub use config::AnimationConfig;

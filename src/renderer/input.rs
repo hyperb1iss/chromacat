@@ -30,6 +30,16 @@ impl PlaygroundInputHandler {
                 ui.show_toast(msg);
                 Ok(InputAction::Redraw)
             }
+            
+            // Automix controls
+            KeyCode::Char('a') | KeyCode::Char('A') => Ok(InputAction::AutomixToggle),
+            KeyCode::Char('1') => Ok(InputAction::AutomixMode("off".to_string())),
+            KeyCode::Char('2') => Ok(InputAction::AutomixMode("random".to_string())),
+            KeyCode::Char('3') => Ok(InputAction::AutomixMode("showcase".to_string())),
+            KeyCode::Char('4') => Ok(InputAction::AutomixMode("playlist".to_string())),
+            KeyCode::Char('5') => Ok(InputAction::AutomixMode("adaptive".to_string())),
+            KeyCode::Char('.') | KeyCode::Char('>') => Ok(InputAction::AutomixNext),
+            KeyCode::Char(',') | KeyCode::Char('<') => Ok(InputAction::AutomixPrev),
 
             // Navigate sections
             KeyCode::Tab => {
@@ -357,5 +367,10 @@ pub enum InputAction {
     ApplyTheme(String),
     ApplyArt(String),
     AdjustParam { name: String, value: f64 },
+    // Automix controls
+    AutomixToggle,
+    AutomixMode(String),
+    AutomixNext,
+    AutomixPrev,
     Quit,
 }

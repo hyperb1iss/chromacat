@@ -168,7 +168,7 @@ impl ChromaCat {
             crate::debug_log::debug_log("Setting up playground mode").ok();
             renderer.set_overlay_visible(true);
             renderer.set_status_message(
-                "Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load",
+                "Playground: A=automix 1-5=modes ,/.=prev/next ;=overlay q=quit",
             );
             renderer.enable_default_scenes();
 
@@ -204,7 +204,7 @@ impl ChromaCat {
         // Configure renderer for playground mode
         renderer.set_overlay_visible(true);
         renderer.set_status_message(
-            "Playground mode: ; toggles overlay, S scenes, m mod, R/L save/load",
+            "Playground: A=automix 1-5=modes ,/.=prev/next ;=overlay q=quit",
         );
         renderer.enable_default_scenes();
 

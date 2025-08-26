@@ -8,6 +8,7 @@ use crate::input::InputReader;
 use crate::pattern::PatternEngine;
 use crate::pattern::{PatternConfig, REGISTRY};
 use crate::renderer::{
+    automix::{Automix, AutomixMode},
     error::RendererError,
     input::{InputAction, PlaygroundInputHandler},
     playground::PlaygroundUI,
@@ -33,6 +34,9 @@ pub struct Renderer {
 
     /// Available demo arts
     _available_arts: Vec<String>,
+
+    /// Automix system for seamless transitions
+    automix: Automix,
 }
 
 impl Renderer {
@@ -40,7 +44,7 @@ impl Renderer {
     pub fn new(
         engine: PatternEngine,
         _animation_config: crate::renderer::config::AnimationConfig,
-        _playlist: Option<crate::playlist::Playlist>,
+        playlist: Option<crate::playlist::Playlist>,
     ) -> Result<Self, RendererError> {
         // Initialize available options and sort them
         let mut available_patterns: Vec<String> = REGISTRY
@@ -71,6 +75,12 @@ impl Renderer {
         // Get initial content - always load default art in playground mode
         let content = Self::load_demo_art("rainbow").unwrap_or_else(|_| String::new());
 
+        // Set up automix
+        let mut automix = Automix::new();
+        if let Some(playlist) = playlist {
+            automix.load_playlist(playlist);
+        }
+
         Ok(Self {
             engine,
             content,
@@ -78,11 +88,26 @@ impl Renderer {
             _available_patterns: available_patterns,
             _available_themes: available_themes,
             _available_arts: available_arts,
+            automix,
         })
     }
 
     /// Main render method
     pub fn render(&mut self, delta_seconds: f64) -> Result<(), RendererError> {
+        // Update automix system
+        let automix_update = self.automix.update(delta_seconds);
+        
+        // Apply automix updates
+        if let Some(pattern) = automix_update.new_pattern {
+            let _ = self.apply_pattern(&pattern);
+        }
+        if let Some(theme) = automix_update.new_theme {
+            let _ = self.apply_theme(&theme);
+        }
+        if let Some(art) = automix_update.new_art {
+            let _ = self.apply_art(&art);
+        }
+
         // Update animation
         self.engine.update(delta_seconds);
 
@@ -124,6 +149,24 @@ impl Renderer {
                 self.adjust_param(&name, value)?;
                 Ok(true)
             }
+            InputAction::AutomixToggle => {
+                self.toggle_automix();
+                Ok(true)
+            }
+            InputAction::AutomixMode(mode) => {
+                self.set_automix_mode(&mode);
+                Ok(true)
+            }
+            InputAction::AutomixNext => {
+                self.automix.skip_next();
+                self.playground.show_toast("Next ▶");
+                Ok(true)
+            }
+            InputAction::AutomixPrev => {
+                self.automix.skip_prev();
+                self.playground.show_toast("◀ Previous");
+                Ok(true)
+            }
             InputAction::Quit => Ok(false),
         }
     }
@@ -149,6 +192,24 @@ impl Renderer {
             }
             InputAction::AdjustParam { name, value } => {
                 self.adjust_param(&name, value)?;
+                Ok(true)
+            }
+            InputAction::AutomixToggle => {
+                self.toggle_automix();
+                Ok(true)
+            }
+            InputAction::AutomixMode(mode) => {
+                self.set_automix_mode(&mode);
+                Ok(true)
+            }
+            InputAction::AutomixNext => {
+                self.automix.skip_next();
+                self.playground.show_toast("Next ▶");
+                Ok(true)
+            }
+            InputAction::AutomixPrev => {
+                self.automix.skip_prev();
+                self.playground.show_toast("◀ Previous");
                 Ok(true)
             }
             InputAction::Quit => Ok(false),
@@ -235,7 +296,48 @@ impl Renderer {
 
     /// Enable default scenes (for compatibility)
     pub fn enable_default_scenes(&mut self) {
-        // TODO: Implement scene scheduling if needed
+        // Start automix in showcase mode for demos
+        self.automix.set_mode(AutomixMode::Showcase);
+        self.playground.show_toast("Automix: Showcase");
+    }
+    
+    /// Toggle automix on/off
+    fn toggle_automix(&mut self) {
+        let new_mode = if self.automix.mode() == AutomixMode::Off {
+            AutomixMode::Showcase
+        } else {
+            AutomixMode::Off
+        };
+        self.automix.set_mode(new_mode);
+        let msg = match new_mode {
+            AutomixMode::Off => "Automix: OFF",
+            AutomixMode::Random => "Automix: Random",
+            AutomixMode::Showcase => "Automix: Showcase",
+            AutomixMode::Playlist => "Automix: Playlist",
+            AutomixMode::Adaptive => "Automix: Adaptive",
+        };
+        self.playground.show_toast(msg);
+    }
+    
+    /// Set specific automix mode
+    fn set_automix_mode(&mut self, mode_str: &str) {
+        let mode = match mode_str {
+            "off" => AutomixMode::Off,
+            "random" => AutomixMode::Random,
+            "showcase" => AutomixMode::Showcase,
+            "playlist" => AutomixMode::Playlist,
+            "adaptive" => AutomixMode::Adaptive,
+            _ => return,
+        };
+        self.automix.set_mode(mode);
+        let msg = match mode {
+            AutomixMode::Off => "Automix: OFF",
+            AutomixMode::Random => "Automix: Random",
+            AutomixMode::Showcase => "Automix: Showcase",
+            AutomixMode::Playlist => "Automix: Playlist",
+            AutomixMode::Adaptive => "Automix: Adaptive",
+        };
+        self.playground.show_toast(msg);
     }
 
     /// Render static content (non-animated)

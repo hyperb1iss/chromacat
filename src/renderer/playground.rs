@@ -70,6 +70,15 @@ pub struct PlaygroundUI {
 
     /// Terminal size for mouse handling
     pub terminal_size: (u16, u16),
+    
+    /// Current active pattern (for display)
+    pub current_pattern: String,
+    /// Current active theme (for display)
+    pub current_theme: String,
+    /// Current active art (for display)
+    pub current_art: Option<String>,
+    /// Current automix mode (for status bar)
+    pub automix_mode: String,
 }
 
 impl Default for PlaygroundUI {
@@ -100,6 +109,10 @@ impl PlaygroundUI {
             toast_message: None,
             toast_duration: Duration::from_secs(2),
             terminal_size: (80, 24),
+            current_pattern: "diagonal".to_string(),
+            current_theme: "rainbow".to_string(),
+            current_art: Some("rainbow".to_string()),
+            automix_mode: "Off".to_string(),
         }
     }
 
@@ -412,8 +425,15 @@ impl PlaygroundUI {
         Ok(())
     }
 
-    /// Render status bar at bottom
-    fn render_status_bar(f: &mut ratatui::Frame, size: Rect) {
+    /// Render status bar at bottom with current state
+    fn render_status_bar_with_state(
+        f: &mut ratatui::Frame,
+        size: Rect,
+        pattern: &str,
+        theme: &str,
+        art: Option<&str>,
+        automix_mode: &str,
+    ) {
         let status_area = Rect {
             x: 0,
             y: size.height.saturating_sub(1),
@@ -424,9 +444,18 @@ impl PlaygroundUI {
         // Clear the status bar area
         f.render_widget(Clear, status_area);
 
-        // Create status text
-        let status_text =
-            " ChromaCat • Pattern: diagonal • Theme: terminal • [?] help • [q] quit ".to_string();
+        // Build status text with current state
+        let art_str = art.unwrap_or("none");
+        let automix_str = if automix_mode != "Off" {
+            format!(" • Automix: {} ", automix_mode)
+        } else {
+            String::new()
+        };
+        
+        let status_text = format!(
+            " Pattern: {} • Theme: {} • Art: {}{} • [A] automix • [q] quit ",
+            pattern, theme, art_str, automix_str
+        );
 
         let status = Paragraph::new(status_text)
             .style(Style::default().bg(TuiColor::Blue).fg(TuiColor::White))
