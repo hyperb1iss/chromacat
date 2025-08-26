@@ -130,15 +130,12 @@ fn test_distribution_functions() {
 
     for (dist, input, expected) in distributions {
         let mut test_theme = theme.clone();
-        let dist_debug = format!("{:?}", dist);
+        let dist_debug = format!("{dist:?}");
         test_theme.dist = dist;
         let result = test_theme.apply_distribution(input);
         assert!(
             (result - expected).abs() < 0.001,
-            "Distribution {} failed: expected {}, got {}",
-            dist_debug,
-            expected,
-            result
+            "Distribution {dist_debug} failed: expected {expected}, got {result}"
         );
     }
 }
@@ -157,15 +154,12 @@ fn test_repeat_modes() {
 
     for (repeat, input, expected) in test_cases {
         let mut test_theme = theme.clone();
-        let repeat_debug = format!("{:?}", repeat);
+        let repeat_debug = format!("{repeat:?}");
         test_theme.repeat = repeat;
         let result = test_theme.apply_repeat(input, time);
         assert!(
             (result - expected).abs() < 0.001,
-            "Repeat mode {} failed: expected {}, got {}",
-            repeat_debug,
-            expected,
-            result
+            "Repeat mode {repeat_debug} failed: expected {expected}, got {result}"
         );
     }
 }
@@ -184,17 +178,14 @@ fn test_easing_functions() {
 
     for easing in easings {
         let mut test_theme = theme.clone();
-        let easing_debug = format!("{:?}", easing);
+        let easing_debug = format!("{easing:?}");
         test_theme.ease = easing;
 
         for &t in &test_points {
             let result = test_theme.apply_easing(t);
             assert!(
                 (0.0..=1.0).contains(&result),
-                "Easing {} produced out of bounds value {} for input {}",
-                easing_debug,
-                result,
-                t
+                "Easing {easing_debug} produced out of bounds value {result} for input {t}"
             );
         }
     }
@@ -251,7 +242,7 @@ fn test_custom_theme_loading() {
 "#;
 
     let mut temp_file = NamedTempFile::new().unwrap();
-    write!(temp_file, "{}", custom_theme).unwrap();
+    write!(temp_file, "{custom_theme}").unwrap();
 
     assert!(themes::load_theme_file(temp_file.path()).is_ok());
 
@@ -270,7 +261,7 @@ fn test_invalid_theme_file() {
 "#;
 
     let mut temp_file = NamedTempFile::new().unwrap();
-    write!(temp_file, "{}", invalid_theme).unwrap();
+    write!(temp_file, "{invalid_theme}").unwrap();
 
     assert!(themes::load_theme_file(temp_file.path()).is_err());
 }

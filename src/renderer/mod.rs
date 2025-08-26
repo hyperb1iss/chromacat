@@ -1,6 +1,8 @@
 /// Clean renderer architecture - all ratatui, no legacy code
 /// This is the new, simplified renderer module
+pub mod art_mixer;
 pub mod automix;
+pub mod blend_engine;
 pub mod config;
 pub mod core;
 pub mod error;

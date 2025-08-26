@@ -108,9 +108,7 @@ fn test_text_handling() {
     for (text, case) in test_cases {
         assert!(
             renderer.render_static(text).is_ok(),
-            "Failed to render {}: {}",
-            case,
-            text
+            "Failed to render {case}: {text}"
         );
     }
 }
@@ -126,8 +124,7 @@ fn test_animation_timing() {
 
     assert!(
         actual >= Duration::from_millis(16) && actual <= Duration::from_millis(50),
-        "Frame duration {:?} should be between 16ms-50ms for reasonable animation",
-        actual
+        "Frame duration {actual:?} should be between 16ms-50ms for reasonable animation"
     );
 
     // Animation timing tests removed - these methods don't exist in new renderer
@@ -148,8 +145,7 @@ fn test_animation_progress() {
     for seconds in progress_points {
         assert!(
             renderer.render_frame("Animation Test", seconds).is_ok(),
-            "Failed to render at {} seconds",
-            seconds
+            "Failed to render at {seconds} seconds"
         );
     }
 }
@@ -172,8 +168,7 @@ fn test_unicode_width() {
     for text in test_cases {
         assert!(
             renderer.render_static(text).is_ok(),
-            "Failed to handle width of: {}",
-            text
+            "Failed to handle width of: {text}"
         );
     }
 }
@@ -185,7 +180,7 @@ fn test_large_text_performance() {
 
     // Generate large text content
     let large_text = (0..1000)
-        .map(|i| format!("Line {}\n", i))
+        .map(|i| format!("Line {i}\n"))
         .collect::<String>();
 
     let start = std::time::Instant::now();
@@ -194,8 +189,7 @@ fn test_large_text_performance() {
 
     assert!(
         duration < Duration::from_secs(1),
-        "Rendering took too long: {:?}",
-        duration
+        "Rendering took too long: {duration:?}"
     );
 }
 
@@ -222,8 +216,6 @@ fn test_animation_performance() {
     let max_allowed_duration = Duration::from_millis((frame_count * 50) as u64); // Allow ~50ms per frame
     assert!(
         duration < max_allowed_duration,
-        "Animation too slow: {:?} (allowed: {:?})",
-        duration,
-        max_allowed_duration
+        "Animation too slow: {duration:?} (allowed: {max_allowed_duration:?})"
     );
 }

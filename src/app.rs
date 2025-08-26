@@ -203,9 +203,8 @@ impl ChromaCat {
     fn process_playground_mode(&self, mut renderer: Renderer) -> Result<()> {
         // Configure renderer for playground mode
         renderer.set_overlay_visible(true);
-        renderer.set_status_message(
-            "Playground: A=automix 1-5=modes ,/.=prev/next ;=overlay q=quit",
-        );
+        renderer
+            .set_status_message("Playground: A=automix 1-5=modes ,/.=prev/next ;=overlay q=quit");
         renderer.enable_default_scenes();
 
         // Load demo content

@@ -12,7 +12,11 @@ use std::time::{Duration, Instant};
 
 use crate::debug_log::debug_log;
 use crate::pattern::PatternEngine;
-use crate::renderer::{error::RendererError, pattern_widget::PatternWidget};
+use crate::renderer::{
+    blend_engine::{BlendEngine, TransitionEffect},
+    error::RendererError,
+    pattern_widget::PatternWidget,
+};
 
 /// Data needed for rendering overlay (to avoid borrow issues)
 #[derive(Clone)]
@@ -70,7 +74,7 @@ pub struct PlaygroundUI {
 
     /// Terminal size for mouse handling
     pub terminal_size: (u16, u16),
-    
+
     /// Current active pattern (for display)
     pub current_pattern: String,
     /// Current active theme (for display)
@@ -140,11 +144,13 @@ impl PlaygroundUI {
         self.toast_message = Some((message.into(), Instant::now()));
     }
 
-    /// Render the complete playground frame
-    pub fn render(
+    /// Render the complete playground frame with blending support
+    pub fn render_with_blending(
         &mut self,
         content: &str,
         engine: &PatternEngine,
+        blend_engine: &BlendEngine,
+        transition_effect: TransitionEffect,
         time: f64,
     ) -> Result<(), RendererError> {
         self.ensure_terminal()?;
@@ -189,8 +195,14 @@ impl PlaygroundUI {
         term.draw(|f| {
             let size = f.area();
 
-            // First render the pattern as background
-            let pattern_widget = PatternWidget::new(content, engine, time);
+            // First render the pattern as background with blending
+            let pattern_widget = PatternWidget::with_blending(
+                content,
+                engine,
+                blend_engine,
+                transition_effect,
+                time,
+            );
             f.render_widget(pattern_widget, size);
 
             // Then render overlay on top if visible
@@ -203,8 +215,15 @@ impl PlaygroundUI {
                 Self::render_toast_static(f, size, text);
             }
 
-            // Render status bar at bottom
-            Self::render_status_bar(f, size);
+            // Render status bar at bottom with current state
+            Self::render_status_bar_with_state(
+                f,
+                size,
+                &self.current_pattern,
+                &self.current_theme,
+                self.current_art.as_deref(),
+                &self.automix_mode,
+            );
         })
         .map_err(|e| {
             let _ = debug_log(&format!("Ratatui draw error: {e}"));
@@ -447,14 +466,13 @@ impl PlaygroundUI {
         // Build status text with current state
         let art_str = art.unwrap_or("none");
         let automix_str = if automix_mode != "Off" {
-            format!(" • Automix: {} ", automix_mode)
+            format!(" • Automix: {automix_mode} ")
         } else {
             String::new()
         };
-        
+
         let status_text = format!(
-            " Pattern: {} • Theme: {} • Art: {}{} • [A] automix • [q] quit ",
-            pattern, theme, art_str, automix_str
+            " Pattern: {pattern} • Theme: {theme} • Art: {art_str}{automix_str} • [A] automix • [q] quit "
         );
 
         let status = Paragraph::new(status_text)
@@ -462,5 +480,10 @@ impl PlaygroundUI {
             .alignment(ratatui::layout::Alignment::Center);
 
         f.render_widget(status, status_area);
+    }
+
+    /// Legacy status bar render (for compatibility)
+    fn render_status_bar(f: &mut ratatui::Frame, size: Rect) {
+        Self::render_status_bar_with_state(f, size, "diagonal", "terminal", None, "Off");
     }
 }

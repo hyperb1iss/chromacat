@@ -30,7 +30,7 @@ impl PlaygroundInputHandler {
                 ui.show_toast(msg);
                 Ok(InputAction::Redraw)
             }
-            
+
             // Automix controls
             KeyCode::Char('a') | KeyCode::Char('A') => Ok(InputAction::AutomixToggle),
             KeyCode::Char('1') => Ok(InputAction::AutomixMode("off".to_string())),

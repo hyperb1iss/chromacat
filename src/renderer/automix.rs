@@ -1,14 +1,13 @@
+use super::scheduler::SceneScheduler;
+use crate::pattern::REGISTRY;
+use crate::playlist::Playlist;
+use crate::themes;
+use chrono::Timelike;
 /// Automix system for seamless transitions between patterns, themes, and art
-/// 
+///
 /// This module provides smooth, automatic transitions between different visual
 /// elements to create an engaging, dynamic experience in playground mode.
-
 use std::time::{Duration, Instant};
-use crate::pattern::REGISTRY;
-use crate::themes;
-use crate::playlist::Playlist;
-use super::scheduler::SceneScheduler;
-use chrono::Timelike;
 
 /// Transition types for smooth blending
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -65,7 +64,7 @@ impl TransitionState {
     fn update(&mut self) -> bool {
         let elapsed = self.start_time.elapsed().as_secs_f32();
         let progress = (elapsed / self.duration.as_secs_f32()).min(1.0);
-        
+
         // Apply easing curve based on transition type
         self.blend = match self.transition_type {
             TransitionType::Cut => 1.0,
@@ -73,7 +72,7 @@ impl TransitionState {
             TransitionType::Morph => ease_in_out_cubic(progress),
             TransitionType::Slide => ease_out_quart(progress),
         };
-        
+
         progress >= 1.0
     }
 }
@@ -82,34 +81,34 @@ impl TransitionState {
 pub struct Automix {
     /// Current mode
     mode: AutomixMode,
-    
+
     /// Scene scheduler for variety mode
     scheduler: SceneScheduler,
-    
+
     /// Playlist for structured sequences
     playlist: Option<Playlist>,
     playlist_index: usize,
-    
+
     /// Current scene timing
     scene_start: Instant,
     scene_duration: Duration,
-    
+
     /// Transition state
     transition: Option<TransitionState>,
-    
+
     /// Current and target states
     current_pattern: String,
     current_theme: String,
     current_art: Option<String>,
-    
+
     target_pattern: Option<String>,
     target_theme: Option<String>,
     target_art: Option<String>,
-    
+
     /// Showcase sequences (curated combinations)
     showcase_sequences: Vec<ShowcaseSequence>,
     showcase_index: usize,
-    
+
     /// Settings
     min_scene_duration: Duration,
     max_scene_duration: Duration,
@@ -139,10 +138,7 @@ impl Automix {
                 theme: "neon".to_string(),
                 art: Some("cityscape".to_string()),
                 duration: Duration::from_secs(15),
-                params: vec![
-                    ("scale".to_string(), 2.0),
-                    ("complexity".to_string(), 3.0),
-                ],
+                params: vec![("scale".to_string(), 2.0), ("complexity".to_string(), 3.0)],
             },
             ShowcaseSequence {
                 name: "Ocean Waves".to_string(),
@@ -161,10 +157,7 @@ impl Automix {
                 theme: "matrix".to_string(),
                 art: Some("matrix".to_string()),
                 duration: Duration::from_secs(10),
-                params: vec![
-                    ("density".to_string(), 1.5),
-                    ("speed".to_string(), 2.0),
-                ],
+                params: vec![("density".to_string(), 1.5), ("speed".to_string(), 2.0)],
             },
             ShowcaseSequence {
                 name: "Aurora Borealis".to_string(),
@@ -172,10 +165,7 @@ impl Automix {
                 theme: "aurora".to_string(),
                 art: Some("rainbow".to_string()),
                 duration: Duration::from_secs(20),
-                params: vec![
-                    ("turbulence".to_string(), 0.3),
-                    ("layers".to_string(), 3.0),
-                ],
+                params: vec![("turbulence".to_string(), 0.3), ("layers".to_string(), 3.0)],
             },
             ShowcaseSequence {
                 name: "Digital Spiral".to_string(),
@@ -183,13 +173,10 @@ impl Automix {
                 theme: "cyberpunk".to_string(),
                 art: Some("blocks".to_string()),
                 duration: Duration::from_secs(8),
-                params: vec![
-                    ("arms".to_string(), 5.0),
-                    ("tightness".to_string(), 0.5),
-                ],
+                params: vec![("arms".to_string(), 5.0), ("tightness".to_string(), 0.5)],
             },
         ];
-        
+
         Self {
             mode: AutomixMode::Off,
             scheduler: SceneScheduler::default(),
@@ -212,12 +199,12 @@ impl Automix {
             default_transition: TransitionType::Crossfade,
         }
     }
-    
+
     /// Set the automix mode
     pub fn set_mode(&mut self, mode: AutomixMode) {
         self.mode = mode;
         self.scene_start = Instant::now();
-        
+
         match mode {
             AutomixMode::Random => {
                 self.init_random_mode();
@@ -235,23 +222,24 @@ impl Automix {
             _ => {}
         }
     }
-    
+
     /// Initialize random mode with variety
     fn init_random_mode(&mut self) {
-        let patterns = REGISTRY.list_patterns()
+        let patterns = REGISTRY
+            .list_patterns()
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        
+
         let themes = themes::all_themes()
             .iter()
             .map(|t| t.name.clone())
             .collect::<Vec<_>>();
-        
+
         self.scheduler.reseed_variety(&patterns, &themes, 10);
         self.scene_duration = Duration::from_secs(10);
     }
-    
+
     /// Apply a showcase sequence
     fn apply_showcase_sequence(&mut self, index: usize) {
         if let Some(seq) = self.showcase_sequences.get(index) {
@@ -264,7 +252,7 @@ impl Automix {
             );
         }
     }
-    
+
     /// Apply a playlist entry
     fn apply_playlist_entry(&mut self, index: usize) {
         if let Some(playlist) = &self.playlist {
@@ -279,7 +267,7 @@ impl Automix {
             }
         }
     }
-    
+
     /// Start a transition to new values
     fn start_transition(
         &mut self,
@@ -294,17 +282,17 @@ impl Automix {
         self.target_art = art;
         self.scene_duration = duration;
         self.scene_start = Instant::now();
-        
+
         self.transition = Some(TransitionState::new(
             self.transition_duration,
             transition_type,
         ));
     }
-    
+
     /// Update the automix system
     pub fn update(&mut self, delta: f64) -> AutomixUpdate {
         let mut update = AutomixUpdate::default();
-        
+
         // Update transition if active
         let transition_complete = if let Some(ref mut transition) = self.transition {
             let complete = transition.update();
@@ -313,7 +301,7 @@ impl Automix {
         } else {
             false
         };
-        
+
         if transition_complete {
             // Transition complete - apply target values
             if let Some(pattern) = self.target_pattern.take() {
@@ -330,7 +318,7 @@ impl Automix {
             }
             self.transition = None;
         }
-        
+
         // Check if current scene has expired
         if self.mode != AutomixMode::Off && self.scene_start.elapsed() >= self.scene_duration {
             match self.mode {
@@ -342,7 +330,7 @@ impl Automix {
                             scene.duration_secs,
                         )
                     });
-                    
+
                     if let Some((pattern, theme, duration)) = scene_info {
                         self.start_transition(
                             Some(pattern),
@@ -360,7 +348,8 @@ impl Automix {
                 AutomixMode::Playlist => {
                     if let Some(playlist) = &self.playlist {
                         if !playlist.entries.is_empty() {
-                            self.playlist_index = (self.playlist_index + 1) % playlist.entries.len();
+                            self.playlist_index =
+                                (self.playlist_index + 1) % playlist.entries.len();
                             self.apply_playlist_entry(self.playlist_index);
                         }
                     }
@@ -385,24 +374,25 @@ impl Automix {
                 _ => {}
             }
         }
-        
+
         update.is_transitioning = self.transition.is_some();
-        update.scene_progress = self.scene_start.elapsed().as_secs_f32() / self.scene_duration.as_secs_f32();
-        
+        update.scene_progress =
+            self.scene_start.elapsed().as_secs_f32() / self.scene_duration.as_secs_f32();
+
         update
     }
-    
+
     /// Load a playlist for automix
     pub fn load_playlist(&mut self, playlist: Playlist) {
         self.playlist = Some(playlist);
         self.playlist_index = 0;
     }
-    
+
     /// Get current mode
     pub fn mode(&self) -> AutomixMode {
         self.mode
     }
-    
+
     /// Skip to next item
     pub fn skip_next(&mut self) {
         match self.mode {
@@ -424,7 +414,7 @@ impl Automix {
             _ => {}
         }
     }
-    
+
     /// Skip to previous item
     pub fn skip_prev(&mut self) {
         match self.mode {

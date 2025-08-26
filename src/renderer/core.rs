@@ -1,6 +1,7 @@
 /// Core renderer that coordinates all rendering components
 /// This is the simplified, clean architecture version
 use crossterm::event::{KeyEvent, MouseEvent};
+use std::sync::Arc;
 
 use crate::debug_log::debug_log;
 use crate::demo::DemoArt;
@@ -9,6 +10,7 @@ use crate::pattern::PatternEngine;
 use crate::pattern::{PatternConfig, REGISTRY};
 use crate::renderer::{
     automix::{Automix, AutomixMode},
+    blend_engine::{BlendEngine, TransitionEffect},
     error::RendererError,
     input::{InputAction, PlaygroundInputHandler},
     playground::PlaygroundUI,
@@ -19,6 +21,12 @@ use crate::themes;
 pub struct Renderer {
     /// Pattern engine for generating colors
     engine: PatternEngine,
+
+    /// Blend engine for smooth transitions
+    blend_engine: BlendEngine,
+
+    /// Current transition effect
+    transition_effect: TransitionEffect,
 
     /// Current content to render
     content: String,
@@ -83,6 +91,8 @@ impl Renderer {
 
         Ok(Self {
             engine,
+            blend_engine: BlendEngine::new(),
+            transition_effect: TransitionEffect::Crossfade,
             content,
             playground,
             _available_patterns: available_patterns,
@@ -96,17 +106,38 @@ impl Renderer {
     pub fn render(&mut self, delta_seconds: f64) -> Result<(), RendererError> {
         // Update automix system
         let automix_update = self.automix.update(delta_seconds);
-        
-        // Apply automix updates
+
+        // Check what's changing to vary transition effect
+        let has_pattern_change = automix_update.new_pattern.is_some();
+        let has_theme_change = automix_update.new_theme.is_some();
+
+        // Apply automix updates with blending
         if let Some(pattern) = automix_update.new_pattern {
-            let _ = self.apply_pattern(&pattern);
+            let _ = self.start_pattern_transition(&pattern);
         }
         if let Some(theme) = automix_update.new_theme {
-            let _ = self.apply_theme(&theme);
+            let _ = self.start_theme_transition(&theme);
         }
         if let Some(art) = automix_update.new_art {
             let _ = self.apply_art(&art);
         }
+
+        // Vary transition effect based on what's changing
+        if has_pattern_change && has_theme_change {
+            self.transition_effect = TransitionEffect::Kaleidoscope;
+        } else if has_pattern_change {
+            // Cycle through effects for pattern changes
+            self.transition_effect = match self.transition_effect {
+                TransitionEffect::Crossfade => TransitionEffect::Ripple,
+                TransitionEffect::Ripple => TransitionEffect::Spiral,
+                TransitionEffect::Spiral => TransitionEffect::Wave,
+                TransitionEffect::Wave => TransitionEffect::Pixelate,
+                _ => TransitionEffect::Crossfade,
+            };
+        }
+
+        // Update blend engine
+        self.blend_engine.update(delta_seconds);
 
         // Update animation
         self.engine.update(delta_seconds);
@@ -121,9 +152,14 @@ impl Renderer {
         ))
         .ok();
 
-        // Render the frame
-        self.playground
-            .render(&self.content, &self.engine, self.engine.time())
+        // Render the frame with blending
+        self.playground.render_with_blending(
+            &self.content,
+            &self.engine,
+            &self.blend_engine,
+            self.transition_effect,
+            self.engine.time(),
+        )
     }
 
     /// Handle keyboard input
@@ -159,12 +195,10 @@ impl Renderer {
             }
             InputAction::AutomixNext => {
                 self.automix.skip_next();
-                self.playground.show_toast("Next ▶");
                 Ok(true)
             }
             InputAction::AutomixPrev => {
                 self.automix.skip_prev();
-                self.playground.show_toast("◀ Previous");
                 Ok(true)
             }
             InputAction::Quit => Ok(false),
@@ -204,12 +238,10 @@ impl Renderer {
             }
             InputAction::AutomixNext => {
                 self.automix.skip_next();
-                self.playground.show_toast("Next ▶");
                 Ok(true)
             }
             InputAction::AutomixPrev => {
                 self.automix.skip_prev();
-                self.playground.show_toast("◀ Previous");
                 Ok(true)
             }
             InputAction::Quit => Ok(false),
@@ -251,7 +283,18 @@ impl Renderer {
         };
 
         self.engine.update_pattern_config(config);
-        self.playground.show_toast(format!("Pattern: {pattern}"));
+
+        // Update UI state and selection
+        self.playground.current_pattern = pattern.to_string();
+        if let Some(index) = self
+            .playground
+            .pattern_names
+            .iter()
+            .position(|p| p == pattern)
+        {
+            self.playground.pattern_sel = index;
+        }
+
         Ok(())
     }
 
@@ -259,22 +302,83 @@ impl Renderer {
     fn apply_theme(&mut self, theme: &str) -> Result<(), RendererError> {
         let gradient = themes::get_theme(theme)?.create_gradient()?;
         self.engine.update_gradient(gradient);
-        self.playground.show_toast(format!("Theme: {theme}"));
+
+        // Update UI state and selection
+        self.playground.current_theme = theme.to_string();
+        if let Some(index) = self.playground.theme_names.iter().position(|t| t == theme) {
+            self.playground.theme_sel = index;
+        }
+
         Ok(())
     }
 
     /// Apply demo art
     fn apply_art(&mut self, art: &str) -> Result<(), RendererError> {
         self.content = Self::load_demo_art(art)?;
-        self.playground.show_toast(format!("Art: {art}"));
+
+        // Update UI state and selection
+        self.playground.current_art = Some(art.to_string());
+        if let Some(index) = self.playground.art_names.iter().position(|a| a == art) {
+            self.playground.art_sel = index;
+        }
+
         Ok(())
     }
 
     /// Adjust a parameter
-    fn adjust_param(&mut self, name: &str, value: f64) -> Result<(), RendererError> {
+    fn adjust_param(&mut self, _name: &str, _value: f64) -> Result<(), RendererError> {
         // TODO: Implement parameter adjustment
-        self.playground
-            .show_toast(format!("Param: {name} = {value:.2}"));
+        // Parameters will be shown in the overlay instead of toasts
+        Ok(())
+    }
+
+    /// Start a pattern transition with blending
+    fn start_pattern_transition(&mut self, pattern: &str) -> Result<(), RendererError> {
+        // Start blending to new pattern
+        // Use playground terminal size
+        let (width, height) = self.playground.terminal_size;
+        let width = width as usize;
+        let height = height as usize;
+
+        self.blend_engine
+            .start_pattern_transition(self.engine.clone(), pattern, width, height)
+            .map_err(RendererError::Other)?;
+
+        // Update UI state
+        self.playground.current_pattern = pattern.to_string();
+        if let Some(index) = self
+            .playground
+            .pattern_names
+            .iter()
+            .position(|p| p == pattern)
+        {
+            self.playground.pattern_sel = index;
+        }
+
+        Ok(())
+    }
+
+    /// Start a theme transition with gradient blending
+    fn start_theme_transition(&mut self, theme: &str) -> Result<(), RendererError> {
+        // Get current gradient (create a new one based on current theme)
+        let current_gradient =
+            Arc::new(themes::get_theme(&self.playground.current_theme)?.create_gradient()?);
+
+        // Start gradient blending
+        self.blend_engine
+            .start_theme_transition(current_gradient, theme)
+            .map_err(RendererError::Other)?;
+
+        // Also update the engine's gradient (will be blended in render)
+        let gradient = themes::get_theme(theme)?.create_gradient()?;
+        self.engine.update_gradient(gradient);
+
+        // Update UI state
+        self.playground.current_theme = theme.to_string();
+        if let Some(index) = self.playground.theme_names.iter().position(|t| t == theme) {
+            self.playground.theme_sel = index;
+        }
+
         Ok(())
     }
 
@@ -298,9 +402,9 @@ impl Renderer {
     pub fn enable_default_scenes(&mut self) {
         // Start automix in showcase mode for demos
         self.automix.set_mode(AutomixMode::Showcase);
-        self.playground.show_toast("Automix: Showcase");
+        self.playground.automix_mode = "Showcase".to_string();
     }
-    
+
     /// Toggle automix on/off
     fn toggle_automix(&mut self) {
         let new_mode = if self.automix.mode() == AutomixMode::Off {
@@ -309,16 +413,16 @@ impl Renderer {
             AutomixMode::Off
         };
         self.automix.set_mode(new_mode);
-        let msg = match new_mode {
-            AutomixMode::Off => "Automix: OFF",
-            AutomixMode::Random => "Automix: Random",
-            AutomixMode::Showcase => "Automix: Showcase",
-            AutomixMode::Playlist => "Automix: Playlist",
-            AutomixMode::Adaptive => "Automix: Adaptive",
-        };
-        self.playground.show_toast(msg);
+        self.playground.automix_mode = match new_mode {
+            AutomixMode::Off => "Off",
+            AutomixMode::Random => "Random",
+            AutomixMode::Showcase => "Showcase",
+            AutomixMode::Playlist => "Playlist",
+            AutomixMode::Adaptive => "Adaptive",
+        }
+        .to_string();
     }
-    
+
     /// Set specific automix mode
     fn set_automix_mode(&mut self, mode_str: &str) {
         let mode = match mode_str {
@@ -330,14 +434,14 @@ impl Renderer {
             _ => return,
         };
         self.automix.set_mode(mode);
-        let msg = match mode {
-            AutomixMode::Off => "Automix: OFF",
-            AutomixMode::Random => "Automix: Random",
-            AutomixMode::Showcase => "Automix: Showcase",
-            AutomixMode::Playlist => "Automix: Playlist",
-            AutomixMode::Adaptive => "Automix: Adaptive",
-        };
-        self.playground.show_toast(msg);
+        self.playground.automix_mode = match mode {
+            AutomixMode::Off => "Off",
+            AutomixMode::Random => "Random",
+            AutomixMode::Showcase => "Showcase",
+            AutomixMode::Playlist => "Playlist",
+            AutomixMode::Adaptive => "Adaptive",
+        }
+        .to_string();
     }
 
     /// Render static content (non-animated)
