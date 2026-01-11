@@ -146,6 +146,75 @@ impl ColorCapability {
     pub fn supports_color(&self) -> bool {
         !matches!(self, Self::None)
     }
+
+    /// Convert RGB color to 256-color palette index
+    /// Uses the standard 6x6x6 color cube (indices 16-231)
+    /// Plus grayscale ramp (indices 232-255)
+    pub fn rgb_to_256(r: u8, g: u8, b: u8) -> u8 {
+        // Check if it's a grayscale color (r ≈ g ≈ b)
+        let max_diff = r.abs_diff(g).max(r.abs_diff(b)).max(g.abs_diff(b));
+        if max_diff < 10 {
+            // Use grayscale ramp (232-255, 24 levels)
+            // Map 0-255 to 232-255
+            let gray = ((r as u16 + g as u16 + b as u16) / 3) as u8;
+            if gray < 8 {
+                return 16; // Pure black
+            }
+            if gray > 248 {
+                return 231; // Pure white
+            }
+            return 232 + ((gray - 8) / 10).min(23);
+        }
+
+        // Use 6x6x6 color cube (indices 16-231)
+        // Each channel maps to 0-5
+        let r_idx = ((r as u16 * 5) / 255) as u8;
+        let g_idx = ((g as u16 * 5) / 255) as u8;
+        let b_idx = ((b as u16 * 5) / 255) as u8;
+        16 + 36 * r_idx + 6 * g_idx + b_idx
+    }
+
+    /// Convert RGB color to basic 16-color ANSI index
+    /// Returns indices 0-15
+    pub fn rgb_to_16(r: u8, g: u8, b: u8) -> u8 {
+        // Calculate luminance
+        let luma = (r as u32 * 299 + g as u32 * 587 + b as u32 * 114) / 1000;
+        let bright = luma > 127;
+
+        // Determine dominant color channels
+        let r_on = r > 85;
+        let g_on = g > 85;
+        let b_on = b > 85;
+
+        // Build color index
+        let mut idx = 0u8;
+        if r_on {
+            idx |= 1;
+        }
+        if g_on {
+            idx |= 2;
+        }
+        if b_on {
+            idx |= 4;
+        }
+
+        // Add bright bit if high luminance and not black
+        if bright && idx > 0 {
+            idx |= 8;
+        }
+
+        idx
+    }
+
+    /// Format RGB color as appropriate ANSI escape sequence for this capability level
+    pub fn format_fg_color(&self, r: u8, g: u8, b: u8) -> String {
+        match self {
+            Self::TrueColor => format!("\x1b[38;2;{r};{g};{b}m"),
+            Self::Extended => format!("\x1b[38;5;{}m", Self::rgb_to_256(r, g, b)),
+            Self::Basic => format!("\x1b[{}m", 30 + Self::rgb_to_16(r, g, b) % 8),
+            Self::None => String::new(),
+        }
+    }
 }
 
 impl Default for ColorCapability {
@@ -430,5 +499,74 @@ impl Drop for TerminalState {
         if let Err(e) = self.cleanup() {
             eprintln!("Error cleaning up terminal state: {}", e);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rgb_to_256_colors() {
+        // Pure red → should be in red range
+        let red = ColorCapability::rgb_to_256(255, 0, 0);
+        assert!(red >= 16 && red <= 231, "Red should be in color cube");
+
+        // Pure green
+        let green = ColorCapability::rgb_to_256(0, 255, 0);
+        assert!(green >= 16 && green <= 231, "Green should be in color cube");
+
+        // Pure blue
+        let blue = ColorCapability::rgb_to_256(0, 0, 255);
+        assert!(blue >= 16 && blue <= 231, "Blue should be in color cube");
+
+        // Grayscale - should be in grayscale range 232-255
+        let gray = ColorCapability::rgb_to_256(128, 128, 128);
+        assert!(gray >= 232 || gray == 16, "Gray should be in grayscale range or black");
+
+        // Near-black
+        let black = ColorCapability::rgb_to_256(5, 5, 5);
+        assert_eq!(black, 16, "Near-black should map to black (16)");
+    }
+
+    #[test]
+    fn test_rgb_to_16_colors() {
+        // Black
+        assert_eq!(ColorCapability::rgb_to_16(0, 0, 0), 0);
+
+        // Red
+        let red = ColorCapability::rgb_to_16(255, 0, 0);
+        assert!(red == 1 || red == 9, "Red should be 1 (dark) or 9 (bright)");
+
+        // Green
+        let green = ColorCapability::rgb_to_16(0, 255, 0);
+        assert!(green == 2 || green == 10, "Green should be 2 (dark) or 10 (bright)");
+
+        // Blue
+        let blue = ColorCapability::rgb_to_16(0, 0, 255);
+        assert!(blue == 4 || blue == 12, "Blue should be 4 (dark) or 12 (bright)");
+
+        // White
+        let white = ColorCapability::rgb_to_16(255, 255, 255);
+        assert!(white == 7 || white == 15, "White should be 7 (dark) or 15 (bright)");
+    }
+
+    #[test]
+    fn test_format_fg_color() {
+        // True color format
+        let tc = ColorCapability::TrueColor.format_fg_color(255, 128, 64);
+        assert!(tc.contains("38;2;255;128;64"), "True color should use RGB format");
+
+        // 256 color format
+        let ext = ColorCapability::Extended.format_fg_color(255, 128, 64);
+        assert!(ext.contains("38;5;"), "Extended should use 256-color format");
+
+        // Basic format
+        let basic = ColorCapability::Basic.format_fg_color(255, 0, 0);
+        assert!(basic.starts_with("\x1b[3"), "Basic should use 30-37 range");
+
+        // None returns empty
+        let none = ColorCapability::None.format_fg_color(255, 128, 64);
+        assert!(none.is_empty(), "None capability should return empty string");
     }
 }
