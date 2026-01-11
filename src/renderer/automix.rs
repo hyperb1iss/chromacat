@@ -344,7 +344,21 @@ impl Automix {
             .collect::<Vec<_>>();
 
         self.scheduler.reseed_variety(&patterns, &themes, 10);
-        self.scene_duration = Duration::from_secs(15); // 15 seconds for testing
+
+        // Apply the first scene immediately
+        if let Some(scene) = self.scheduler.current() {
+            let pattern = scene.pattern_id.clone();
+            let theme = scene.theme_name.clone();
+            let duration = Duration::from_secs_f32(scene.duration_secs);
+            self.scene_duration = duration;
+            self.start_transition(
+                Some(pattern),
+                Some(theme),
+                None,
+                duration,
+                self.default_transition,
+            );
+        }
     }
 
     /// Apply a showcase sequence

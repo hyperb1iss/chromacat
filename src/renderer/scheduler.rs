@@ -1,3 +1,5 @@
+use fastrand::Rng;
+
 #[derive(Debug, Clone)]
 pub struct Scene {
     pub pattern_id: String,
@@ -5,12 +7,25 @@ pub struct Scene {
     pub duration_secs: f32,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct SceneScheduler {
     scenes: Vec<Scene>,
     current_index: usize,
     elapsed: f32,
     enabled: bool,
+    rng: Rng,
+}
+
+impl Default for SceneScheduler {
+    fn default() -> Self {
+        Self {
+            scenes: Vec::new(),
+            current_index: 0,
+            elapsed: 0.0,
+            enabled: true,
+            rng: Rng::new(),
+        }
+    }
 }
 
 impl SceneScheduler {
@@ -20,6 +35,7 @@ impl SceneScheduler {
             current_index: 0,
             elapsed: 0.0,
             enabled: true,
+            rng: Rng::new(),
         }
     }
 
@@ -48,25 +64,47 @@ impl SceneScheduler {
         }
     }
 
-    /// Reseed with a varied list of scenes using simple strided selection to avoid repeats
+    /// Reseed with a varied list of scenes using random selection with variety tracking
     pub fn reseed_variety(&mut self, patterns: &[String], themes: &[String], count: usize) {
         if patterns.is_empty() || themes.is_empty() {
             return;
         }
-        let plen = patterns.len();
-        let tlen = themes.len();
-        let mut scenes = Vec::with_capacity(count.max(2));
-        for i in 0..count.max(2) {
-            let p = &patterns[(i * 3) % plen];
-            let t = &themes[(i * 5 + 7) % tlen];
-            // Durations vary 8..17 seconds in a repeating pattern
-            let duration = 8.0 + ((i % 4) as f32) * 3.0;
+
+        let count = count.max(2);
+        let mut scenes = Vec::with_capacity(count);
+        let mut last_pattern: Option<&str> = None;
+        let mut last_theme: Option<&str> = None;
+
+        for _ in 0..count {
+            // Pick a random pattern, avoiding immediate repeats
+            let pattern = loop {
+                let p = &patterns[self.rng.usize(0..patterns.len())];
+                if last_pattern.map_or(true, |lp| lp != p) {
+                    break p;
+                }
+            };
+
+            // Pick a random theme, avoiding immediate repeats
+            let theme = loop {
+                let t = &themes[self.rng.usize(0..themes.len())];
+                if last_theme.map_or(true, |lt| lt != t) {
+                    break t;
+                }
+            };
+
+            // Randomize durations between 8-18 seconds
+            let duration = 8.0 + self.rng.f32() * 10.0;
+
             scenes.push(Scene {
-                pattern_id: p.clone(),
-                theme_name: t.clone(),
+                pattern_id: pattern.clone(),
+                theme_name: theme.clone(),
                 duration_secs: duration,
             });
+
+            last_pattern = Some(pattern);
+            last_theme = Some(theme);
         }
+
         self.scenes = scenes;
         self.current_index = 0;
         self.elapsed = 0.0;
