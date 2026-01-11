@@ -63,6 +63,21 @@ impl CharacterGroups {
         Self { groups }
     }
 
+    /// Get a fade-in/fade-out character based on density level
+    /// Used for smooth transitions from/to space characters
+    fn get_density_char(&self, progress: f32) -> char {
+        // Fade sequence: ' ' → '░' → '▒' → '▓'
+        if progress < 0.25 {
+            ' '
+        } else if progress < 0.5 {
+            '░'
+        } else if progress < 0.75 {
+            '▒'
+        } else {
+            '▓'
+        }
+    }
+
     /// Get intermediate character for morphing
     fn get_morph_char(&self, from: char, to: char, progress: f32) -> char {
         if progress < 0.3 {
@@ -282,18 +297,22 @@ impl ArtMixer {
                     // Same character, no morphing needed
                     line.push(source_char);
                 } else if source_char == ' ' {
-                    // Fade in target
-                    if blend > 0.5 {
-                        line.push(target_char);
+                    // Fade in target: space → density chars → target
+                    if blend < 0.7 {
+                        // Show density character during fade-in
+                        line.push(self.char_groups.get_density_char(blend));
                     } else {
-                        line.push(' ');
+                        // Final 30%: show target
+                        line.push(target_char);
                     }
                 } else if target_char == ' ' {
-                    // Fade out source
-                    if blend < 0.5 {
+                    // Fade out source: source → density chars → space
+                    if blend < 0.3 {
+                        // First 30%: show source
                         line.push(source_char);
                     } else {
-                        line.push(' ');
+                        // Show density character during fade-out (reversed)
+                        line.push(self.char_groups.get_density_char(1.0 - blend));
                     }
                 } else {
                     // Morph between characters
