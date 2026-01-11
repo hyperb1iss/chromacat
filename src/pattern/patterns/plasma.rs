@@ -171,39 +171,34 @@ impl super::Patterns {
         let dy1 = y_pos - cy;
         let dist1 = (dx1 * dx1 + dy1 * dy1).sqrt();
 
-        // Accumulate values with minimal divisions
-        let mut sum = 0.0;
-        let mut divisor = 0.0;
+        // Accumulate values based on blend mode
+        let mut values: Vec<f64> = Vec::with_capacity(8);
 
         // First component - reduced distance influence
-        sum += self.utils.fast_sin(dist1 * 6.0 * base_freq + time * 0.6) * 0.8;
-        divisor += 0.8;
+        values.push(self.utils.fast_sin(dist1 * 6.0 * base_freq + time * 0.6) * 0.8);
 
         // Combine similar operations - increased weight of directional waves
         let x_freq = x_pos * 5.0 * base_freq;
         let y_freq = y_pos * 5.0 * base_freq;
-        sum += self.utils.fast_sin(x_freq + time * 0.4) * 1.2
-            + self.utils.fast_sin(y_freq + time * 0.47) * 1.2;
-        divisor += 2.4;
+        values.push(self.utils.fast_sin(x_freq + time * 0.4) * 1.2);
+        values.push(self.utils.fast_sin(y_freq + time * 0.47) * 1.2);
 
         // Pre-calculate rotation values - increased weight
         let angle = time * 0.2;
         let (sin_angle, cos_angle) = (self.utils.fast_sin(angle), self.utils.fast_cos(angle));
         let rx = x_pos * cos_angle - y_pos * sin_angle;
         let ry = x_pos * sin_angle + y_pos * cos_angle;
-        sum += self.utils.fast_sin((rx + ry) * 4.0 * base_freq) * 1.4;
-        divisor += 1.4;
+        values.push(self.utils.fast_sin((rx + ry) * 4.0 * base_freq) * 1.4);
 
         // Replace center distance calculation with diagonal waves
-        sum += self
-            .utils
-            .fast_sin((x_pos + y_pos) * 4.0 * base_freq + time * 0.3)
-            * 1.0
-            + self
-                .utils
-                .fast_sin((x_pos - y_pos) * 4.0 * base_freq + time * 0.35)
-                * 1.0;
-        divisor += 2.0;
+        values.push(
+            self.utils
+                .fast_sin((x_pos + y_pos) * 4.0 * base_freq + time * 0.3),
+        );
+        values.push(
+            self.utils
+                .fast_sin((x_pos - y_pos) * 4.0 * base_freq + time * 0.35),
+        );
 
         // Complexity-based components with reduced center dependency
         let complexity = params.complexity as u32;
@@ -220,17 +215,40 @@ impl super::Patterns {
                 let dy = y_pos - cy;
                 let dist = (dx * dx + dy * dy).sqrt();
 
-                let freq = (2.5 + fi) * base_freq; // Reduced base frequency
+                let freq = (2.5 + fi) * base_freq;
                 let weight = 1.0 / (fi + 1.0);
-                sum += self.utils.fast_sin(dist * freq + time * (0.4 + fi * 0.1)) * weight;
-                divisor += weight;
+                values.push(self.utils.fast_sin(dist * freq + time * (0.4 + fi * 0.1)) * weight);
 
                 fi += 1.0;
             }
         }
 
+        // Apply blend mode
+        let combined = match params.blend_mode {
+            PlasmaBlendMode::Additive => {
+                // Sum all values and normalize
+                let sum: f64 = values.iter().sum();
+                sum / values.len() as f64
+            }
+            PlasmaBlendMode::Multiply => {
+                // Multiply values (normalized to 0-1 first)
+                values
+                    .iter()
+                    .map(|v| (v + 1.0) * 0.5) // Normalize -1..1 to 0..1
+                    .fold(1.0, |acc, v| acc * v)
+            }
+            PlasmaBlendMode::Maximum => {
+                // Take maximum absolute value, preserving sign
+                values
+                    .iter()
+                    .copied()
+                    .max_by(|a, b| a.abs().partial_cmp(&b.abs()).unwrap())
+                    .unwrap_or(0.0)
+            }
+        };
+
         // Final normalization with slightly reduced contrast
-        let normalized = (sum / divisor) * 1.1;
+        let normalized = combined * 1.1;
         (self.utils.fast_sin(normalized * PI * 0.8) + 1.0) * 0.5
     }
 }
