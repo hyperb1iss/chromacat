@@ -104,6 +104,9 @@ pub struct Automix {
     target_pattern: Option<String>,
     target_theme: Option<String>,
     target_art: Option<String>,
+    
+    /// Queue of pending changes (to be applied one at a time)
+    pending_changes: Vec<(String, String)>, // (type, value)
 
     /// Showcase sequences (curated combinations)
     showcase_sequences: Vec<ShowcaseSequence>,
@@ -137,7 +140,7 @@ impl Automix {
                 pattern: "plasma".to_string(),
                 theme: "neon".to_string(),
                 art: Some("cityscape".to_string()),
-                duration: Duration::from_secs(15),
+                duration: Duration::from_secs(15), // 15 seconds for testing
                 params: vec![("scale".to_string(), 2.0), ("complexity".to_string(), 3.0)],
             },
             ShowcaseSequence {
@@ -145,7 +148,7 @@ impl Automix {
                 pattern: "wave".to_string(),
                 theme: "ocean".to_string(),
                 art: Some("waves".to_string()),
-                duration: Duration::from_secs(12),
+                duration: Duration::from_secs(12), // 12 seconds for testing
                 params: vec![
                     ("frequency".to_string(), 1.5),
                     ("amplitude".to_string(), 0.8),
@@ -156,7 +159,7 @@ impl Automix {
                 pattern: "rain".to_string(),
                 theme: "matrix".to_string(),
                 art: Some("matrix".to_string()),
-                duration: Duration::from_secs(10),
+                duration: Duration::from_secs(10), // 10 seconds for testing
                 params: vec![("density".to_string(), 1.5), ("speed".to_string(), 2.0)],
             },
             ShowcaseSequence {
@@ -164,7 +167,7 @@ impl Automix {
                 pattern: "aurora".to_string(),
                 theme: "aurora".to_string(),
                 art: Some("rainbow".to_string()),
-                duration: Duration::from_secs(20),
+                duration: Duration::from_secs(18), // 18 seconds for testing
                 params: vec![("turbulence".to_string(), 0.3), ("layers".to_string(), 3.0)],
             },
             ShowcaseSequence {
@@ -172,7 +175,7 @@ impl Automix {
                 pattern: "spiral".to_string(),
                 theme: "cyberpunk".to_string(),
                 art: Some("blocks".to_string()),
-                duration: Duration::from_secs(8),
+                duration: Duration::from_secs(10), // 10 seconds for testing
                 params: vec![("arms".to_string(), 5.0), ("tightness".to_string(), 0.5)],
             },
         ];
@@ -191,11 +194,12 @@ impl Automix {
             target_pattern: None,
             target_theme: None,
             target_art: None,
+            pending_changes: Vec::new(),
             showcase_sequences,
             showcase_index: 0,
-            min_scene_duration: Duration::from_secs(5),
-            max_scene_duration: Duration::from_secs(30),
-            transition_duration: Duration::from_secs(2),
+            min_scene_duration: Duration::from_secs(10),  // 10 seconds for testing
+            max_scene_duration: Duration::from_secs(20), // 20 seconds for testing
+            transition_duration: Duration::from_secs(5), // 5 second transitions for testing
             default_transition: TransitionType::Crossfade,
         }
     }
@@ -237,7 +241,7 @@ impl Automix {
             .collect::<Vec<_>>();
 
         self.scheduler.reseed_variety(&patterns, &themes, 10);
-        self.scene_duration = Duration::from_secs(10);
+        self.scene_duration = Duration::from_secs(15); // 15 seconds for testing
     }
 
     /// Apply a showcase sequence
@@ -277,9 +281,9 @@ impl Automix {
         duration: Duration,
         transition_type: TransitionType,
     ) {
-        self.target_pattern = pattern;
-        self.target_theme = theme;
-        self.target_art = art;
+        self.target_pattern = pattern.clone();
+        self.target_theme = theme.clone();
+        self.target_art = art.clone();
         self.scene_duration = duration;
         self.scene_start = Instant::now();
 
@@ -287,11 +291,37 @@ impl Automix {
             self.transition_duration,
             transition_type,
         ));
+        
+        // Store all pending changes to return immediately for overlapping transitions
+        self.pending_changes.clear();
+        if let Some(p) = pattern {
+            self.pending_changes.push(("pattern".to_string(), p));
+        }
+        if let Some(t) = theme {
+            self.pending_changes.push(("theme".to_string(), t));
+        }
+        if let Some(a) = art {
+            self.pending_changes.push(("art".to_string(), a));
+        }
     }
 
     /// Update the automix system
     pub fn update(&mut self, delta: f64) -> AutomixUpdate {
         let mut update = AutomixUpdate::default();
+        
+        // Return ALL pending changes at once for overlapping transitions
+        if !self.pending_changes.is_empty() {
+            // Process all pending changes
+            while let Some((change_type, value)) = self.pending_changes.pop() {
+                match change_type.as_str() {
+                    "pattern" => update.new_pattern = Some(value),
+                    "theme" => update.new_theme = Some(value),
+                    "art" => update.new_art = Some(value),
+                    _ => {}
+                }
+            }
+            return update;
+        }
 
         // Update transition if active
         let transition_complete = if let Some(ref mut transition) = self.transition {
@@ -303,18 +333,15 @@ impl Automix {
         };
 
         if transition_complete {
-            // Transition complete - apply target values
+            // Transition complete - update current values
             if let Some(pattern) = self.target_pattern.take() {
-                self.current_pattern = pattern.clone();
-                update.new_pattern = Some(pattern);
+                self.current_pattern = pattern;
             }
             if let Some(theme) = self.target_theme.take() {
-                self.current_theme = theme.clone();
-                update.new_theme = Some(theme);
+                self.current_theme = theme;
             }
             if let Some(art) = self.target_art.take() {
-                self.current_art = Some(art.clone());
-                update.new_art = Some(art);
+                self.current_art = Some(art);
             }
             self.transition = None;
         }

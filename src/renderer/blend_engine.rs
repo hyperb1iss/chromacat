@@ -7,6 +7,20 @@ use colorgrad::{Color, Gradient};
 /// visual states, creating smooth transitions instead of jarring switches.
 use std::sync::Arc;
 
+/// Create a simple fallback gradient for when theme loading fails
+/// Uses a basic magenta-to-cyan gradient that won't panic
+fn create_fallback_gradient() -> Box<dyn Gradient + Send + Sync> {
+    Box::new(
+        colorgrad::GradientBuilder::new()
+            .colors(&[
+                colorgrad::Color::from_rgba8(255, 0, 128, 255),
+                colorgrad::Color::from_rgba8(0, 128, 255, 255),
+            ])
+            .build::<colorgrad::LinearGradient>()
+            .expect("simple two-color gradient should always build"),
+    )
+}
+
 /// Blending state for smooth transitions
 pub struct BlendEngine {
     /// Source pattern engine
@@ -35,18 +49,27 @@ impl BlendEngine {
             target_gradient: None,
             blend_factor: 0.0,
             transitioning: false,
-            transition_speed: 0.5, // 2 seconds for full transition
+            transition_speed: 0.2, // 5 seconds for testing
         }
+    }
+    
+    /// Initialize with an engine
+    pub fn with_engine(engine: PatternEngine) -> Self {
+        let mut blend = Self::new();
+        blend.source_engine = Some(engine);
+        blend
     }
 
     /// Start a pattern transition
     pub fn start_pattern_transition(
         &mut self,
         current_engine: PatternEngine,
+        current_gradient: Arc<Box<dyn Gradient + Send + Sync>>,
         new_pattern: &str,
         width: usize,
         height: usize,
     ) -> Result<(), String> {
+        // Allow overlapping transitions for chill vibes
         // Create new pattern config
         let params = REGISTRY
             .create_pattern_params(new_pattern)
@@ -57,16 +80,19 @@ impl BlendEngine {
             params,
         };
 
-        // Create target engine with a copy of the gradient
-        // Get the gradient theme name (or default to rainbow)
-        let gradient_box = themes::get_theme("rainbow")
-            .unwrap()
-            .create_gradient()
-            .unwrap();
+        // Create target engine with a gradient
+        // Try to get rainbow theme, fall back to simple gradient if unavailable
+        let gradient_for_engine = themes::get_theme("rainbow")
+            .ok()
+            .and_then(|t| t.create_gradient().ok())
+            .unwrap_or_else(create_fallback_gradient);
 
-        let target_engine = PatternEngine::new(gradient_box, config, width, height);
+        let target_engine = PatternEngine::new(gradient_for_engine, config, width, height);
 
-        // Set up transition
+        // Set up transition - preserve the current gradient for blending
+        self.source_gradient = Some(current_gradient);
+        self.target_gradient = self.source_gradient.clone();
+
         self.source_engine = Some(current_engine);
         self.target_engine = Some(target_engine);
         self.blend_factor = 0.0;
@@ -81,6 +107,7 @@ impl BlendEngine {
         current_gradient: Arc<Box<dyn Gradient + Send + Sync>>,
         new_theme: &str,
     ) -> Result<(), String> {
+        // Allow overlapping transitions for chill vibes
         let new_gradient = themes::get_theme(new_theme)
             .map_err(|e| e.to_string())?
             .create_gradient()
@@ -109,9 +136,13 @@ impl BlendEngine {
             self.blend_factor = 1.0;
             self.transitioning = false;
 
-            // Complete transition
+            // Complete transition - move target to source
             if let Some(target) = self.target_engine.take() {
                 self.source_engine = Some(target);
+            }
+            // Also update gradients
+            if let Some(target_grad) = self.target_gradient.take() {
+                self.source_gradient = Some(target_grad);
             }
         }
 
@@ -148,20 +179,20 @@ impl BlendEngine {
             self.target_gradient.clone().unwrap_or_else(|| {
                 Arc::new(
                     themes::get_theme("rainbow")
-                        .unwrap()
-                        .create_gradient()
-                        .unwrap(),
+                        .ok()
+                        .and_then(|t| t.create_gradient().ok())
+                        .unwrap_or_else(create_fallback_gradient),
                 )
             })
         } else if let Some(ref source) = self.source_gradient {
             source.clone()
         } else {
-            // Fallback gradient
+            // Fallback gradient - safe, no panics
             Arc::new(
                 themes::get_theme("rainbow")
-                    .unwrap()
-                    .create_gradient()
-                    .unwrap(),
+                    .ok()
+                    .and_then(|t| t.create_gradient().ok())
+                    .unwrap_or_else(create_fallback_gradient),
             )
         }
     }
@@ -202,6 +233,16 @@ impl BlendEngine {
     /// Set transition speed (0.1 = slow, 1.0 = fast)
     pub fn set_transition_speed(&mut self, speed: f32) {
         self.transition_speed = speed.clamp(0.1, 2.0);
+    }
+    
+    /// Get the current engine (source or completed transition)
+    pub fn get_current_engine(&self) -> Option<&PatternEngine> {
+        self.source_engine.as_ref()
+    }
+    
+    /// Check if we should update the main engine
+    pub fn should_update_main_engine(&self) -> bool {
+        !self.transitioning && self.source_engine.is_some()
     }
 }
 

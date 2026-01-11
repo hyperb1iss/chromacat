@@ -83,11 +83,13 @@ impl Renderer {
         // Get initial content - always load default art in playground mode
         let content = Self::load_demo_art("rainbow").unwrap_or_else(|_| String::new());
 
-        // Set up automix
+        // Set up automix - don't start immediately
         let mut automix = Automix::new();
         if let Some(playlist) = playlist {
             automix.load_playlist(playlist);
         }
+        // Start in Showcase mode for testing
+        automix.set_mode(AutomixMode::Showcase);
 
         Ok(Self {
             engine,
@@ -111,7 +113,8 @@ impl Renderer {
         let has_pattern_change = automix_update.new_pattern.is_some();
         let has_theme_change = automix_update.new_theme.is_some();
 
-        // Apply automix updates with blending
+        // Apply all automix updates - they can overlap for chill vibes
+        // Different things change at different rates
         if let Some(pattern) = automix_update.new_pattern {
             let _ = self.start_pattern_transition(&pattern);
         }
@@ -138,9 +141,14 @@ impl Renderer {
 
         // Update blend engine
         self.blend_engine.update(delta_seconds);
-
-        // Update animation
-        self.engine.update(delta_seconds);
+        
+        // Update animation - blend engine handles updates during transitions
+        if !self.blend_engine.is_transitioning() {
+            // Normal update when not transitioning
+            self.engine.update(delta_seconds);
+        }
+        // Note: During transitions, the blend_engine.update() above handles
+        // updating both source and target engines
 
         // Update parameter names in playground
         self.playground.param_names = self.get_current_param_names();
@@ -340,8 +348,28 @@ impl Renderer {
         let width = width as usize;
         let height = height as usize;
 
+        // Get current gradient from the current theme
+        let current_gradient = Arc::new(
+            themes::get_theme(&self.playground.current_theme)
+                .ok()
+                .and_then(|t| t.create_gradient().ok())
+                .unwrap_or_else(|| {
+                    // Fallback gradient
+                    Box::new(
+                        colorgrad::GradientBuilder::new()
+                            .colors(&[
+                                colorgrad::Color::from_rgba8(255, 0, 128, 255),
+                                colorgrad::Color::from_rgba8(0, 128, 255, 255),
+                            ])
+                            .build::<colorgrad::LinearGradient>()
+                            .expect("simple gradient should build"),
+                    )
+                }),
+        );
+
+        // Clone current engine for transition
         self.blend_engine
-            .start_pattern_transition(self.engine.clone(), pattern, width, height)
+            .start_pattern_transition(self.engine.clone(), current_gradient, pattern, width, height)
             .map_err(RendererError::Other)?;
 
         // Update UI state
