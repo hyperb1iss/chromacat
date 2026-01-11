@@ -5,6 +5,17 @@
 //! the pattern generation and rendering pipeline.
 
 use crate::cli::Cli;
+
+/// Operating modes for ChromaCat
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OperatingMode {
+    /// Full TUI with animated patterns and overlay controls
+    Playground,
+    /// Single-shot file/stdin processing
+    Static,
+    /// Line-by-line piped input processing
+    Streaming,
+}
 use crate::error::{ChromaCatError, Result};
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
@@ -283,6 +294,31 @@ impl ChromaCat {
     fn should_use_playground(&self) -> bool {
         !self.cli.no_playground
             && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok())
+    }
+
+    /// Determines the operating mode based on input sources and flags
+    ///
+    /// Returns the appropriate mode:
+    /// - Playground: Interactive TUI (default for interactive terminals)
+    /// - Static: File or terminal stdin processing
+    /// - Streaming: Piped stdin processing
+    pub fn determine_mode(&self) -> OperatingMode {
+        // Playground takes precedence if enabled
+        if self.should_use_playground() {
+            return OperatingMode::Playground;
+        }
+
+        // If files are specified, use static mode
+        if !self.cli.files.is_empty() {
+            return OperatingMode::Static;
+        }
+
+        // Check stdin type for piped vs terminal input
+        if atty::is(atty::Stream::Stdin) {
+            OperatingMode::Static
+        } else {
+            OperatingMode::Streaming
+        }
     }
 
     /// Sets up the terminal for rendering

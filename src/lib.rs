@@ -19,7 +19,7 @@ pub mod renderer;
 pub mod streaming;
 pub mod themes;
 
-pub use app::ChromaCat;
+pub use app::{ChromaCat, OperatingMode};
 pub use error::{ChromaCatError, Result};
 
 // Re-export commonly used types for convenience
