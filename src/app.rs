@@ -79,10 +79,11 @@ impl ChromaCat {
 
     /// Runs the ChromaCat application
     pub fn run(&mut self) -> Result<()> {
-        let playground = self.should_use_playground();
-        if playground {
+        // Initialize debug logging if requested or in playground mode
+        if self.cli.debug || self.should_use_playground() {
             crate::debug_log::init_debug_log();
-            crate::debug_log::debug_log("Playground mode started").ok();
+            let mode = if self.cli.debug { "Debug" } else { "Playground" };
+            crate::debug_log::debug_log(&format!("{mode} mode started")).ok();
         }
 
         debug!("Starting ChromaCat with configuration: {:?}", self.cli);

@@ -181,6 +181,15 @@ pub struct Cli {
         help = CliFormat::highlight_description("Disable playground UI for simple output")
     )]
     pub no_playground: bool,
+
+    /// Enable debug logging to /tmp/chromacat_debug.log
+    #[arg(
+        long = "debug",
+        env = "CHROMACAT_DEBUG",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Enable debug logging for troubleshooting")
+    )]
+    pub debug: bool,
 }
 
 impl Cli {
