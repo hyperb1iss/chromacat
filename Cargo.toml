@@ -25,7 +25,7 @@ anstyle = "1.0.9"
 atty = "0.2"
 anyhow = "1.0"
 chrono = "0.4"
-clap = { version = "4.1", features = ["derive"] }
+clap = { version = "4.1", features = ["derive", "env"] }
 colorgrad = "0.7.0"
 crossterm = "0.29.0"
 env_logger = { version = "0.11.5", default-features = false }

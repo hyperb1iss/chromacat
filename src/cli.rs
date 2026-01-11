@@ -42,6 +42,7 @@ pub struct Cli {
         short = 'p',
         long,
         default_value = "diagonal",
+        env = "CHROMACAT_PATTERN",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "TYPE",
         help = CliFormat::highlight_description("Select pattern type for the color gradient")
@@ -52,6 +53,7 @@ pub struct Cli {
         short = 't',
         long,
         default_value = "rainbow",
+        env = "CHROMACAT_THEME",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "NAME",
         help = CliFormat::highlight_description("Select color theme (use --list to see available)")
@@ -62,6 +64,7 @@ pub struct Cli {
         short = 'f',
         long,
         default_value = "1.0",
+        env = "CHROMACAT_FREQUENCY",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "NUM",
         help = CliFormat::highlight_description("Base frequency (0.1-10.0)")
@@ -72,6 +75,7 @@ pub struct Cli {
         short = 'm',
         long,
         default_value = "1.0",
+        env = "CHROMACAT_AMPLITUDE",
         help_heading = CliFormat::HEADING_CORE,
         value_name = "NUM",
         help = CliFormat::highlight_description("Pattern amplitude (0.1-2.0)")
@@ -81,6 +85,7 @@ pub struct Cli {
     #[arg(
         short = 'n',
         long = "no-color",
+        env = "NO_COLOR",
         help_heading = CliFormat::HEADING_GENERAL,
         help = CliFormat::highlight_description("Disable colored output")
     )]
@@ -154,6 +159,7 @@ pub struct Cli {
     #[arg(
         long = "art",
         value_name = "TYPE",
+        env = "CHROMACAT_ART",
         help_heading = CliFormat::HEADING_DEMO,
         help = CliFormat::highlight_description("Select demo art pattern to display")
     )]
@@ -170,6 +176,7 @@ pub struct Cli {
     /// Disable playground UI mode (enabled by default for interactive terminals)
     #[arg(
         long = "no-playground",
+        env = "CHROMACAT_NO_PLAYGROUND",
         help_heading = CliFormat::HEADING_GENERAL,
         help = CliFormat::highlight_description("Disable playground UI for simple output")
     )]
