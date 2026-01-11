@@ -137,13 +137,19 @@ impl Renderer {
         // Apply all automix updates - they can overlap for chill vibes
         // Different things change at different rates
         if let Some(pattern) = automix_update.new_pattern {
-            let _ = self.start_pattern_transition(&pattern);
+            if let Err(e) = self.start_pattern_transition(&pattern) {
+                let _ = debug_log(&format!("Automix pattern transition failed: {e}"));
+            }
         }
         if let Some(theme) = automix_update.new_theme {
-            let _ = self.start_theme_transition(&theme);
+            if let Err(e) = self.start_theme_transition(&theme) {
+                let _ = debug_log(&format!("Automix theme transition failed: {e}"));
+            }
         }
         if let Some(art) = automix_update.new_art {
-            let _ = self.apply_art(&art);
+            if let Err(e) = self.apply_art(&art) {
+                let _ = debug_log(&format!("Automix art change failed: {e}"));
+            }
         }
 
         // Vary transition effect based on what's changing
