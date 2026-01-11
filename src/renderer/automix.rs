@@ -132,50 +132,156 @@ struct ShowcaseSequence {
 impl Automix {
     /// Create a new automix system
     pub fn new() -> Self {
-        // Create default showcase sequences
+        // Create default showcase sequences - curated for visual impact
         let showcase_sequences = vec![
-            ShowcaseSequence {
-                name: "Neon Dreams".to_string(),
-                pattern: "plasma".to_string(),
-                theme: "neon".to_string(),
-                art: Some("cityscape".to_string()),
-                duration: Duration::from_secs(15), // 15 seconds for testing
-                params: vec![("scale".to_string(), 2.0), ("complexity".to_string(), 3.0)],
-            },
-            ShowcaseSequence {
-                name: "Ocean Waves".to_string(),
-                pattern: "wave".to_string(),
-                theme: "ocean".to_string(),
-                art: Some("waves".to_string()),
-                duration: Duration::from_secs(12), // 12 seconds for testing
-                params: vec![
-                    ("frequency".to_string(), 1.5),
-                    ("amplitude".to_string(), 0.8),
-                ],
-            },
-            ShowcaseSequence {
-                name: "Matrix Rain".to_string(),
-                pattern: "rain".to_string(),
-                theme: "matrix".to_string(),
-                art: Some("matrix".to_string()),
-                duration: Duration::from_secs(10), // 10 seconds for testing
-                params: vec![("density".to_string(), 1.5), ("speed".to_string(), 2.0)],
-            },
+            // === Atmospheric & Nature ===
             ShowcaseSequence {
                 name: "Aurora Borealis".to_string(),
                 pattern: "aurora".to_string(),
                 theme: "aurora".to_string(),
-                art: Some("rainbow".to_string()),
-                duration: Duration::from_secs(18), // 18 seconds for testing
+                art: Some("fluid".to_string()),
+                duration: Duration::from_secs(18),
                 params: vec![("turbulence".to_string(), 0.3), ("layers".to_string(), 3.0)],
             },
             ShowcaseSequence {
-                name: "Digital Spiral".to_string(),
+                name: "Ocean Depths".to_string(),
+                pattern: "wave".to_string(),
+                theme: "ocean".to_string(),
+                art: Some("waves".to_string()),
+                duration: Duration::from_secs(15),
+                params: vec![("frequency".to_string(), 1.2), ("amplitude".to_string(), 0.9)],
+            },
+            ShowcaseSequence {
+                name: "Forest Canopy".to_string(),
+                pattern: "perlin".to_string(),
+                theme: "forest".to_string(),
+                art: Some("cells".to_string()),
+                duration: Duration::from_secs(14),
+                params: vec![("scale".to_string(), 2.5), ("octaves".to_string(), 4.0)],
+            },
+            ShowcaseSequence {
+                name: "Desert Heat".to_string(),
+                pattern: "fire".to_string(),
+                theme: "desert".to_string(),
+                art: Some("plasma".to_string()),
+                duration: Duration::from_secs(12),
+                params: vec![("intensity".to_string(), 0.8), ("turbulence".to_string(), 0.5)],
+            },
+            // === Cosmic & Space ===
+            ShowcaseSequence {
+                name: "Nebula Dreams".to_string(),
+                pattern: "plasma".to_string(),
+                theme: "nebula".to_string(),
+                art: Some("vortex".to_string()),
+                duration: Duration::from_secs(16),
+                params: vec![("complexity".to_string(), 3.0), ("scale".to_string(), 2.0)],
+            },
+            ShowcaseSequence {
+                name: "Galaxy Spiral".to_string(),
                 pattern: "spiral".to_string(),
+                theme: "galaxy".to_string(),
+                art: Some("spiral".to_string()),
+                duration: Duration::from_secs(14),
+                params: vec![("arms".to_string(), 4.0), ("tightness".to_string(), 0.6)],
+            },
+            ShowcaseSequence {
+                name: "Cosmic Ripples".to_string(),
+                pattern: "ripple".to_string(),
+                theme: "cosmos".to_string(),
+                art: Some("mandala".to_string()),
+                duration: Duration::from_secs(12),
+                params: vec![("frequency".to_string(), 2.0), ("decay".to_string(), 0.3)],
+            },
+            // === Tech & Cyber ===
+            ShowcaseSequence {
+                name: "Matrix Rain".to_string(),
+                pattern: "pixel_rain".to_string(),
+                theme: "matrix".to_string(),
+                art: Some("matrix".to_string()),
+                duration: Duration::from_secs(12),
+                params: vec![("density".to_string(), 1.5), ("speed".to_string(), 1.8)],
+            },
+            ShowcaseSequence {
+                name: "Neon City".to_string(),
+                pattern: "diagonal".to_string(),
+                theme: "neon".to_string(),
+                art: Some("cityscape".to_string()),
+                duration: Duration::from_secs(14),
+                params: vec![("angle".to_string(), 45.0), ("frequency".to_string(), 1.5)],
+            },
+            ShowcaseSequence {
+                name: "Cyberpunk Grid".to_string(),
+                pattern: "checkerboard".to_string(),
                 theme: "cyberpunk".to_string(),
-                art: Some("blocks".to_string()),
-                duration: Duration::from_secs(10), // 10 seconds for testing
-                params: vec![("arms".to_string(), 5.0), ("tightness".to_string(), 0.5)],
+                art: Some("boxes".to_string()),
+                duration: Duration::from_secs(10),
+                params: vec![("size".to_string(), 0.15), ("blur".to_string(), 0.2)],
+            },
+            ShowcaseSequence {
+                name: "Glitch Reality".to_string(),
+                pattern: "horizontal".to_string(),
+                theme: "glitch".to_string(),
+                art: Some("code".to_string()),
+                duration: Duration::from_secs(8),
+                params: vec![("frequency".to_string(), 3.0)],
+            },
+            // === Abstract & Geometric ===
+            ShowcaseSequence {
+                name: "Kaleidoscope".to_string(),
+                pattern: "kaleidoscope".to_string(),
+                theme: "carnival".to_string(),
+                art: Some("mandala".to_string()),
+                duration: Duration::from_secs(15),
+                params: vec![("segments".to_string(), 8.0), ("rotation_speed".to_string(), 0.5)],
+            },
+            ShowcaseSequence {
+                name: "Diamond Light".to_string(),
+                pattern: "diamond".to_string(),
+                theme: "ice".to_string(),
+                art: Some("ascii".to_string()),
+                duration: Duration::from_secs(12),
+                params: vec![("size".to_string(), 0.3), ("sharpness".to_string(), 0.8)],
+            },
+            ShowcaseSequence {
+                name: "Radial Energy".to_string(),
+                pattern: "radial".to_string(),
+                theme: "energy".to_string(),
+                art: Some("vortex".to_string()),
+                duration: Duration::from_secs(10),
+                params: vec![("center_x".to_string(), 0.5), ("center_y".to_string(), 0.5)],
+            },
+            // === Moody & Artistic ===
+            ShowcaseSequence {
+                name: "Pastel Dreams".to_string(),
+                pattern: "wave".to_string(),
+                theme: "pastel".to_string(),
+                art: Some("fluid".to_string()),
+                duration: Duration::from_secs(16),
+                params: vec![("frequency".to_string(), 0.8), ("amplitude".to_string(), 0.6)],
+            },
+            ShowcaseSequence {
+                name: "Monochrome Maze".to_string(),
+                pattern: "perlin".to_string(),
+                theme: "monochrome".to_string(),
+                art: Some("maze".to_string()),
+                duration: Duration::from_secs(14),
+                params: vec![("scale".to_string(), 3.0), ("contrast".to_string(), 0.9)],
+            },
+            ShowcaseSequence {
+                name: "Disco Fever".to_string(),
+                pattern: "checkerboard".to_string(),
+                theme: "disco".to_string(),
+                art: Some("boxes".to_string()),
+                duration: Duration::from_secs(10),
+                params: vec![("size".to_string(), 0.2), ("wave_intensity".to_string(), 0.5)],
+            },
+            ShowcaseSequence {
+                name: "Lightning Storm".to_string(),
+                pattern: "plasma".to_string(),
+                theme: "lightning".to_string(),
+                art: Some("plasma".to_string()),
+                duration: Duration::from_secs(12),
+                params: vec![("complexity".to_string(), 4.0), ("speed".to_string(), 2.0)],
             },
         ];
 
