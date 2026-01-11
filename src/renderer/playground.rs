@@ -93,6 +93,8 @@ pub struct PlaygroundUI {
     pub is_transitioning: bool,
     /// Whether theme is locked (prevents automix from changing it)
     pub theme_locked: bool,
+    /// Whether modulation (LFO parameter automation) is enabled
+    pub modulation_enabled: bool,
 }
 
 impl Default for PlaygroundUI {
@@ -131,6 +133,7 @@ impl PlaygroundUI {
             scene_progress: 0.0,
             is_transitioning: false,
             theme_locked: false,
+            modulation_enabled: false,
         }
     }
 
@@ -275,6 +278,7 @@ impl PlaygroundUI {
                 self.scene_progress,
                 self.is_transitioning,
                 self.theme_locked,
+                self.modulation_enabled,
             );
         })
         .map_err(|e| {
@@ -565,6 +569,10 @@ impl PlaygroundUI {
                 Span::styled("  u       ", Style::default().fg(TuiColor::Cyan)),
                 Span::raw("Lock/unlock theme"),
             ]),
+            Line::from(vec![
+                Span::styled("  m       ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Toggle modulation"),
+            ]),
             Line::from(""),
             Line::from(vec![
                 Span::styled("Recipes", Style::default().fg(TuiColor::Yellow).add_modifier(Modifier::BOLD)),
@@ -611,6 +619,7 @@ impl PlaygroundUI {
         scene_progress: f32,
         is_transitioning: bool,
         theme_locked: bool,
+        modulation_enabled: bool,
     ) {
         let status_area = Rect {
             x: 0,
@@ -625,6 +634,7 @@ impl PlaygroundUI {
         // Build status text with current state
         let art_str = art.unwrap_or("none");
         let lock_indicator = if theme_locked { " [locked]" } else { "" };
+        let mod_indicator = if modulation_enabled { " [mod]" } else { "" };
         let automix_str = if automix_mode != "Off" {
             // Show progress bar and transition indicator
             let progress_bar = Self::make_progress_bar(scene_progress, 8);
@@ -635,7 +645,7 @@ impl PlaygroundUI {
         };
 
         let status_text = format!(
-            " Pattern: {pattern} • Theme: {theme}{lock_indicator} • Art: {art_str}{automix_str} • [?] help • [q] quit "
+            " Pattern: {pattern}{mod_indicator} • Theme: {theme}{lock_indicator} • Art: {art_str}{automix_str} • [?] help • [q] quit "
         );
 
         let status = Paragraph::new(status_text)

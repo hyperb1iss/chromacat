@@ -219,6 +219,9 @@ impl PlaygroundInputHandler {
                 Ok(InputAction::ToggleThemeLock)
             }
 
+            // Modulation toggle
+            KeyCode::Char('m') | KeyCode::Char('M') => Ok(InputAction::ToggleModulation),
+
             // Recipe save/load
             KeyCode::Char('r') | KeyCode::Char('R') => Ok(InputAction::SaveRecipe),
             KeyCode::Char('l') | KeyCode::Char('L') => Ok(InputAction::LoadRecipe),
@@ -474,6 +477,8 @@ pub enum InputAction {
     CycleCrossfadeDuration,
     // Theme controls
     ToggleThemeLock,
+    // Modulation controls
+    ToggleModulation,
     // Recipe controls
     SaveRecipe,
     LoadRecipe,

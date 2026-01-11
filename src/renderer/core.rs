@@ -251,6 +251,10 @@ impl Renderer {
                 self.toggle_theme_lock();
                 Ok(true)
             }
+            InputAction::ToggleModulation => {
+                self.toggle_modulation();
+                Ok(true)
+            }
             InputAction::SaveRecipe => {
                 self.save_recipe()?;
                 Ok(true)
@@ -308,6 +312,10 @@ impl Renderer {
             }
             InputAction::ToggleThemeLock => {
                 self.toggle_theme_lock();
+                Ok(true)
+            }
+            InputAction::ToggleModulation => {
+                self.toggle_modulation();
                 Ok(true)
             }
             InputAction::SaveRecipe => {
@@ -750,6 +758,17 @@ impl Renderer {
             format!("Theme locked: {}", self.playground.current_theme)
         } else {
             "Theme unlocked".to_string()
+        };
+        self.playground.show_toast(msg);
+    }
+
+    /// Toggle modulation (LFO parameter automation)
+    fn toggle_modulation(&mut self) {
+        self.playground.modulation_enabled = !self.playground.modulation_enabled;
+        let msg = if self.playground.modulation_enabled {
+            "Modulation enabled"
+        } else {
+            "Modulation disabled"
         };
         self.playground.show_toast(msg);
     }
