@@ -154,15 +154,18 @@ impl super::Patterns {
         let distance = dist_sq.sqrt();
 
         // Calculate base rotation with smoother animation
-        let rot_rad = (params.rotation + time_base * 10.0) * (PI / 180.0); // Reduced from 20.0 to 10.0
+        // Apply clockwise/counter-clockwise direction
+        let direction = if params.clockwise { 1.0 } else { -1.0 };
+        let rot_rad = (params.rotation + time_base * 10.0 * direction) * (PI / 180.0);
 
         // Add flowing distortion to the spiral
         let flow_factor = self.utils.fast_sin(distance * PI * 2.0 + time_slow) * 0.2;
         let expansion_factor = 1.0 + time_sin_half * 0.2;
 
-        // Calculate primary spiral with flow
+        // Calculate primary spiral with flow (direction affects spiral winding)
         let spiral_angle = angle
             + (distance * params.density * params.expansion * expansion_factor + flow_factor)
+                * direction
             + rot_rad;
 
         // Smooth the primary component
