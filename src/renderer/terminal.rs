@@ -9,6 +9,7 @@
 //! - Cursor visibility control
 //! - Terminal size tracking and resizing
 //! - Color support management
+//! - Terminal capability detection
 //! - Safe state cleanup on drop
 
 use crossterm::{
@@ -24,6 +25,135 @@ use std::io::{stdout, StdoutLock, Write};
 
 use super::error::RendererError;
 
+/// Terminal color capability levels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ColorCapability {
+    /// No color support (dumb terminals, NO_COLOR set)
+    None,
+    /// Basic 8/16 colors (ANSI)
+    Basic,
+    /// 256 color support
+    Extended,
+    /// True color / 24-bit color support
+    TrueColor,
+}
+
+impl ColorCapability {
+    /// Detect color capability from environment variables
+    pub fn detect() -> Self {
+        // Check NO_COLOR first - universal disable
+        if std::env::var("NO_COLOR").is_ok() {
+            return Self::None;
+        }
+
+        // Check COLORTERM for true color
+        if let Ok(colorterm) = std::env::var("COLORTERM") {
+            let colorterm_lower = colorterm.to_lowercase();
+            if colorterm_lower.contains("truecolor") || colorterm_lower.contains("24bit") {
+                return Self::TrueColor;
+            }
+        }
+
+        // Check TERM for various capabilities
+        if let Ok(term) = std::env::var("TERM") {
+            let term_lower = term.to_lowercase();
+
+            // Dumb terminal
+            if term_lower == "dumb" {
+                return Self::None;
+            }
+
+            // True color terminals
+            if term_lower.contains("truecolor")
+                || term_lower.contains("24bit")
+                || term_lower.contains("direct")
+            {
+                return Self::TrueColor;
+            }
+
+            // 256 color terminals
+            if term_lower.contains("256color")
+                || term_lower.contains("256")
+                || term_lower.starts_with("xterm")
+                || term_lower.starts_with("screen")
+                || term_lower.starts_with("tmux")
+                || term_lower.starts_with("vt")
+                || term_lower.starts_with("rxvt")
+                || term_lower.starts_with("linux")
+            {
+                // Modern terminals usually support true color even without advertising
+                // Check for common true color terminals
+                if term_lower.contains("kitty")
+                    || term_lower.contains("alacritty")
+                    || term_lower.contains("iterm")
+                    || term_lower.contains("wezterm")
+                    || term_lower.contains("ghostty")
+                {
+                    return Self::TrueColor;
+                }
+                return Self::Extended;
+            }
+
+            // Basic ANSI support
+            if term_lower.contains("ansi")
+                || term_lower.contains("color")
+                || term_lower.starts_with("vt100")
+            {
+                return Self::Basic;
+            }
+        }
+
+        // Check TERM_PROGRAM for additional detection
+        if let Ok(program) = std::env::var("TERM_PROGRAM") {
+            let program_lower = program.to_lowercase();
+            if program_lower.contains("iterm")
+                || program_lower.contains("hyper")
+                || program_lower.contains("vscode")
+                || program_lower.contains("ghostty")
+                || program_lower.contains("wezterm")
+                || program_lower.contains("alacritty")
+                || program_lower.contains("kitty")
+            {
+                return Self::TrueColor;
+            }
+        }
+
+        // Check WT_SESSION for Windows Terminal (supports true color)
+        if std::env::var("WT_SESSION").is_ok() {
+            return Self::TrueColor;
+        }
+
+        // Default to extended colors if we're in a TTY
+        // Most modern terminals support at least 256 colors
+        if atty::is(atty::Stream::Stdout) {
+            Self::Extended
+        } else {
+            Self::None
+        }
+    }
+
+    /// Returns true if this capability supports at least 256 colors
+    pub fn supports_256(&self) -> bool {
+        matches!(self, Self::Extended | Self::TrueColor)
+    }
+
+    /// Returns true if this capability supports true color (24-bit)
+    pub fn supports_truecolor(&self) -> bool {
+        matches!(self, Self::TrueColor)
+    }
+
+    /// Returns true if any color is supported
+    pub fn supports_color(&self) -> bool {
+        !matches!(self, Self::None)
+    }
+}
+
+impl Default for ColorCapability {
+    fn default() -> Self {
+        Self::detect()
+    }
+}
+
 /// Manages terminal state and operations.
 /// Ensures proper terminal state management and cleanup.
 #[derive(Debug)]
@@ -32,6 +162,8 @@ pub struct TerminalState {
     term_size: (u16, u16),
     /// Whether colors are enabled for output
     colors_enabled: bool,
+    /// Detected color capability level
+    color_capability: ColorCapability,
     /// Whether alternate screen mode is active
     alternate_screen: bool,
     /// Whether raw mode is enabled
@@ -60,15 +192,19 @@ impl TerminalState {
             })?
         };
 
+        // Detect color capabilities
+        let color_capability = ColorCapability::detect();
+
         // Check if stdout is a TTY
         let is_tty = !Self::is_test_env() && stdout().is_tty();
 
-        // Enable colors by default for TTY
-        let colors_enabled = is_tty;
+        // Enable colors based on capability detection
+        let colors_enabled = is_tty && color_capability.supports_color();
 
         Ok(Self {
             term_size,
             colors_enabled,
+            color_capability,
             alternate_screen: false,
             raw_mode: false,
             cursor_hidden: false,
@@ -226,6 +362,24 @@ impl TerminalState {
     #[inline]
     pub fn is_tty(&self) -> bool {
         self.is_tty
+    }
+
+    /// Returns the detected color capability level.
+    #[inline]
+    pub fn color_capability(&self) -> ColorCapability {
+        self.color_capability
+    }
+
+    /// Returns true if true color (24-bit) is supported.
+    #[inline]
+    pub fn supports_truecolor(&self) -> bool {
+        self.color_capability.supports_truecolor()
+    }
+
+    /// Returns true if 256 colors are supported.
+    #[inline]
+    pub fn supports_256_colors(&self) -> bool {
+        self.color_capability.supports_256()
     }
 
     /// Shows the cursor if currently hidden.
