@@ -20,10 +20,31 @@ use std::time::Duration;
 #[command(
     author,
     version,
-    about = format!("😺 {}Chroma{}Cat{} - Create magical color gradients for your text ✨", 
+    about = format!("😺 {}Chroma{}Cat{} - Create magical color gradients for your text ✨",
         CliFormat::TITLE_1, CliFormat::TITLE_2, CliFormat::RESET),
     long_about = None,
-    help_template = "{about}\n\nUsage: {usage}\n\n{options}",
+    help_template = "{about}\n\nUsage: {usage}\n\n{options}\n\n{after-help}",
+    after_help = "\x1b[1;38;5;219mOperating Modes:\x1b[0m
+  ChromaCat automatically selects the best mode based on input:
+
+  \x1b[38;5;117mPlayground Mode\x1b[0m (default for interactive terminals)
+    - Full TUI with animated patterns and overlay controls
+    - Press ; to toggle overlay, ? for help, q to quit
+    - Use --no-playground to disable
+
+  \x1b[38;5;117mStatic Mode\x1b[0m (files or terminal stdin)
+    - Colorizes input and outputs immediately
+    - Use: chromacat file.txt or echo 'text' | chromacat --no-playground
+
+  \x1b[38;5;117mStreaming Mode\x1b[0m (piped stdin)
+    - Processes input line-by-line as it arrives
+    - Use: tail -f log.txt | chromacat --no-playground
+
+\x1b[1;38;5;219mExamples:\x1b[0m
+  chromacat                           # Launch playground with demo art
+  chromacat file.txt -t ocean         # Colorize file with ocean theme
+  ls -la | chromacat -p plasma        # Colorize command output
+  tail -f app.log | chromacat         # Stream colorized logs",
     styles = clap::builder::Styles::styled()
         .header(anstyle::AnsiColor::BrightMagenta.on_default())
         .usage(anstyle::AnsiColor::BrightCyan.on_default())
