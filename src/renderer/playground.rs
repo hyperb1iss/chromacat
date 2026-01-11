@@ -86,6 +86,10 @@ pub struct PlaygroundUI {
     pub current_art: Option<String>,
     /// Current automix mode (for status bar)
     pub automix_mode: String,
+    /// Scene progress (0.0-1.0) for automix display
+    pub scene_progress: f32,
+    /// Whether a transition is active
+    pub is_transitioning: bool,
 }
 
 impl Default for PlaygroundUI {
@@ -121,6 +125,8 @@ impl PlaygroundUI {
             current_theme: "rainbow".to_string(),
             current_art: Some("rainbow".to_string()),
             automix_mode: "Off".to_string(),
+            scene_progress: 0.0,
+            is_transitioning: false,
         }
     }
 
@@ -231,6 +237,8 @@ impl PlaygroundUI {
                 &self.current_theme,
                 self.current_art.as_deref(),
                 &self.automix_mode,
+                self.scene_progress,
+                self.is_transitioning,
             );
         })
         .map_err(|e| {
@@ -460,6 +468,8 @@ impl PlaygroundUI {
         theme: &str,
         art: Option<&str>,
         automix_mode: &str,
+        scene_progress: f32,
+        is_transitioning: bool,
     ) {
         let status_area = Rect {
             x: 0,
@@ -474,13 +484,16 @@ impl PlaygroundUI {
         // Build status text with current state
         let art_str = art.unwrap_or("none");
         let automix_str = if automix_mode != "Off" {
-            format!(" • Automix: {automix_mode} ")
+            // Show progress bar and transition indicator
+            let progress_bar = Self::make_progress_bar(scene_progress, 8);
+            let transition_indicator = if is_transitioning { "~" } else { "" };
+            format!(" • Automix: {automix_mode} [{progress_bar}]{transition_indicator}")
         } else {
             String::new()
         };
 
         let status_text = format!(
-            " Pattern: {pattern} • Theme: {theme} • Art: {art_str}{automix_str} • [A] automix • [q] quit "
+            " Pattern: {pattern} • Theme: {theme} • Art: {art_str}{automix_str} • [?] help • [q] quit "
         );
 
         let status = Paragraph::new(status_text)
@@ -488,5 +501,12 @@ impl PlaygroundUI {
             .alignment(ratatui::layout::Alignment::Center);
 
         f.render_widget(status, status_area);
+    }
+
+    /// Create a text-based progress bar
+    fn make_progress_bar(progress: f32, width: usize) -> String {
+        let filled = (progress * width as f32).round() as usize;
+        let empty = width.saturating_sub(filled);
+        format!("{}{}", "█".repeat(filled), "░".repeat(empty))
     }
 }

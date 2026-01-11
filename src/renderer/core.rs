@@ -145,6 +145,10 @@ impl Renderer {
             };
         }
 
+        // Update playground automix status
+        self.playground.scene_progress = automix_update.scene_progress;
+        self.playground.is_transitioning = automix_update.is_transitioning;
+
         // Update blend engine
         self.blend_engine.update(delta_seconds);
         
