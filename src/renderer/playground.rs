@@ -485,9 +485,4 @@ impl PlaygroundUI {
 
         f.render_widget(status, status_area);
     }
-
-    /// Legacy status bar render (for compatibility)
-    fn render_status_bar(f: &mut ratatui::Frame, size: Rect) {
-        Self::render_status_bar_with_state(f, size, "diagonal", "terminal", None, "Off");
-    }
 }

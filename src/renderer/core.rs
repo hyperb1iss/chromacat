@@ -333,10 +333,111 @@ impl Renderer {
         Ok(())
     }
 
-    /// Adjust a parameter
-    fn adjust_param(&mut self, _name: &str, _value: f64) -> Result<(), RendererError> {
-        // TODO: Implement parameter adjustment
-        // Parameters will be shown in the overlay instead of toasts
+    /// Adjust a parameter value
+    fn adjust_param(&mut self, name: &str, value: f64) -> Result<(), RendererError> {
+        use crate::pattern::PatternParams;
+
+        let mut config = self.engine.config().clone();
+
+        // Try common params first
+        match name {
+            "frequency" => config.common.frequency = value.clamp(0.1, 10.0),
+            "amplitude" => config.common.amplitude = value.clamp(0.1, 2.0),
+            "speed" => config.common.speed = value.clamp(0.0, 1.0),
+            _ => {
+                // Pattern-specific params
+                match &mut config.params {
+                    PatternParams::Horizontal(p) => match name {
+                        "invert" => p.invert = value > 0.5,
+                        _ => {}
+                    },
+                    PatternParams::Diagonal(p) => match name {
+                        "angle" => p.angle = (value as i32).clamp(0, 360),
+                        "frequency" => p.frequency = value.clamp(0.1, 10.0),
+                        _ => {}
+                    },
+                    PatternParams::Plasma(p) => match name {
+                        "complexity" => p.complexity = value.clamp(1.0, 10.0),
+                        "scale" => p.scale = value.clamp(0.1, 5.0),
+                        "frequency" => p.frequency = value.clamp(0.1, 10.0),
+                        _ => {}
+                    },
+                    PatternParams::Ripple(p) => match name {
+                        "center_x" => p.center_x = value.clamp(0.0, 1.0),
+                        "center_y" => p.center_y = value.clamp(0.0, 1.0),
+                        "wavelength" => p.wavelength = value.clamp(0.1, 5.0),
+                        "damping" => p.damping = value.clamp(0.0, 1.0),
+                        _ => {}
+                    },
+                    PatternParams::Wave(p) => match name {
+                        "amplitude" => p.amplitude = value.clamp(0.1, 2.0),
+                        "frequency" => p.frequency = value.clamp(0.1, 10.0),
+                        "phase" => p.phase = value.clamp(0.0, 6.28),
+                        "offset" => p.offset = value.clamp(0.0, 1.0),
+                        "base_freq" => p.base_freq = value.clamp(0.1, 5.0),
+                        _ => {}
+                    },
+                    PatternParams::Spiral(p) => match name {
+                        "density" => p.density = value.clamp(0.1, 5.0),
+                        "rotation" => p.rotation = value.clamp(0.0, 360.0),
+                        "expansion" => p.expansion = value.clamp(0.1, 2.0),
+                        "clockwise" => p.clockwise = value > 0.5,
+                        _ => {}
+                    },
+                    PatternParams::Checkerboard(p) => match name {
+                        "size" => p.size = (value as usize).clamp(1, 10),
+                        "blur" => p.blur = value.clamp(0.0, 1.0),
+                        "rotation" => p.rotation = value.clamp(0.0, 360.0),
+                        "scale" => p.scale = value.clamp(0.1, 5.0),
+                        _ => {}
+                    },
+                    PatternParams::Diamond(p) => match name {
+                        "size" => p.size = value.clamp(0.1, 5.0),
+                        "offset" => p.offset = value.clamp(0.0, 1.0),
+                        "sharpness" => p.sharpness = value.clamp(0.1, 5.0),
+                        "rotation" => p.rotation = value.clamp(0.0, 360.0),
+                        _ => {}
+                    },
+                    PatternParams::Perlin(p) => match name {
+                        "octaves" => p.octaves = (value as u32).clamp(1, 8),
+                        "persistence" => p.persistence = value.clamp(0.0, 1.0),
+                        "scale" => p.scale = value.clamp(0.1, 5.0),
+                        "seed" => p.seed = value as u32,
+                        _ => {}
+                    },
+                    PatternParams::PixelRain(p) => match name {
+                        "speed" => p.speed = value.clamp(0.1, 5.0),
+                        "density" => p.density = value.clamp(0.1, 2.0),
+                        "length" => p.length = value.clamp(1.0, 10.0),
+                        "glitch" => p.glitch = value > 0.5,
+                        _ => {}
+                    },
+                    PatternParams::Fire(p) => match name {
+                        "intensity" => p.intensity = value.clamp(0.1, 2.0),
+                        "speed" => p.speed = value.clamp(0.1, 5.0),
+                        "turbulence" => p.turbulence = value.clamp(0.0, 1.0),
+                        "height" => p.height = value.clamp(0.1, 2.0),
+                        _ => {}
+                    },
+                    PatternParams::Aurora(p) => match name {
+                        "intensity" => p.intensity = value.clamp(0.1, 2.0),
+                        "speed" => p.speed = value.clamp(0.1, 5.0),
+                        "waviness" => p.waviness = value.clamp(0.1, 2.0),
+                        "layers" => p.layers = (value as u32).clamp(1, 5),
+                        _ => {}
+                    },
+                    PatternParams::Kaleidoscope(p) => match name {
+                        "segments" => p.segments = (value as u32).clamp(3, 12),
+                        "rotation_speed" => p.rotation_speed = value.clamp(0.1, 5.0),
+                        "zoom" => p.zoom = value.clamp(0.5, 3.0),
+                        "complexity" => p.complexity = value.clamp(1.0, 5.0),
+                        _ => {}
+                    },
+                }
+            }
+        }
+
+        self.engine.update_pattern_config(config);
         Ok(())
     }
 

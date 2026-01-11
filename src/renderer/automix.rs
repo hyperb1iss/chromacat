@@ -113,14 +113,13 @@ pub struct Automix {
     showcase_index: usize,
 
     /// Settings
-    min_scene_duration: Duration,
-    max_scene_duration: Duration,
     transition_duration: Duration,
     default_transition: TransitionType,
 }
 
 /// A curated showcase sequence
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Fields for future param application
 struct ShowcaseSequence {
     name: String,
     pattern: String,
@@ -197,8 +196,6 @@ impl Automix {
             pending_changes: Vec::new(),
             showcase_sequences,
             showcase_index: 0,
-            min_scene_duration: Duration::from_secs(10),  // 10 seconds for testing
-            max_scene_duration: Duration::from_secs(20), // 20 seconds for testing
             transition_duration: Duration::from_secs(5), // 5 second transitions for testing
             default_transition: TransitionType::Crossfade,
         }
