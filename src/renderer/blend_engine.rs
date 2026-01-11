@@ -7,6 +7,28 @@ use colorgrad::{Color, Gradient};
 /// visual states, creating smooth transitions instead of jarring switches.
 use std::sync::Arc;
 
+/// Convert sRGB component to linear RGB (gamma decode)
+/// Uses the precise sRGB transfer function
+#[inline]
+fn srgb_to_linear(c: f32) -> f32 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Convert linear RGB component to sRGB (gamma encode)
+/// Uses the precise sRGB transfer function
+#[inline]
+fn linear_to_srgb(c: f32) -> f32 {
+    if c <= 0.0031308 {
+        c * 12.92
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    }
+}
+
 /// Create a simple fallback gradient for when theme loading fails
 /// Uses a basic magenta-to-cyan gradient that won't panic
 fn create_fallback_gradient() -> Box<dyn Gradient + Send + Sync> {
@@ -197,20 +219,37 @@ impl BlendEngine {
         }
     }
 
-    /// Get blended color between two gradients
+    /// Get blended color between two gradients with gamma-correct interpolation
     pub fn get_blended_color(&self, value: f32) -> Color {
         if let (Some(ref source), Some(ref target)) = (&self.source_gradient, &self.target_gradient)
         {
             let source_color = source.at(value);
             let target_color = target.at(value);
 
-            // Blend the colors based on blend factor
+            // Gamma-correct interpolation for perceptually accurate blending
             let blend = self.blend_factor;
+
+            // Convert to linear RGB
+            let s_r = srgb_to_linear(source_color.r);
+            let s_g = srgb_to_linear(source_color.g);
+            let s_b = srgb_to_linear(source_color.b);
+
+            let t_r = srgb_to_linear(target_color.r);
+            let t_g = srgb_to_linear(target_color.g);
+            let t_b = srgb_to_linear(target_color.b);
+
+            // Interpolate in linear space
+            let l_r = s_r * (1.0 - blend) + t_r * blend;
+            let l_g = s_g * (1.0 - blend) + t_g * blend;
+            let l_b = s_b * (1.0 - blend) + t_b * blend;
+            let l_a = source_color.a * (1.0 - blend) + target_color.a * blend;
+
+            // Convert back to sRGB
             Color::new(
-                source_color.r * (1.0 - blend) + target_color.r * blend,
-                source_color.g * (1.0 - blend) + target_color.g * blend,
-                source_color.b * (1.0 - blend) + target_color.b * blend,
-                source_color.a * (1.0 - blend) + target_color.a * blend,
+                linear_to_srgb(l_r),
+                linear_to_srgb(l_g),
+                linear_to_srgb(l_b),
+                l_a,
             )
         } else if let Some(ref source) = &self.source_gradient {
             source.at(value)

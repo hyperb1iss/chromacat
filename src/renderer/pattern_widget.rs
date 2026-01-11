@@ -8,6 +8,59 @@ use ratatui::{
     widgets::Widget,
 };
 
+/// Convert sRGB component to linear RGB (gamma decode)
+/// Uses the precise sRGB transfer function
+#[inline]
+fn srgb_to_linear(c: f32) -> f32 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Convert linear RGB component to sRGB (gamma encode)
+/// Uses the precise sRGB transfer function
+#[inline]
+fn linear_to_srgb(c: f32) -> f32 {
+    if c <= 0.0031308 {
+        c * 12.92
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    }
+}
+
+/// Perform gamma-correct color interpolation in linear space
+/// This produces visually accurate color transitions
+#[inline]
+fn lerp_colors_gamma_correct(
+    source: colorgrad::Color,
+    target: colorgrad::Color,
+    t: f32,
+) -> colorgrad::Color {
+    // Convert to linear RGB
+    let s_r = srgb_to_linear(source.r);
+    let s_g = srgb_to_linear(source.g);
+    let s_b = srgb_to_linear(source.b);
+
+    let t_r = srgb_to_linear(target.r);
+    let t_g = srgb_to_linear(target.g);
+    let t_b = srgb_to_linear(target.b);
+
+    // Interpolate in linear space
+    let l_r = s_r * (1.0 - t) + t_r * t;
+    let l_g = s_g * (1.0 - t) + t_g * t;
+    let l_b = s_b * (1.0 - t) + t_b * t;
+
+    // Convert back to sRGB
+    colorgrad::Color::new(
+        linear_to_srgb(l_r),
+        linear_to_srgb(l_g),
+        linear_to_srgb(l_b),
+        1.0,
+    )
+}
+
 /// A widget that renders pattern-colored text
 pub struct PatternWidget<'a> {
     /// The text content to render
@@ -97,13 +150,9 @@ impl<'a> Widget for PatternWidget<'a> {
                         let source_color = self.engine.gradient().at(value as f32);
                         let target_color = blend_engine.get_blended_color(value as f32);
 
-                        // Smoothly interpolate between source and target based on effect blend
-                        let color_value = colorgrad::Color::new(
-                            source_color.r * (1.0 - effect_blend) + target_color.r * effect_blend,
-                            source_color.g * (1.0 - effect_blend) + target_color.g * effect_blend,
-                            source_color.b * (1.0 - effect_blend) + target_color.b * effect_blend,
-                            1.0,
-                        );
+                        // Gamma-correct interpolation for perceptually accurate blending
+                        let color_value =
+                            lerp_colors_gamma_correct(source_color, target_color, effect_blend);
 
                         Color::Rgb(
                             (color_value.r * 255.0) as u8,
