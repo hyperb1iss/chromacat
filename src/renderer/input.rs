@@ -144,15 +144,10 @@ impl PlaygroundInputHandler {
                 }
             }
 
-            // Help toggle
+            // Help modal toggle
             KeyCode::Char('?') => {
                 ui.help_visible = !ui.help_visible;
-                let msg = if ui.help_visible {
-                    "? Help | ; overlay | Tab/Arrows nav | -/= adjust | a automix | z fade | R save | L load | q quit"
-                } else {
-                    "Help: OFF (press ? to show)"
-                };
-                ui.show_toast(msg);
+                // No toast needed - the modal is self-explanatory
                 Ok(InputAction::Redraw)
             }
 

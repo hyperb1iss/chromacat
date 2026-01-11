@@ -3,7 +3,8 @@
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color as TuiColor, Style},
+    style::{Color as TuiColor, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Terminal,
 };
@@ -205,6 +206,7 @@ impl PlaygroundUI {
 
         // Prepare data for rendering to avoid borrow issues
         let overlay_visible = self.overlay_visible;
+        let help_visible = self.help_visible;
         let toast_message = self.toast_message.clone();
 
         // Clone data needed for overlay rendering
@@ -252,6 +254,11 @@ impl PlaygroundUI {
             // Render toast if present
             if let Some((ref text, _)) = toast_message {
                 Self::render_toast_static(f, size, text);
+            }
+
+            // Render help modal if visible (on top of everything except status bar)
+            if help_visible {
+                Self::render_help_modal_static(f, size);
             }
 
             // Render status bar at bottom with current state
@@ -474,6 +481,98 @@ impl PlaygroundUI {
         });
         let toast_text = Paragraph::new(text).style(Style::default().fg(TuiColor::Yellow));
         f.render_widget(toast_text, toast_inner);
+    }
+
+    /// Render help modal overlay
+    fn render_help_modal_static(f: &mut ratatui::Frame, size: Rect) {
+        // Centered modal with keyboard shortcuts
+        let modal_width = 52.min(size.width.saturating_sub(4));
+        let modal_height = 18.min(size.height.saturating_sub(4));
+        let modal_x = (size.width.saturating_sub(modal_width)) / 2;
+        let modal_y = (size.height.saturating_sub(modal_height)) / 2;
+
+        let modal_rect = Rect {
+            x: modal_x,
+            y: modal_y,
+            width: modal_width,
+            height: modal_height,
+        };
+
+        f.render_widget(Clear, modal_rect);
+
+        let modal_block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Keyboard Shortcuts ")
+            .title_style(Style::default().fg(TuiColor::Cyan).add_modifier(Modifier::BOLD))
+            .style(Style::default().bg(TuiColor::Black).fg(TuiColor::White));
+        f.render_widget(modal_block, modal_rect);
+
+        let inner = modal_rect.inner(ratatui::layout::Margin {
+            horizontal: 2,
+            vertical: 1,
+        });
+
+        // Help text with key bindings
+        let help_lines = vec![
+            Line::from(vec![
+                Span::styled("Navigation", Style::default().fg(TuiColor::Yellow).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  ;       ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Toggle overlay panel"),
+            ]),
+            Line::from(vec![
+                Span::styled("  Tab     ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Cycle sections"),
+            ]),
+            Line::from(vec![
+                Span::styled("  ↑/↓     ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Navigate items"),
+            ]),
+            Line::from(vec![
+                Span::styled("  Enter   ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Apply selection"),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Controls", Style::default().fg(TuiColor::Yellow).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  -/=     ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Adjust parameter"),
+            ]),
+            Line::from(vec![
+                Span::styled("  a/A     ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Toggle automix (a=random, A=playlist)"),
+            ]),
+            Line::from(vec![
+                Span::styled("  z       ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Cycle crossfade duration"),
+            ]),
+            Line::from(vec![
+                Span::styled("  Space   ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Skip to next scene"),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Recipes", Style::default().fg(TuiColor::Yellow).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  R       ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Save current state"),
+            ]),
+            Line::from(vec![
+                Span::styled("  L       ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Load saved recipe"),
+            ]),
+            Line::from(vec![
+                Span::styled("  q/Esc   ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Quit"),
+            ]),
+        ];
+
+        let help_paragraph = Paragraph::new(help_lines);
+        f.render_widget(help_paragraph, inner);
     }
 
     /// Handle terminal resize
