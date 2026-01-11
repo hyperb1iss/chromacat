@@ -42,6 +42,30 @@ pub enum ChromaCatError {
 
 impl std::error::Error for ChromaCatError {}
 
+impl ChromaCatError {
+    /// Returns the appropriate exit code for this error type
+    /// Uses sysexits.h conventions where applicable
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            // EX_IOERR (74) - I/O error
+            Self::IoError(_) => 74,
+            // EX_USAGE (64) - Command line usage error
+            Self::InvalidParameter { .. }
+            | Self::PatternError { .. }
+            | Self::ParseError(_)
+            | Self::InvalidTheme(_)
+            | Self::InvalidPattern(_)
+            | Self::InvalidArt(_) => 64,
+            // EX_NOINPUT (66) - Cannot open input
+            Self::InputError(_) | Self::PlaylistError(_) => 66,
+            // EX_DATAERR (65) - Data format error
+            Self::GradientError(_) | Self::RenderError(_) => 65,
+            // General error
+            Self::Other(_) => 1,
+        }
+    }
+}
+
 impl fmt::Display for ChromaCatError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

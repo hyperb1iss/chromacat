@@ -35,7 +35,7 @@ fn main() -> Result<()> {
         Ok(()) => {}
         Err(e) => {
             eprintln!("Error: {e}");
-            process::exit(1);
+            process::exit(e.exit_code());
         }
     }
 
