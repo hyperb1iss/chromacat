@@ -207,73 +207,19 @@ impl Renderer {
     /// Handle keyboard input
     pub fn handle_key(&mut self, key: KeyEvent) -> Result<bool, RendererError> {
         let action = PlaygroundInputHandler::handle_key(&mut self.playground, key)?;
-
-        match action {
-            InputAction::None => Ok(true), // Don't exit on unhandled keys
-            InputAction::Redraw => Ok(true),
-            InputAction::ApplyPattern(pattern) => {
-                self.apply_pattern(&pattern)?;
-                Ok(true)
-            }
-            InputAction::ApplyTheme(theme) => {
-                self.apply_theme(&theme)?;
-                Ok(true)
-            }
-            InputAction::ApplyArt(art) => {
-                self.apply_art(&art)?;
-                Ok(true)
-            }
-            InputAction::AdjustParam { name, value } => {
-                self.adjust_param(&name, value)?;
-                Ok(true)
-            }
-            InputAction::AutomixToggle => {
-                self.toggle_automix();
-                Ok(true)
-            }
-            InputAction::AutomixMode(mode) => {
-                self.set_automix_mode(&mode);
-                Ok(true)
-            }
-            InputAction::AutomixNext => {
-                self.automix.skip_next();
-                Ok(true)
-            }
-            InputAction::AutomixPrev => {
-                self.automix.skip_prev();
-                Ok(true)
-            }
-            InputAction::CycleCrossfadeDuration => {
-                self.cycle_crossfade_duration();
-                Ok(true)
-            }
-            InputAction::ToggleThemeLock => {
-                self.toggle_theme_lock();
-                Ok(true)
-            }
-            InputAction::ToggleModulation => {
-                self.toggle_modulation();
-                Ok(true)
-            }
-            InputAction::SaveRecipe => {
-                self.save_recipe()?;
-                Ok(true)
-            }
-            InputAction::LoadRecipe => {
-                self.load_recipe()?;
-                Ok(true)
-            }
-            InputAction::Quit => Ok(false),
-        }
+        self.handle_action(action)
     }
 
     /// Handle mouse input
     pub fn handle_mouse(&mut self, event: MouseEvent) -> Result<bool, RendererError> {
         let action = PlaygroundInputHandler::handle_mouse(&mut self.playground, event)?;
+        self.handle_action(action)
+    }
 
+    /// Process an input action and return whether to continue running
+    fn handle_action(&mut self, action: InputAction) -> Result<bool, RendererError> {
         match action {
-            InputAction::None => Ok(true), // Don't exit on unhandled mouse events
-            InputAction::Redraw => Ok(true),
+            InputAction::None | InputAction::Redraw => Ok(true),
             InputAction::ApplyPattern(pattern) => {
                 self.apply_pattern(&pattern)?;
                 Ok(true)
