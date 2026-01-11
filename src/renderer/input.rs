@@ -2,7 +2,7 @@ use crate::renderer::playground::PlaygroundUI;
 use crate::renderer::RendererError;
 /// Input handling for the renderer
 /// Separates input logic from rendering logic
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 
 /// Input event types
 pub enum InputEvent {
@@ -16,6 +16,11 @@ pub struct PlaygroundInputHandler;
 impl PlaygroundInputHandler {
     /// Handle keyboard input for playground
     pub fn handle_key(ui: &mut PlaygroundUI, key: KeyEvent) -> Result<InputAction, RendererError> {
+        // Handle Ctrl+C first (works regardless of key code)
+        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+            return Ok(InputAction::Quit);
+        }
+
         match key.code {
             // Quit keys
             KeyCode::Char('q') | KeyCode::Esc => Ok(InputAction::Quit),
