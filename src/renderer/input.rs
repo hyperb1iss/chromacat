@@ -375,11 +375,19 @@ impl PlaygroundInputHandler {
 
         // Check if we're in the overlay area
         if y >= panel_y && y < panel_y + panel_height {
-            // Divide width into 4 equal columns
-            let column_width = ui.terminal_size.0 / 4;
-            let section = (x / column_width) as usize;
-            if section < 4 {
-                return Some(section);
+            // Account for panel margins (1 on each side for border)
+            let inner_x = x.saturating_sub(1);
+            let inner_width = ui.terminal_size.0.saturating_sub(2); // Minus left and right margins
+
+            // Divide inner width into 4 equal columns (matches Constraint::Percentage(25))
+            if inner_width > 0 {
+                let column_width = inner_width / 4;
+                if column_width > 0 {
+                    let section = (inner_x / column_width) as usize;
+                    if section < 4 {
+                        return Some(section);
+                    }
+                }
             }
         }
         None
