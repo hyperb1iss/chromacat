@@ -286,6 +286,8 @@ impl BlendEngine {
 }
 
 /// Parameter interpolation for smooth morphing
+/// Infrastructure for future ShowcaseSequence param application
+#[allow(dead_code)]
 pub struct ParameterInterpolator {
     /// Source parameter values
     source_params: Vec<(String, f64)>,

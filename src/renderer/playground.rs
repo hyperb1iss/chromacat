@@ -68,6 +68,9 @@ pub struct PlaygroundUI {
     /// Overlay visibility
     pub overlay_visible: bool,
 
+    /// Help visibility
+    pub help_visible: bool,
+
     /// Toast message
     toast_message: Option<(String, Instant)>,
     toast_duration: Duration,
@@ -110,6 +113,7 @@ impl PlaygroundUI {
             param_values: std::collections::HashMap::new(),
             active_section: 0,
             overlay_visible: true,
+            help_visible: false,
             toast_message: None,
             toast_duration: Duration::from_secs(2),
             terminal_size: (80, 24),

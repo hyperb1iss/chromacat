@@ -164,6 +164,142 @@ impl PlaygroundInputHandler {
                 }
             }
 
+            // Help toggle
+            KeyCode::Char('?') => {
+                ui.help_visible = !ui.help_visible;
+                let msg = if ui.help_visible {
+                    "? Help | ; overlay | Tab/Arrows navigate | Enter apply | -/= adjust param | a automix | q quit"
+                } else {
+                    "Help: OFF (press ? to show)"
+                };
+                ui.show_toast(msg);
+                Ok(InputAction::Redraw)
+            }
+
+            // Parameter adjustment with - and =
+            KeyCode::Char('-') | KeyCode::Char('_') => {
+                if ui.overlay_visible && ui.active_section == 1 {
+                    // Decrease parameter value
+                    if let Some(param_name) = ui.param_names.get(ui.param_sel) {
+                        return Ok(InputAction::AdjustParam {
+                            name: param_name.clone(),
+                            value: -0.1, // Relative adjustment
+                        });
+                    }
+                }
+                Ok(InputAction::None)
+            }
+
+            KeyCode::Char('=') | KeyCode::Char('+') => {
+                if ui.overlay_visible && ui.active_section == 1 {
+                    // Increase parameter value
+                    if let Some(param_name) = ui.param_names.get(ui.param_sel) {
+                        return Ok(InputAction::AdjustParam {
+                            name: param_name.clone(),
+                            value: 0.1, // Relative adjustment
+                        });
+                    }
+                }
+                Ok(InputAction::None)
+            }
+
+            // Quick pattern/theme cycle
+            KeyCode::Char('p') | KeyCode::Char('P') => {
+                // Cycle to next pattern
+                let next = (ui.pattern_sel + 1) % ui.pattern_names.len().max(1);
+                ui.pattern_sel = next;
+                if let Some(pattern) = ui.pattern_names.get(next) {
+                    return Ok(InputAction::ApplyPattern(pattern.clone()));
+                }
+                Ok(InputAction::None)
+            }
+
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                // Cycle to next theme
+                let next = (ui.theme_sel + 1) % ui.theme_names.len().max(1);
+                ui.theme_sel = next;
+                if let Some(theme) = ui.theme_names.get(next) {
+                    return Ok(InputAction::ApplyTheme(theme.clone()));
+                }
+                Ok(InputAction::None)
+            }
+
+            // PageUp/PageDown for faster scrolling
+            KeyCode::PageUp => {
+                if ui.overlay_visible {
+                    let step = 5;
+                    match ui.active_section {
+                        0 => ui.pattern_sel = ui.pattern_sel.saturating_sub(step),
+                        1 => ui.param_sel = ui.param_sel.saturating_sub(step),
+                        2 => ui.theme_sel = ui.theme_sel.saturating_sub(step),
+                        3 => ui.art_sel = ui.art_sel.saturating_sub(step),
+                        _ => {}
+                    }
+                    Ok(InputAction::Redraw)
+                } else {
+                    Ok(InputAction::None)
+                }
+            }
+
+            KeyCode::PageDown => {
+                if ui.overlay_visible {
+                    let step = 5;
+                    match ui.active_section {
+                        0 => {
+                            ui.pattern_sel =
+                                (ui.pattern_sel + step).min(ui.pattern_names.len().saturating_sub(1))
+                        }
+                        1 => {
+                            ui.param_sel =
+                                (ui.param_sel + step).min(ui.param_names.len().saturating_sub(1))
+                        }
+                        2 => {
+                            ui.theme_sel =
+                                (ui.theme_sel + step).min(ui.theme_names.len().saturating_sub(1))
+                        }
+                        3 => {
+                            ui.art_sel =
+                                (ui.art_sel + step).min(ui.art_names.len().saturating_sub(1))
+                        }
+                        _ => {}
+                    }
+                    Ok(InputAction::Redraw)
+                } else {
+                    Ok(InputAction::None)
+                }
+            }
+
+            // Home/End for list navigation
+            KeyCode::Home => {
+                if ui.overlay_visible {
+                    match ui.active_section {
+                        0 => ui.pattern_sel = 0,
+                        1 => ui.param_sel = 0,
+                        2 => ui.theme_sel = 0,
+                        3 => ui.art_sel = 0,
+                        _ => {}
+                    }
+                    Ok(InputAction::Redraw)
+                } else {
+                    Ok(InputAction::None)
+                }
+            }
+
+            KeyCode::End => {
+                if ui.overlay_visible {
+                    match ui.active_section {
+                        0 => ui.pattern_sel = ui.pattern_names.len().saturating_sub(1),
+                        1 => ui.param_sel = ui.param_names.len().saturating_sub(1),
+                        2 => ui.theme_sel = ui.theme_names.len().saturating_sub(1),
+                        3 => ui.art_sel = ui.art_names.len().saturating_sub(1),
+                        _ => {}
+                    }
+                    Ok(InputAction::Redraw)
+                } else {
+                    Ok(InputAction::None)
+                }
+            }
+
             _ => Ok(InputAction::None),
         }
     }
