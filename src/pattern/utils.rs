@@ -219,6 +219,61 @@ impl PatternUtils {
         Self::lerp(nx0, nx1, sy)
     }
 
+    /// Hash function for 3D coordinates
+    #[inline(always)]
+    pub fn hash3(&self, x: i32, y: i32, z: i32) -> u8 {
+        let x_hash = (x & 255) as usize;
+        let y_hash = (y & 255) as usize;
+        let z_hash = (z & 255) as usize;
+        self.perm_table[(x_hash.wrapping_add(y_hash.wrapping_mul(17)).wrapping_add(z_hash.wrapping_mul(31))) & 255]
+    }
+
+    /// Generates 3D Perlin noise value at given coordinates
+    /// Useful for temporally coherent animation (using time as z)
+    #[inline(always)]
+    pub fn noise3d(&self, x: f64, y: f64, z: f64) -> f64 {
+        // Calculate grid cell coordinates
+        let x0 = x.floor() as i32;
+        let y0 = y.floor() as i32;
+        let z0 = z.floor() as i32;
+        let x1 = x0 + 1;
+        let y1 = y0 + 1;
+        let z1 = z0 + 1;
+
+        // Calculate relative position within cell
+        let dx = x - x0 as f64;
+        let dy = y - y0 as f64;
+        let dz = z - z0 as f64;
+
+        // Pre-calculate smoothstep values
+        let sx = Self::smoothstep(dx);
+        let sy = Self::smoothstep(dy);
+        let sz = Self::smoothstep(dz);
+
+        // Calculate dot products with gradient vectors at 8 corners
+        let n000 = self.gradient_dot3d(self.hash3(x0, y0, z0), dx, dy, dz);
+        let n100 = self.gradient_dot3d(self.hash3(x1, y0, z0), dx - 1.0, dy, dz);
+        let n010 = self.gradient_dot3d(self.hash3(x0, y1, z0), dx, dy - 1.0, dz);
+        let n110 = self.gradient_dot3d(self.hash3(x1, y1, z0), dx - 1.0, dy - 1.0, dz);
+        let n001 = self.gradient_dot3d(self.hash3(x0, y0, z1), dx, dy, dz - 1.0);
+        let n101 = self.gradient_dot3d(self.hash3(x1, y0, z1), dx - 1.0, dy, dz - 1.0);
+        let n011 = self.gradient_dot3d(self.hash3(x0, y1, z1), dx, dy - 1.0, dz - 1.0);
+        let n111 = self.gradient_dot3d(self.hash3(x1, y1, z1), dx - 1.0, dy - 1.0, dz - 1.0);
+
+        // Interpolate along x
+        let nx00 = Self::lerp(n000, n100, sx);
+        let nx10 = Self::lerp(n010, n110, sx);
+        let nx01 = Self::lerp(n001, n101, sx);
+        let nx11 = Self::lerp(n011, n111, sx);
+
+        // Interpolate along y
+        let nxy0 = Self::lerp(nx00, nx10, sy);
+        let nxy1 = Self::lerp(nx01, nx11, sy);
+
+        // Interpolate along z
+        Self::lerp(nxy0, nxy1, sz)
+    }
+
     /// Calculates dot product between gradient vector and distance vector
     #[inline(always)]
     fn gradient_dot(&self, hash: u8, dx: f64, dy: f64) -> f64 {
@@ -228,6 +283,30 @@ impl PatternUtils {
             1 => -dx + dy, // (-1,  1)
             2 => dx - dy,  // ( 1, -1)
             _ => -dx - dy, // (-1, -1)
+        }
+    }
+
+    /// Calculates dot product between 3D gradient vector and distance vector
+    #[inline(always)]
+    fn gradient_dot3d(&self, hash: u8, dx: f64, dy: f64, dz: f64) -> f64 {
+        // 12 gradient directions for 3D noise (edges of a cube)
+        match hash & 15 {
+            0 => dx + dy,
+            1 => -dx + dy,
+            2 => dx - dy,
+            3 => -dx - dy,
+            4 => dx + dz,
+            5 => -dx + dz,
+            6 => dx - dz,
+            7 => -dx - dz,
+            8 => dy + dz,
+            9 => -dy + dz,
+            10 => dy - dz,
+            11 => -dy - dz,
+            12 => dx + dy,  // Repeat for 12-15
+            13 => -dx + dy,
+            14 => dy - dz,
+            _ => -dy - dz,
         }
     }
 

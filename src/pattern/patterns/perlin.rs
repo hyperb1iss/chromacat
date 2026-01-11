@@ -126,6 +126,7 @@ impl PatternParam for PerlinParams {
 
 impl super::Patterns {
     /// Generates a Perlin noise pattern with multiple octaves
+    /// Uses 3D noise for temporally coherent animation
     #[inline(always)]
     pub fn perlin(&self, x_norm: f64, y_norm: f64, params: PerlinParams) -> f64 {
         let mut total = 0.0;
@@ -136,12 +137,14 @@ impl super::Patterns {
         // Pre-calculate base coordinates
         let x_base = x_norm + 0.5;
         let y_base = y_norm + 0.5;
-        let time = self.time;
+        // Use time as the third dimension for smooth temporal evolution
+        // Scale time slower than spatial dimensions for pleasing animation
+        let time_z = self.time * 0.3;
 
         // Unroll first octave since it's always executed
         total += self
             .utils
-            .noise2d(x_base * frequency + time, y_base * frequency + time)
+            .noise3d(x_base * frequency, y_base * frequency, time_z)
             * amplitude;
         max_value += amplitude;
 
@@ -153,7 +156,7 @@ impl super::Patterns {
             for _ in 1..params.octaves {
                 total += self
                     .utils
-                    .noise2d(x_base * frequency + time, y_base * frequency + time)
+                    .noise3d(x_base * frequency, y_base * frequency, time_z)
                     * amplitude;
 
                 max_value += amplitude;
