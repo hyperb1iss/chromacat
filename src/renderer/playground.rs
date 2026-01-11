@@ -481,6 +481,10 @@ impl PlaygroundUI {
         if let Some(term) = &mut self.terminal {
             term.autoresize()
                 .map_err(|e| RendererError::Other(format!("Failed to resize: {e}")))?;
+            // Update cached terminal size
+            if let Ok(size) = term.size() {
+                self.terminal_size = (size.width, size.height);
+            }
         }
         Ok(())
     }
