@@ -319,7 +319,7 @@ impl TerminalState {
     }
 
     /// Gets a locked handle to stdout for efficient writing.
-    pub fn stdout(&self) -> StdoutLock {
+    pub fn stdout(&self) -> StdoutLock<'_> {
         stdout().lock()
     }
 

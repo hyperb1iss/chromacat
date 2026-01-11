@@ -9,7 +9,6 @@ fn test_basic_cli() {
     assert_eq!(cli.files, vec![PathBuf::from("input.txt")]);
     assert_eq!(cli.pattern, "diagonal");
     assert_eq!(cli.theme, "rainbow");
-    assert!(!cli.animate);
 }
 
 #[test]
@@ -56,29 +55,7 @@ fn test_pattern_specific_args() {
     assert!(cli.params.contains(&"scale=1.5".to_string()));
 }
 
-#[test]
-fn test_animation_settings() {
-    let args = vec![
-        "chromacat",
-        "--animate",
-        "--fps",
-        "60",
-        "--duration",
-        "5",
-        "input.txt",
-    ];
-    let cli = Cli::try_parse_from(args).unwrap();
-    assert!(cli.animate);
-    assert_eq!(cli.fps, 60);
-    assert_eq!(cli.duration, 5);
-}
-
-#[test]
-fn test_invalid_fps() {
-    let args = vec!["chromacat", "--fps", "200"];
-    let cli = Cli::try_parse_from(args).unwrap();
-    assert!(cli.validate().is_err());
-}
+// Animation settings are now controlled through playground mode, not CLI flags
 
 #[test]
 fn test_theme_selection() {
@@ -101,13 +78,7 @@ fn test_multiple_files() {
     );
 }
 
-#[test]
-fn test_animation_defaults() {
-    let args = vec!["chromacat", "--animate"];
-    let cli = Cli::try_parse_from(args).unwrap();
-    assert_eq!(cli.fps, 30); // Default FPS
-    assert_eq!(cli.duration, 0); // Infinite duration by default
-}
+// Animation defaults are handled in playground mode renderer
 
 #[test]
 fn test_pattern_validation() {

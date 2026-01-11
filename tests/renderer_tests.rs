@@ -120,8 +120,7 @@ fn test_animation_timing() {
 
     // Check that frame duration is reasonable for animation (around 30 FPS)
     let actual = renderer.frame_duration();
-    let expected = Duration::from_millis(33); // 33ms = ~30 FPS
-
+    // Expected: ~33ms for 30 FPS
     assert!(
         actual >= Duration::from_millis(16) && actual <= Duration::from_millis(50),
         "Frame duration {actual:?} should be between 16ms-50ms for reasonable animation"

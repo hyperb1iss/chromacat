@@ -83,13 +83,19 @@ impl Renderer {
         // Get initial content - always load default art in playground mode
         let content = Self::load_demo_art("rainbow").unwrap_or_else(|_| String::new());
 
-        // Set up automix - don't start immediately
+        // Set up automix
         let mut automix = Automix::new();
-        if let Some(playlist) = playlist {
+        let initial_mode = if let Some(playlist) = playlist {
             automix.load_playlist(playlist);
-        }
-        // Start in Showcase mode for testing
-        automix.set_mode(AutomixMode::Showcase);
+            // When playlist is provided, start in Playlist mode
+            automix.set_mode(AutomixMode::Playlist);
+            "Playlist"
+        } else {
+            // Default to Showcase mode when no playlist
+            automix.set_mode(AutomixMode::Showcase);
+            "Showcase"
+        };
+        playground.automix_mode = initial_mode.to_string();
 
         Ok(Self {
             engine,
