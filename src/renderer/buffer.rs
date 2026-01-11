@@ -62,11 +62,14 @@ impl RenderBuffer {
     pub fn new(term_size: (u16, u16)) -> Self {
         let width = term_size.0 as usize;
         let height = term_size.1 as usize;
-        let buffer = vec![vec![BufferCell::default(); width]; height];
+
+        // Create two separate buffers instead of clone to avoid unnecessary allocation
+        let front = vec![vec![BufferCell::default(); width]; height];
+        let back = vec![vec![BufferCell::default(); width]; height];
 
         Self {
-            front: buffer.clone(),
-            back: buffer,
+            front,
+            back,
             term_size,
             original_text: String::with_capacity(1024), // Pre-allocate reasonable size
             line_info: Vec::with_capacity(height),
@@ -456,12 +459,11 @@ impl RenderBuffer {
             }
         }
 
-        // Swap buffers after rendering
+        // Swap buffers after rendering using efficient mem::swap
+        // This avoids per-element cloning by swapping the entire row vectors
         for y in start..end {
-            if y < self.back.len() {
-                for x in 0..width {
-                    self.front[y][x] = self.back[y][x].clone();
-                }
+            if y < self.back.len() && y < self.front.len() {
+                std::mem::swap(&mut self.front[y], &mut self.back[y]);
             }
         }
 
@@ -473,15 +475,15 @@ impl RenderBuffer {
         let new_width = new_size.0 as usize;
         let new_height = new_size.1 as usize;
 
-        // Create new buffers with new dimensions
-        let new_buffer = vec![vec![BufferCell::default(); new_width]; new_height];
-        self.front = new_buffer.clone();
-        self.back = new_buffer;
+        // Create two separate buffers instead of clone
+        self.front = vec![vec![BufferCell::default(); new_width]; new_height];
+        self.back = vec![vec![BufferCell::default(); new_width]; new_height];
         self.term_size = new_size;
 
-        // Reprocess text for new dimensions
-        let text = self.original_text.clone();
+        // Reprocess text for new dimensions (use mem::take to avoid clone)
+        let text = std::mem::take(&mut self.original_text);
         self.prepare_text(&text)?;
+        // prepare_text will restore original_text
 
         Ok(())
     }

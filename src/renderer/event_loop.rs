@@ -1,8 +1,6 @@
 use crossterm::event::{self, Event, KeyEvent, MouseEvent};
-use ratatui::{backend::CrosstermBackend, Terminal};
 /// Event loop for the renderer - pure ratatui implementation
 /// Handles the main rendering loop with proper event handling
-use std::io;
 use std::time::{Duration, Instant};
 
 use crate::debug_log::debug_log;
@@ -32,26 +30,15 @@ impl EventLoop {
 
     /// Run the main event loop
     pub fn run(mut self) -> Result<(), RendererError> {
-        // Terminal is already set up by app.rs, just create the ratatui terminal
-        // Don't call enable_raw_mode or EnterAlternateScreen again!
-        let stdout = io::stdout();
-        let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)
-            .map_err(|e| RendererError::Other(format!("Failed to create terminal: {e}")))?;
-
-        // Clear the terminal
-        terminal
-            .clear()
-            .map_err(|e| RendererError::Other(format!("Failed to clear terminal: {e}")))?;
-
+        // Terminal setup (raw mode, alternate screen) is handled by app.rs
+        // PlaygroundUI creates its own ratatui Terminal for drawing
+        // We just manage the event loop and frame timing here
         let frame_duration = Duration::from_secs_f64(1.0 / self.target_fps as f64);
 
         loop {
             let now = Instant::now();
             let delta = now.duration_since(self.last_frame).as_secs_f64();
             self.last_frame = now;
-
-            // No frame tracking needed anymore
 
             // Check for events (non-blocking with timeout)
             let has_event = event::poll(Duration::from_millis(1)).unwrap_or_default();
@@ -88,10 +75,6 @@ impl EventLoop {
         }
 
         // Terminal cleanup is handled by app.rs
-        // But we should ensure the terminal is in a good state
-        let _ = terminal.show_cursor();
-        let _ = terminal.clear();
-
         Ok(())
     }
 
