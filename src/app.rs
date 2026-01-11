@@ -79,10 +79,7 @@ impl ChromaCat {
 
     /// Runs the ChromaCat application
     pub fn run(&mut self) -> Result<()> {
-        // Playground is the default mode unless explicitly disabled or in test environment
-        // (unless CHROMACAT_TEST_PLAYGROUND is set)
-        let playground = !self.cli.no_playground
-            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
+        let playground = self.should_use_playground();
         if playground {
             crate::debug_log::init_debug_log();
             crate::debug_log::debug_log("Playground mode started").ok();
@@ -108,10 +105,7 @@ impl ChromaCat {
         // Initialize terminal
         self.setup_terminal()?;
 
-        // Playground is the default mode unless explicitly disabled or in test environment
-        // (unless CHROMACAT_TEST_PLAYGROUND is set)
-        let playground = !self.cli.no_playground
-            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
+        let playground = self.should_use_playground();
 
         // Load custom theme file if specified
         if let Some(theme_file) = &self.cli.theme_file {
@@ -281,6 +275,16 @@ impl ChromaCat {
         std::env::var("RUST_TEST").is_ok()
     }
 
+    /// Returns true if playground mode should be used
+    ///
+    /// Playground is the default mode unless:
+    /// - Explicitly disabled via --no-playground
+    /// - Running in test environment (unless CHROMACAT_TEST_PLAYGROUND is set)
+    fn should_use_playground(&self) -> bool {
+        !self.cli.no_playground
+            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok())
+    }
+
     /// Sets up the terminal for rendering
     fn setup_terminal(&mut self) -> Result<()> {
         // Install panic hook to restore terminal on panic
@@ -308,7 +312,7 @@ impl ChromaCat {
             return Ok(());
         }
 
-        let playground = !self.cli.no_playground;
+        let playground = self.should_use_playground();
         // Setup terminal for playground mode, but only if we can
         if playground {
             // For playground mode, we need BOTH raw mode AND alternate screen for ratatui
@@ -376,10 +380,7 @@ impl ChromaCat {
 
     /// Processes input from files or stdin
     fn process_input(&self, renderer: &mut Renderer) -> Result<()> {
-        // Playground is the default mode unless explicitly disabled or in test environment
-        // (unless CHROMACAT_TEST_PLAYGROUND is set)
-        let playground = !self.cli.no_playground
-            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
+        let playground = self.should_use_playground();
 
         // If no files specified, read from stdin
         if self.cli.files.is_empty() {
@@ -407,10 +408,7 @@ impl ChromaCat {
 
     /// Processes input from stdin
     fn process_stdin(&self, renderer: &mut Renderer) -> Result<()> {
-        // Playground is the default mode unless explicitly disabled or in test environment
-        // (unless CHROMACAT_TEST_PLAYGROUND is set)
-        let playground = !self.cli.no_playground
-            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok());
+        let playground = self.should_use_playground();
 
         if playground {
             // Always load demo content in playground mode, regardless of stdin type
