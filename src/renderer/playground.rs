@@ -91,6 +91,8 @@ pub struct PlaygroundUI {
     pub scene_progress: f32,
     /// Whether a transition is active
     pub is_transitioning: bool,
+    /// Whether theme is locked (prevents automix from changing it)
+    pub theme_locked: bool,
 }
 
 impl Default for PlaygroundUI {
@@ -128,6 +130,7 @@ impl PlaygroundUI {
             automix_mode: "Off".to_string(),
             scene_progress: 0.0,
             is_transitioning: false,
+            theme_locked: false,
         }
     }
 
@@ -271,6 +274,7 @@ impl PlaygroundUI {
                 &self.automix_mode,
                 self.scene_progress,
                 self.is_transitioning,
+                self.theme_locked,
             );
         })
         .map_err(|e| {
@@ -487,7 +491,7 @@ impl PlaygroundUI {
     fn render_help_modal_static(f: &mut ratatui::Frame, size: Rect) {
         // Centered modal with keyboard shortcuts
         let modal_width = 52.min(size.width.saturating_sub(4));
-        let modal_height = 18.min(size.height.saturating_sub(4));
+        let modal_height = 20.min(size.height.saturating_sub(4));
         let modal_x = (size.width.saturating_sub(modal_width)) / 2;
         let modal_y = (size.height.saturating_sub(modal_height)) / 2;
 
@@ -553,6 +557,14 @@ impl PlaygroundUI {
                 Span::styled("  Space   ", Style::default().fg(TuiColor::Cyan)),
                 Span::raw("Skip to next scene"),
             ]),
+            Line::from(vec![
+                Span::styled("  t/y     ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Next/prev theme"),
+            ]),
+            Line::from(vec![
+                Span::styled("  u       ", Style::default().fg(TuiColor::Cyan)),
+                Span::raw("Lock/unlock theme"),
+            ]),
             Line::from(""),
             Line::from(vec![
                 Span::styled("Recipes", Style::default().fg(TuiColor::Yellow).add_modifier(Modifier::BOLD)),
@@ -598,6 +610,7 @@ impl PlaygroundUI {
         automix_mode: &str,
         scene_progress: f32,
         is_transitioning: bool,
+        theme_locked: bool,
     ) {
         let status_area = Rect {
             x: 0,
@@ -611,6 +624,7 @@ impl PlaygroundUI {
 
         // Build status text with current state
         let art_str = art.unwrap_or("none");
+        let lock_indicator = if theme_locked { " [locked]" } else { "" };
         let automix_str = if automix_mode != "Off" {
             // Show progress bar and transition indicator
             let progress_bar = Self::make_progress_bar(scene_progress, 8);
@@ -621,7 +635,7 @@ impl PlaygroundUI {
         };
 
         let status_text = format!(
-            " Pattern: {pattern} • Theme: {theme} • Art: {art_str}{automix_str} • [?] help • [q] quit "
+            " Pattern: {pattern} • Theme: {theme}{lock_indicator} • Art: {art_str}{automix_str} • [?] help • [q] quit "
         );
 
         let status = Paragraph::new(status_text)

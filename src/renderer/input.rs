@@ -199,6 +199,26 @@ impl PlaygroundInputHandler {
                 Ok(InputAction::None)
             }
 
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                // Cycle to previous theme
+                let len = ui.theme_names.len().max(1);
+                let prev = if ui.theme_sel == 0 {
+                    len - 1
+                } else {
+                    ui.theme_sel - 1
+                };
+                ui.theme_sel = prev;
+                if let Some(theme) = ui.theme_names.get(prev) {
+                    return Ok(InputAction::ApplyTheme(theme.clone()));
+                }
+                Ok(InputAction::None)
+            }
+
+            KeyCode::Char('u') | KeyCode::Char('U') => {
+                // Toggle theme lock
+                Ok(InputAction::ToggleThemeLock)
+            }
+
             // Recipe save/load
             KeyCode::Char('r') | KeyCode::Char('R') => Ok(InputAction::SaveRecipe),
             KeyCode::Char('l') | KeyCode::Char('L') => Ok(InputAction::LoadRecipe),
@@ -452,6 +472,8 @@ pub enum InputAction {
     AutomixNext,
     AutomixPrev,
     CycleCrossfadeDuration,
+    // Theme controls
+    ToggleThemeLock,
     // Recipe controls
     SaveRecipe,
     LoadRecipe,

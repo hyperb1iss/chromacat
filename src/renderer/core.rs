@@ -142,8 +142,11 @@ impl Renderer {
             }
         }
         if let Some(theme) = automix_update.new_theme {
-            if let Err(e) = self.start_theme_transition(&theme) {
-                let _ = debug_log(&format!("Automix theme transition failed: {e}"));
+            // Skip theme change if theme is locked
+            if !self.playground.theme_locked {
+                if let Err(e) = self.start_theme_transition(&theme) {
+                    let _ = debug_log(&format!("Automix theme transition failed: {e}"));
+                }
             }
         }
         if let Some(art) = automix_update.new_art {
@@ -244,6 +247,10 @@ impl Renderer {
                 self.cycle_crossfade_duration();
                 Ok(true)
             }
+            InputAction::ToggleThemeLock => {
+                self.toggle_theme_lock();
+                Ok(true)
+            }
             InputAction::SaveRecipe => {
                 self.save_recipe()?;
                 Ok(true)
@@ -297,6 +304,10 @@ impl Renderer {
             }
             InputAction::CycleCrossfadeDuration => {
                 self.cycle_crossfade_duration();
+                Ok(true)
+            }
+            InputAction::ToggleThemeLock => {
+                self.toggle_theme_lock();
                 Ok(true)
             }
             InputAction::SaveRecipe => {
@@ -730,6 +741,17 @@ impl Renderer {
         self.automix.set_transition_duration_ms(next_duration);
         self.playground
             .show_toast(format!("Crossfade: {}s", next_duration / 1000));
+    }
+
+    /// Toggle theme lock (prevents automix from changing theme)
+    fn toggle_theme_lock(&mut self) {
+        self.playground.theme_locked = !self.playground.theme_locked;
+        let msg = if self.playground.theme_locked {
+            format!("Theme locked: {}", self.playground.current_theme)
+        } else {
+            "Theme unlocked".to_string()
+        };
+        self.playground.show_toast(msg);
     }
 
     /// Create a snapshot of current state as a Recipe
