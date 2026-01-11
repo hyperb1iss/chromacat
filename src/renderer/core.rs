@@ -401,10 +401,11 @@ impl Renderer {
             _ => {
                 // Pattern-specific params
                 match &mut config.params {
-                    PatternParams::Horizontal(p) => match name {
-                        "invert" => p.invert = !p.invert, // Toggle on any adjustment
-                        _ => {}
-                    },
+                    PatternParams::Horizontal(p) => {
+                        if name == "invert" {
+                            p.invert = !p.invert; // Toggle on any adjustment
+                        }
+                    }
                     PatternParams::Diagonal(p) => match name {
                         "angle" => p.angle = ((p.angle as f64 + delta * 10.0) as i32).clamp(0, 360),
                         "frequency" => p.frequency = adjust(p.frequency, 0.1, 10.0),
@@ -426,7 +427,7 @@ impl Renderer {
                     PatternParams::Wave(p) => match name {
                         "amplitude" => p.amplitude = adjust(p.amplitude, 0.1, 2.0),
                         "frequency" => p.frequency = adjust(p.frequency, 0.1, 10.0),
-                        "phase" => p.phase = adjust(p.phase, 0.0, 6.28),
+                        "phase" => p.phase = adjust(p.phase, 0.0, std::f64::consts::TAU),
                         "offset" => p.offset = adjust(p.offset, 0.0, 1.0),
                         "base_freq" => p.base_freq = adjust(p.base_freq, 0.1, 5.0),
                         _ => {}
@@ -692,12 +693,12 @@ impl Renderer {
                 }
                 Err(e) => {
                     self.playground
-                        .show_toast(&format!("Parse error: {e}"));
+                        .show_toast(format!("Parse error: {e}"));
                 }
             },
             Err(e) => {
                 self.playground
-                    .show_toast(&format!("Read error: {e}"));
+                    .show_toast(format!("Read error: {e}"));
             }
         }
         Ok(())
@@ -715,7 +716,7 @@ impl Renderer {
         let next_duration = durations_ms[next_idx];
         self.automix.set_transition_duration_ms(next_duration);
         self.playground
-            .show_toast(&format!("Crossfade: {}s", next_duration / 1000));
+            .show_toast(format!("Crossfade: {}s", next_duration / 1000));
     }
 
     /// Create a snapshot of current state as a Recipe

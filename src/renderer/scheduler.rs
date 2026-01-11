@@ -79,7 +79,7 @@ impl SceneScheduler {
             // Pick a random pattern, avoiding immediate repeats
             let pattern = loop {
                 let p = &patterns[self.rng.usize(0..patterns.len())];
-                if last_pattern.map_or(true, |lp| lp != p) {
+                if last_pattern.is_none_or(|lp| lp != p) {
                     break p;
                 }
             };
@@ -87,7 +87,7 @@ impl SceneScheduler {
             // Pick a random theme, avoiding immediate repeats
             let theme = loop {
                 let t = &themes[self.rng.usize(0..themes.len())];
-                if last_theme.map_or(true, |lt| lt != t) {
+                if last_theme.is_none_or(|lt| lt != t) {
                     break t;
                 }
             };

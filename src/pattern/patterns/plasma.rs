@@ -5,8 +5,10 @@ use std::f64::consts::PI;
 
 /// Blending modes for plasma effect
 #[derive(Debug, Clone, Copy)]
+#[derive(Default)]
 pub enum PlasmaBlendMode {
     /// Standard additive blending
+    #[default]
     Additive,
     /// Multiplicative blending
     Multiply,
@@ -14,11 +16,6 @@ pub enum PlasmaBlendMode {
     Maximum,
 }
 
-impl Default for PlasmaBlendMode {
-    fn default() -> Self {
-        Self::Additive
-    }
-}
 
 define_param!(num Plasma, ComplexityParam, "complexity", "Number of sine wave components", 1.0, 10.0, 3.0);
 define_param!(num Plasma, ScaleParam, "scale", "Scale of the effect", 0.1, 5.0, 1.0);
