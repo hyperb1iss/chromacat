@@ -29,6 +29,9 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Validate CLI arguments early for fail-fast behavior
+    cli.validate()?;
+
     // Create and run ChromaCat
     let mut cat = ChromaCat::new(cli);
     match cat.run() {

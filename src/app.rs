@@ -100,8 +100,7 @@ impl ChromaCat {
             return Ok(());
         }
 
-        // Validate CLI arguments
-        self.cli.validate()?;
+        // Note: CLI validation now happens in main() for fail-fast behavior
 
         // Initialize terminal
         self.setup_terminal()?;
