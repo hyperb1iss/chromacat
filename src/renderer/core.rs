@@ -54,6 +54,8 @@ impl Renderer {
         engine: PatternEngine,
         _animation_config: crate::renderer::config::AnimationConfig,
         playlist: Option<crate::playlist::Playlist>,
+        initial_theme: &str,
+        initial_pattern: &str,
     ) -> Result<Self, RendererError> {
         // Initialize available options and sort them
         let mut available_patterns: Vec<String> = REGISTRY
@@ -80,6 +82,18 @@ impl Renderer {
         playground.pattern_names = available_patterns.clone();
         playground.theme_names = available_themes.clone();
         playground.art_names = available_arts.clone();
+
+        // Set initial theme and pattern from CLI args (not hardcoded)
+        playground.current_theme = initial_theme.to_string();
+        playground.current_pattern = initial_pattern.to_string();
+
+        // Set selection indices to match initial values
+        if let Some(idx) = available_patterns.iter().position(|p| p == initial_pattern) {
+            playground.pattern_sel = idx;
+        }
+        if let Some(idx) = available_themes.iter().position(|t| t == initial_theme) {
+            playground.theme_sel = idx;
+        }
 
         // Get initial content - always load default art in playground mode
         let content = Self::load_demo_art("rainbow").unwrap_or_else(|_| String::new());

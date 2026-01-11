@@ -60,6 +60,8 @@ impl RendererTest {
             self.engine.clone(),
             self.config.clone(),
             None, // playlist
+            "rainbow", // initial theme
+            "diagonal", // initial pattern
         )?;
         Ok(renderer)
     }

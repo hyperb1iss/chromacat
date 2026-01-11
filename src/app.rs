@@ -192,7 +192,13 @@ impl ChromaCat {
         };
 
         info!("Creating renderer with playlist: {}", playlist.is_some());
-        let mut renderer = Renderer::new(engine, animation_config, playlist)?;
+        let mut renderer = Renderer::new(
+            engine,
+            animation_config,
+            playlist,
+            &self.cli.theme,
+            &self.cli.pattern,
+        )?;
 
         // Process input and render
         // If playground, show overlay and status, and seed scenes
