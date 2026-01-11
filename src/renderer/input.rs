@@ -82,7 +82,11 @@ impl PlaygroundInputHandler {
                         3 => (ui.art_sel, ui.art_names.len()),
                         _ => return Ok(InputAction::None),
                     };
-                    let new_sel = if current + 1 < max { current + 1 } else { current };
+                    let new_sel = if current + 1 < max {
+                        current + 1
+                    } else {
+                        current
+                    };
                     ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
@@ -343,7 +347,11 @@ impl PlaygroundInputHandler {
                         3 => (ui.art_sel, ui.art_names.len()),
                         _ => return Ok(InputAction::None),
                     };
-                    let new_sel = if current + 1 < max { current + 1 } else { current };
+                    let new_sel = if current + 1 < max {
+                        current + 1
+                    } else {
+                        current
+                    };
                     ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {

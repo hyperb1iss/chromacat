@@ -283,7 +283,9 @@ impl RenderBuffer {
             } else {
                 continue;
             };
-            if viewport_y >= height_f { continue; }
+            if viewport_y >= height_f {
+                continue;
+            }
 
             let norm_y = viewport_y / height_f - 0.5;
             for x in 0..width {
@@ -298,7 +300,11 @@ impl RenderBuffer {
                 let r = ((1.0 - alpha) * ca.r + alpha * cb.r) * 255.0;
                 let g = ((1.0 - alpha) * ca.g + alpha * cb.g) * 255.0;
                 let b = ((1.0 - alpha) * ca.b + alpha * cb.b) * 255.0;
-                let color = Color::Rgb { r: r as u8, g: g as u8, b: b as u8 };
+                let color = Color::Rgb {
+                    r: r as u8,
+                    g: g as u8,
+                    b: b as u8,
+                };
                 if line[x].color != color {
                     line[x].color = color;
                     line[x].dirty = true;

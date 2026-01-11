@@ -104,7 +104,7 @@ pub struct Automix {
     target_pattern: Option<String>,
     target_theme: Option<String>,
     target_art: Option<String>,
-    
+
     /// Queue of pending changes (to be applied one at a time)
     pending_changes: Vec<(String, String)>, // (type, value)
 
@@ -149,7 +149,10 @@ impl Automix {
                 theme: "ocean".to_string(),
                 art: Some("waves".to_string()),
                 duration: Duration::from_secs(15),
-                params: vec![("frequency".to_string(), 1.2), ("amplitude".to_string(), 0.9)],
+                params: vec![
+                    ("frequency".to_string(), 1.2),
+                    ("amplitude".to_string(), 0.9),
+                ],
             },
             ShowcaseSequence {
                 name: "Forest Canopy".to_string(),
@@ -165,7 +168,10 @@ impl Automix {
                 theme: "desert".to_string(),
                 art: Some("plasma".to_string()),
                 duration: Duration::from_secs(12),
-                params: vec![("intensity".to_string(), 0.8), ("turbulence".to_string(), 0.5)],
+                params: vec![
+                    ("intensity".to_string(), 0.8),
+                    ("turbulence".to_string(), 0.5),
+                ],
             },
             // === Cosmic & Space ===
             ShowcaseSequence {
@@ -232,7 +238,10 @@ impl Automix {
                 theme: "carnival".to_string(),
                 art: Some("mandala".to_string()),
                 duration: Duration::from_secs(15),
-                params: vec![("segments".to_string(), 8.0), ("rotation_speed".to_string(), 0.5)],
+                params: vec![
+                    ("segments".to_string(), 8.0),
+                    ("rotation_speed".to_string(), 0.5),
+                ],
             },
             ShowcaseSequence {
                 name: "Diamond Light".to_string(),
@@ -257,7 +266,10 @@ impl Automix {
                 theme: "pastel".to_string(),
                 art: Some("fluid".to_string()),
                 duration: Duration::from_secs(16),
-                params: vec![("frequency".to_string(), 0.8), ("amplitude".to_string(), 0.6)],
+                params: vec![
+                    ("frequency".to_string(), 0.8),
+                    ("amplitude".to_string(), 0.6),
+                ],
             },
             ShowcaseSequence {
                 name: "Monochrome Maze".to_string(),
@@ -273,7 +285,10 @@ impl Automix {
                 theme: "disco".to_string(),
                 art: Some("boxes".to_string()),
                 duration: Duration::from_secs(10),
-                params: vec![("size".to_string(), 0.2), ("wave_intensity".to_string(), 0.5)],
+                params: vec![
+                    ("size".to_string(), 0.2),
+                    ("wave_intensity".to_string(), 0.5),
+                ],
             },
             ShowcaseSequence {
                 name: "Lightning Storm".to_string(),
@@ -408,7 +423,7 @@ impl Automix {
             self.transition_duration,
             transition_type,
         ));
-        
+
         // Store all pending changes to return immediately for overlapping transitions
         self.pending_changes.clear();
         if let Some(p) = pattern {
@@ -425,7 +440,7 @@ impl Automix {
     /// Update the automix system
     pub fn update(&mut self, delta: f64) -> AutomixUpdate {
         let mut update = AutomixUpdate::default();
-        
+
         // Return ALL pending changes at once for overlapping transitions
         if !self.pending_changes.is_empty() {
             // Process all pending changes

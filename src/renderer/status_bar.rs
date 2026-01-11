@@ -128,7 +128,11 @@ impl StatusBar {
         }
 
         // Hide legacy middle hints when custom text is present (playground UI provides its own footer)
-        let middle_section = if self.custom_text.is_some() { "" } else { "[T]heme [P]attern" };
+        let middle_section = if self.custom_text.is_some() {
+            ""
+        } else {
+            "[T]heme [P]attern"
+        };
         let right_section = format!(
             "Lines {}-{}/{}  [Q]uit ",
             start + 1,

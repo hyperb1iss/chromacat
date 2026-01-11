@@ -166,7 +166,7 @@ impl Renderer {
 
         // Update blend engine
         self.blend_engine.update(delta_seconds);
-        
+
         // Update animation - blend engine handles updates during transitions
         if !self.blend_engine.is_transitioning() {
             // Normal update when not transitioning
@@ -389,9 +389,8 @@ impl Renderer {
         let mut config = self.engine.config().clone();
 
         // Helper to apply delta and clamp
-        let adjust = |current: f64, min: f64, max: f64| -> f64 {
-            (current + delta).clamp(min, max)
-        };
+        let adjust =
+            |current: f64, min: f64, max: f64| -> f64 { (current + delta).clamp(min, max) };
 
         // Try common params first
         match name {
@@ -454,7 +453,9 @@ impl Renderer {
                         _ => {}
                     },
                     PatternParams::Perlin(p) => match name {
-                        "octaves" => p.octaves = ((p.octaves as f64 + delta * 10.0) as u32).clamp(1, 8),
+                        "octaves" => {
+                            p.octaves = ((p.octaves as f64 + delta * 10.0) as u32).clamp(1, 8)
+                        }
                         "persistence" => p.persistence = adjust(p.persistence, 0.0, 1.0),
                         "scale" => p.scale = adjust(p.scale, 0.1, 5.0),
                         "seed" => p.seed = (p.seed as i32 + (delta * 100.0) as i32).max(0) as u32,
@@ -478,11 +479,15 @@ impl Renderer {
                         "intensity" => p.intensity = adjust(p.intensity, 0.1, 2.0),
                         "speed" => p.speed = adjust(p.speed, 0.1, 5.0),
                         "waviness" => p.waviness = adjust(p.waviness, 0.1, 2.0),
-                        "layers" => p.layers = ((p.layers as f64 + delta * 10.0) as u32).clamp(1, 5),
+                        "layers" => {
+                            p.layers = ((p.layers as f64 + delta * 10.0) as u32).clamp(1, 5)
+                        }
                         _ => {}
                     },
                     PatternParams::Kaleidoscope(p) => match name {
-                        "segments" => p.segments = ((p.segments as f64 + delta * 10.0) as u32).clamp(3, 12),
+                        "segments" => {
+                            p.segments = ((p.segments as f64 + delta * 10.0) as u32).clamp(3, 12)
+                        }
                         "rotation_speed" => p.rotation_speed = adjust(p.rotation_speed, 0.1, 5.0),
                         "zoom" => p.zoom = adjust(p.zoom, 0.5, 3.0),
                         "complexity" => p.complexity = adjust(p.complexity, 1.0, 5.0),
@@ -525,7 +530,13 @@ impl Renderer {
 
         // Clone current engine for transition
         self.blend_engine
-            .start_pattern_transition(self.engine.clone(), current_gradient, pattern, width, height)
+            .start_pattern_transition(
+                self.engine.clone(),
+                current_gradient,
+                pattern,
+                width,
+                height,
+            )
             .map_err(RendererError::Other)?;
 
         // Update UI state
@@ -679,7 +690,8 @@ impl Renderer {
             .map_err(|e| RendererError::Other(format!("Failed to serialize recipe: {e}")))?;
         std::fs::write("chromacat_recipe.yaml", yaml)
             .map_err(|e| RendererError::Other(format!("Failed to write recipe: {e}")))?;
-        self.playground.show_toast("Recipe saved to chromacat_recipe.yaml");
+        self.playground
+            .show_toast("Recipe saved to chromacat_recipe.yaml");
         Ok(())
     }
 
@@ -692,13 +704,11 @@ impl Renderer {
                     self.playground.show_toast("Recipe loaded");
                 }
                 Err(e) => {
-                    self.playground
-                        .show_toast(format!("Parse error: {e}"));
+                    self.playground.show_toast(format!("Parse error: {e}"));
                 }
             },
             Err(e) => {
-                self.playground
-                    .show_toast(format!("Read error: {e}"));
+                self.playground.show_toast(format!("Read error: {e}"));
             }
         }
         Ok(())
@@ -709,10 +719,7 @@ impl Renderer {
         // Cycle through: 1s -> 2s -> 3s -> 5s -> 8s -> 1s
         let durations_ms = [1000, 2000, 3000, 5000, 8000];
         let current = self.automix.transition_duration_ms();
-        let next_idx = durations_ms
-            .iter()
-            .position(|&d| d > current)
-            .unwrap_or(0);
+        let next_idx = durations_ms.iter().position(|&d| d > current).unwrap_or(0);
         let next_duration = durations_ms[next_idx];
         self.automix.set_transition_duration_ms(next_duration);
         self.playground
@@ -728,8 +735,8 @@ impl Renderer {
         Recipe {
             current_theme: Some(self.playground.current_theme.clone()),
             current_pattern,
-            scenes: Vec::new(),  // Not using scene scheduler in new arch
-            routes: Vec::new(),  // Not using modulation routes in new arch
+            scenes: Vec::new(), // Not using scene scheduler in new arch
+            routes: Vec::new(), // Not using modulation routes in new arch
             theme_mode: None,
             crossfade_seconds: None,
         }

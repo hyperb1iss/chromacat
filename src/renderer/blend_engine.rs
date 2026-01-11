@@ -74,7 +74,7 @@ impl BlendEngine {
             transition_speed: 0.2, // 5 seconds for testing
         }
     }
-    
+
     /// Initialize with an engine
     pub fn with_engine(engine: PatternEngine) -> Self {
         let mut blend = Self::new();
@@ -273,12 +273,12 @@ impl BlendEngine {
     pub fn set_transition_speed(&mut self, speed: f32) {
         self.transition_speed = speed.clamp(0.1, 2.0);
     }
-    
+
     /// Get the current engine (source or completed transition)
     pub fn get_current_engine(&self) -> Option<&PatternEngine> {
         self.source_engine.as_ref()
     }
-    
+
     /// Check if we should update the main engine
     pub fn should_update_main_engine(&self) -> bool {
         !self.transitioning && self.source_engine.is_some()

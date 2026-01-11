@@ -164,15 +164,18 @@ impl PlaygroundUI {
         match section {
             0 => {
                 self.pattern_sel = new_sel;
-                self.pattern_offset = Self::calculate_offset(new_sel, self.pattern_offset, visible_items);
+                self.pattern_offset =
+                    Self::calculate_offset(new_sel, self.pattern_offset, visible_items);
             }
             1 => {
                 self.param_sel = new_sel;
-                self.param_offset = Self::calculate_offset(new_sel, self.param_offset, visible_items);
+                self.param_offset =
+                    Self::calculate_offset(new_sel, self.param_offset, visible_items);
             }
             2 => {
                 self.theme_sel = new_sel;
-                self.theme_offset = Self::calculate_offset(new_sel, self.theme_offset, visible_items);
+                self.theme_offset =
+                    Self::calculate_offset(new_sel, self.theme_offset, visible_items);
             }
             3 => {
                 self.art_sel = new_sel;
@@ -235,13 +238,7 @@ impl PlaygroundUI {
 
             // First render the pattern as background with blending (only if transitioning)
             let pattern_widget = if blend_engine.is_transitioning() {
-                PatternWidget::with_blending(
-                    content,
-                    engine,
-                    blend_engine,
-                    transition_effect,
-                    time,
-                )
+                PatternWidget::with_blending(content, engine, blend_engine, transition_effect, time)
             } else {
                 PatternWidget::new(content, engine, time)
             };

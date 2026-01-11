@@ -59,8 +59,8 @@ impl RendererTest {
         let renderer = Renderer::new(
             self.engine.clone(),
             self.config.clone(),
-            None, // playlist
-            "rainbow", // initial theme
+            None,       // playlist
+            "rainbow",  // initial theme
             "diagonal", // initial pattern
         )?;
         Ok(renderer)
@@ -180,9 +180,7 @@ fn test_large_text_performance() {
     let mut renderer = test.create_renderer().unwrap();
 
     // Generate large text content
-    let large_text = (0..1000)
-        .map(|i| format!("Line {i}\n"))
-        .collect::<String>();
+    let large_text = (0..1000).map(|i| format!("Line {i}\n")).collect::<String>();
 
     let start = std::time::Instant::now();
     renderer.render_static(&large_text).unwrap();
