@@ -154,6 +154,34 @@ impl PlaygroundUI {
         self.toast_message = Some((message.into(), Instant::now()));
     }
 
+    /// Update selection and scroll offset for a section
+    /// visible_height should be approximate panel content height
+    pub fn update_selection(&mut self, section: usize, new_sel: usize) {
+        // Estimate visible items based on panel height (1/4 of terminal, minus headers/footers)
+        let panel_height = (self.terminal_size.1 / 4).clamp(10, 20);
+        let visible_items = panel_height.saturating_sub(5) as usize; // 3 header + 2 footer
+
+        match section {
+            0 => {
+                self.pattern_sel = new_sel;
+                self.pattern_offset = Self::calculate_offset(new_sel, self.pattern_offset, visible_items);
+            }
+            1 => {
+                self.param_sel = new_sel;
+                self.param_offset = Self::calculate_offset(new_sel, self.param_offset, visible_items);
+            }
+            2 => {
+                self.theme_sel = new_sel;
+                self.theme_offset = Self::calculate_offset(new_sel, self.theme_offset, visible_items);
+            }
+            3 => {
+                self.art_sel = new_sel;
+                self.art_offset = Self::calculate_offset(new_sel, self.art_offset, visible_items);
+            }
+            _ => {}
+        }
+    }
+
     /// Render the complete playground frame with blending support
     pub fn render_with_blending(
         &mut self,

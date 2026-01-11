@@ -59,29 +59,14 @@ impl PlaygroundInputHandler {
             // Navigate within section
             KeyCode::Up => {
                 if ui.overlay_visible {
-                    match ui.active_section {
-                        0 => {
-                            if ui.pattern_sel > 0 {
-                                ui.pattern_sel -= 1;
-                            }
-                        }
-                        1 => {
-                            if ui.param_sel > 0 {
-                                ui.param_sel -= 1;
-                            }
-                        }
-                        2 => {
-                            if ui.theme_sel > 0 {
-                                ui.theme_sel -= 1;
-                            }
-                        }
-                        3 => {
-                            if ui.art_sel > 0 {
-                                ui.art_sel -= 1;
-                            }
-                        }
-                        _ => {}
-                    }
+                    let new_sel = match ui.active_section {
+                        0 => ui.pattern_sel.saturating_sub(1),
+                        1 => ui.param_sel.saturating_sub(1),
+                        2 => ui.theme_sel.saturating_sub(1),
+                        3 => ui.art_sel.saturating_sub(1),
+                        _ => return Ok(InputAction::None),
+                    };
+                    ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -90,29 +75,15 @@ impl PlaygroundInputHandler {
 
             KeyCode::Down => {
                 if ui.overlay_visible {
-                    match ui.active_section {
-                        0 => {
-                            if ui.pattern_sel + 1 < ui.pattern_names.len() {
-                                ui.pattern_sel += 1;
-                            }
-                        }
-                        1 => {
-                            if ui.param_sel + 1 < ui.param_names.len() {
-                                ui.param_sel += 1;
-                            }
-                        }
-                        2 => {
-                            if ui.theme_sel + 1 < ui.theme_names.len() {
-                                ui.theme_sel += 1;
-                            }
-                        }
-                        3 => {
-                            if ui.art_sel + 1 < ui.art_names.len() {
-                                ui.art_sel += 1;
-                            }
-                        }
-                        _ => {}
-                    }
+                    let (current, max) = match ui.active_section {
+                        0 => (ui.pattern_sel, ui.pattern_names.len()),
+                        1 => (ui.param_sel, ui.param_names.len()),
+                        2 => (ui.theme_sel, ui.theme_names.len()),
+                        3 => (ui.art_sel, ui.art_names.len()),
+                        _ => return Ok(InputAction::None),
+                    };
+                    let new_sel = if current + 1 < max { current + 1 } else { current };
+                    ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -237,13 +208,14 @@ impl PlaygroundInputHandler {
             KeyCode::PageUp => {
                 if ui.overlay_visible {
                     let step = 5;
-                    match ui.active_section {
-                        0 => ui.pattern_sel = ui.pattern_sel.saturating_sub(step),
-                        1 => ui.param_sel = ui.param_sel.saturating_sub(step),
-                        2 => ui.theme_sel = ui.theme_sel.saturating_sub(step),
-                        3 => ui.art_sel = ui.art_sel.saturating_sub(step),
-                        _ => {}
-                    }
+                    let new_sel = match ui.active_section {
+                        0 => ui.pattern_sel.saturating_sub(step),
+                        1 => ui.param_sel.saturating_sub(step),
+                        2 => ui.theme_sel.saturating_sub(step),
+                        3 => ui.art_sel.saturating_sub(step),
+                        _ => return Ok(InputAction::None),
+                    };
+                    ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -253,25 +225,14 @@ impl PlaygroundInputHandler {
             KeyCode::PageDown => {
                 if ui.overlay_visible {
                     let step = 5;
-                    match ui.active_section {
-                        0 => {
-                            ui.pattern_sel =
-                                (ui.pattern_sel + step).min(ui.pattern_names.len().saturating_sub(1))
-                        }
-                        1 => {
-                            ui.param_sel =
-                                (ui.param_sel + step).min(ui.param_names.len().saturating_sub(1))
-                        }
-                        2 => {
-                            ui.theme_sel =
-                                (ui.theme_sel + step).min(ui.theme_names.len().saturating_sub(1))
-                        }
-                        3 => {
-                            ui.art_sel =
-                                (ui.art_sel + step).min(ui.art_names.len().saturating_sub(1))
-                        }
-                        _ => {}
-                    }
+                    let new_sel = match ui.active_section {
+                        0 => (ui.pattern_sel + step).min(ui.pattern_names.len().saturating_sub(1)),
+                        1 => (ui.param_sel + step).min(ui.param_names.len().saturating_sub(1)),
+                        2 => (ui.theme_sel + step).min(ui.theme_names.len().saturating_sub(1)),
+                        3 => (ui.art_sel + step).min(ui.art_names.len().saturating_sub(1)),
+                        _ => return Ok(InputAction::None),
+                    };
+                    ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -281,13 +242,7 @@ impl PlaygroundInputHandler {
             // Home/End for list navigation
             KeyCode::Home => {
                 if ui.overlay_visible {
-                    match ui.active_section {
-                        0 => ui.pattern_sel = 0,
-                        1 => ui.param_sel = 0,
-                        2 => ui.theme_sel = 0,
-                        3 => ui.art_sel = 0,
-                        _ => {}
-                    }
+                    ui.update_selection(ui.active_section, 0);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -296,13 +251,14 @@ impl PlaygroundInputHandler {
 
             KeyCode::End => {
                 if ui.overlay_visible {
-                    match ui.active_section {
-                        0 => ui.pattern_sel = ui.pattern_names.len().saturating_sub(1),
-                        1 => ui.param_sel = ui.param_names.len().saturating_sub(1),
-                        2 => ui.theme_sel = ui.theme_names.len().saturating_sub(1),
-                        3 => ui.art_sel = ui.art_names.len().saturating_sub(1),
-                        _ => {}
-                    }
+                    let max_sel = match ui.active_section {
+                        0 => ui.pattern_names.len().saturating_sub(1),
+                        1 => ui.param_names.len().saturating_sub(1),
+                        2 => ui.theme_names.len().saturating_sub(1),
+                        3 => ui.art_names.len().saturating_sub(1),
+                        _ => return Ok(InputAction::None),
+                    };
+                    ui.update_selection(ui.active_section, max_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -324,7 +280,6 @@ impl PlaygroundInputHandler {
             MouseEventKind::Down(MouseButton::Left) => {
                 if ui.overlay_visible {
                     // Calculate which section was clicked based on coordinates
-                    // This is simplified - actual implementation would need to know the exact layout
                     let section = Self::get_section_from_coords(event.column, event.row, ui);
                     if let Some(section) = section {
                         ui.active_section = section;
@@ -333,24 +288,20 @@ impl PlaygroundInputHandler {
                         if let Some(item_index) =
                             Self::get_item_from_coords(event.column, event.row, ui, section)
                         {
+                            ui.update_selection(section, item_index);
                             match section {
                                 0 => {
-                                    ui.pattern_sel = item_index;
                                     if let Some(pattern) = ui.pattern_names.get(item_index) {
                                         return Ok(InputAction::ApplyPattern(pattern.clone()));
                                     }
                                 }
-                                1 => {
-                                    ui.param_sel = item_index;
-                                }
+                                1 => {} // Params don't have an apply action on click
                                 2 => {
-                                    ui.theme_sel = item_index;
                                     if let Some(theme) = ui.theme_names.get(item_index) {
                                         return Ok(InputAction::ApplyTheme(theme.clone()));
                                     }
                                 }
                                 3 => {
-                                    ui.art_sel = item_index;
                                     if let Some(art) = ui.art_names.get(item_index) {
                                         return Ok(InputAction::ApplyArt(art.clone()));
                                     }
@@ -366,30 +317,14 @@ impl PlaygroundInputHandler {
 
             MouseEventKind::ScrollUp => {
                 if ui.overlay_visible {
-                    // Scroll up in the active section
-                    match ui.active_section {
-                        0 => {
-                            if ui.pattern_sel > 0 {
-                                ui.pattern_sel -= 1;
-                            }
-                        }
-                        1 => {
-                            if ui.param_sel > 0 {
-                                ui.param_sel -= 1;
-                            }
-                        }
-                        2 => {
-                            if ui.theme_sel > 0 {
-                                ui.theme_sel -= 1;
-                            }
-                        }
-                        3 => {
-                            if ui.art_sel > 0 {
-                                ui.art_sel -= 1;
-                            }
-                        }
-                        _ => {}
-                    }
+                    let new_sel = match ui.active_section {
+                        0 => ui.pattern_sel.saturating_sub(1),
+                        1 => ui.param_sel.saturating_sub(1),
+                        2 => ui.theme_sel.saturating_sub(1),
+                        3 => ui.art_sel.saturating_sub(1),
+                        _ => return Ok(InputAction::None),
+                    };
+                    ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -398,30 +333,15 @@ impl PlaygroundInputHandler {
 
             MouseEventKind::ScrollDown => {
                 if ui.overlay_visible {
-                    // Scroll down in the active section
-                    match ui.active_section {
-                        0 => {
-                            if ui.pattern_sel + 1 < ui.pattern_names.len() {
-                                ui.pattern_sel += 1;
-                            }
-                        }
-                        1 => {
-                            if ui.param_sel + 1 < ui.param_names.len() {
-                                ui.param_sel += 1;
-                            }
-                        }
-                        2 => {
-                            if ui.theme_sel + 1 < ui.theme_names.len() {
-                                ui.theme_sel += 1;
-                            }
-                        }
-                        3 => {
-                            if ui.art_sel + 1 < ui.art_names.len() {
-                                ui.art_sel += 1;
-                            }
-                        }
-                        _ => {}
-                    }
+                    let (current, max) = match ui.active_section {
+                        0 => (ui.pattern_sel, ui.pattern_names.len()),
+                        1 => (ui.param_sel, ui.param_names.len()),
+                        2 => (ui.theme_sel, ui.theme_names.len()),
+                        3 => (ui.art_sel, ui.art_names.len()),
+                        _ => return Ok(InputAction::None),
+                    };
+                    let new_sel = if current + 1 < max { current + 1 } else { current };
+                    ui.update_selection(ui.active_section, new_sel);
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
