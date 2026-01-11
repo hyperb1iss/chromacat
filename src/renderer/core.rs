@@ -8,6 +8,7 @@ use crate::demo::DemoArt;
 use crate::input::InputReader;
 use crate::pattern::PatternEngine;
 use crate::pattern::{PatternConfig, REGISTRY};
+use crate::recipes::Recipe;
 use crate::renderer::{
     automix::{Automix, AutomixMode},
     blend_engine::{BlendEngine, TransitionEffect},
@@ -219,6 +220,14 @@ impl Renderer {
                 self.automix.skip_prev();
                 Ok(true)
             }
+            InputAction::SaveRecipe => {
+                self.save_recipe()?;
+                Ok(true)
+            }
+            InputAction::LoadRecipe => {
+                self.load_recipe()?;
+                Ok(true)
+            }
             InputAction::Quit => Ok(false),
         }
     }
@@ -260,6 +269,14 @@ impl Renderer {
             }
             InputAction::AutomixPrev => {
                 self.automix.skip_prev();
+                Ok(true)
+            }
+            InputAction::SaveRecipe => {
+                self.save_recipe()?;
+                Ok(true)
+            }
+            InputAction::LoadRecipe => {
+                self.load_recipe()?;
                 Ok(true)
             }
             InputAction::Quit => Ok(false),
@@ -630,6 +647,65 @@ impl Renderer {
         } else {
             Vec::new()
         }
+    }
+
+    /// Save current state as a recipe to chromacat_recipe.yaml
+    fn save_recipe(&mut self) -> Result<(), RendererError> {
+        let recipe = self.create_recipe_snapshot();
+        let yaml = serde_yaml::to_string(&recipe)
+            .map_err(|e| RendererError::Other(format!("Failed to serialize recipe: {e}")))?;
+        std::fs::write("chromacat_recipe.yaml", yaml)
+            .map_err(|e| RendererError::Other(format!("Failed to write recipe: {e}")))?;
+        self.playground.show_toast("Recipe saved to chromacat_recipe.yaml");
+        Ok(())
+    }
+
+    /// Load recipe from chromacat_recipe.yaml
+    fn load_recipe(&mut self) -> Result<(), RendererError> {
+        match std::fs::read_to_string("chromacat_recipe.yaml") {
+            Ok(yaml) => match serde_yaml::from_str::<Recipe>(&yaml) {
+                Ok(recipe) => {
+                    self.apply_recipe(recipe)?;
+                    self.playground.show_toast("Recipe loaded");
+                }
+                Err(e) => {
+                    self.playground
+                        .show_toast(&format!("Parse error: {e}"));
+                }
+            },
+            Err(e) => {
+                self.playground
+                    .show_toast(&format!("Read error: {e}"));
+            }
+        }
+        Ok(())
+    }
+
+    /// Create a snapshot of current state as a Recipe
+    fn create_recipe_snapshot(&self) -> Recipe {
+        let current_pattern = REGISTRY
+            .get_pattern_id(&self.engine.config().params)
+            .map(|s| s.to_string());
+
+        Recipe {
+            current_theme: Some(self.playground.current_theme.clone()),
+            current_pattern,
+            scenes: Vec::new(),  // Not using scene scheduler in new arch
+            routes: Vec::new(),  // Not using modulation routes in new arch
+            theme_mode: None,
+            crossfade_seconds: None,
+        }
+    }
+
+    /// Apply a loaded recipe to current state
+    fn apply_recipe(&mut self, recipe: Recipe) -> Result<(), RendererError> {
+        if let Some(pattern) = recipe.current_pattern {
+            self.apply_pattern(&pattern)?;
+        }
+        if let Some(theme) = recipe.current_theme {
+            self.apply_theme(&theme)?;
+        }
+        Ok(())
     }
 
     /// Main run method for the renderer - creates and runs the event loop

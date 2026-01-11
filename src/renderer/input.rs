@@ -168,7 +168,7 @@ impl PlaygroundInputHandler {
             KeyCode::Char('?') => {
                 ui.help_visible = !ui.help_visible;
                 let msg = if ui.help_visible {
-                    "? Help | ; overlay | Tab/Arrows navigate | Enter apply | -/= adjust param | a automix | q quit"
+                    "? Help | ; overlay | Tab/Arrows navigate | Enter apply | -/= adjust | R save | L load | a automix | q quit"
                 } else {
                     "Help: OFF (press ? to show)"
                 };
@@ -223,6 +223,10 @@ impl PlaygroundInputHandler {
                 }
                 Ok(InputAction::None)
             }
+
+            // Recipe save/load
+            KeyCode::Char('r') | KeyCode::Char('R') => Ok(InputAction::SaveRecipe),
+            KeyCode::Char('l') | KeyCode::Char('L') => Ok(InputAction::LoadRecipe),
 
             // PageUp/PageDown for faster scrolling
             KeyCode::PageUp => {
@@ -508,5 +512,8 @@ pub enum InputAction {
     AutomixMode(String),
     AutomixNext,
     AutomixPrev,
+    // Recipe controls
+    SaveRecipe,
+    LoadRecipe,
     Quit,
 }
