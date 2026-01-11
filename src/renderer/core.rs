@@ -234,6 +234,10 @@ impl Renderer {
                 self.automix.skip_prev();
                 Ok(true)
             }
+            InputAction::CycleCrossfadeDuration => {
+                self.cycle_crossfade_duration();
+                Ok(true)
+            }
             InputAction::SaveRecipe => {
                 self.save_recipe()?;
                 Ok(true)
@@ -283,6 +287,10 @@ impl Renderer {
             }
             InputAction::AutomixPrev => {
                 self.automix.skip_prev();
+                Ok(true)
+            }
+            InputAction::CycleCrossfadeDuration => {
+                self.cycle_crossfade_duration();
                 Ok(true)
             }
             InputAction::SaveRecipe => {
@@ -693,6 +701,21 @@ impl Renderer {
             }
         }
         Ok(())
+    }
+
+    /// Cycle through crossfade durations
+    fn cycle_crossfade_duration(&mut self) {
+        // Cycle through: 1s -> 2s -> 3s -> 5s -> 8s -> 1s
+        let durations_ms = [1000, 2000, 3000, 5000, 8000];
+        let current = self.automix.transition_duration_ms();
+        let next_idx = durations_ms
+            .iter()
+            .position(|&d| d > current)
+            .unwrap_or(0);
+        let next_duration = durations_ms[next_idx];
+        self.automix.set_transition_duration_ms(next_duration);
+        self.playground
+            .show_toast(&format!("Crossfade: {}s", next_duration / 1000));
     }
 
     /// Create a snapshot of current state as a Recipe

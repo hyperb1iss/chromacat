@@ -588,6 +588,16 @@ impl Automix {
             _ => {}
         }
     }
+
+    /// Get transition duration in milliseconds
+    pub fn transition_duration_ms(&self) -> u64 {
+        self.transition_duration.as_millis() as u64
+    }
+
+    /// Set transition duration in milliseconds
+    pub fn set_transition_duration_ms(&mut self, ms: u64) {
+        self.transition_duration = Duration::from_millis(ms);
+    }
 }
 
 /// Update information from automix system
