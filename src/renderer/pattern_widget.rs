@@ -93,14 +93,17 @@ impl<'a> Widget for PatternWidget<'a> {
                         // Get blended pattern value
                         let value = blend_engine.get_blended_value(norm_x, norm_y);
 
-                        // Get blended color
-                        let color_value = if effect_blend > 0.5 {
-                            // Use blended gradient color
-                            blend_engine.get_blended_color(value as f32)
-                        } else {
-                            // Use source gradient
-                            self.engine.gradient().at(value as f32)
-                        };
+                        // Get source and target colors for smooth interpolation
+                        let source_color = self.engine.gradient().at(value as f32);
+                        let target_color = blend_engine.get_blended_color(value as f32);
+
+                        // Smoothly interpolate between source and target based on effect blend
+                        let color_value = colorgrad::Color::new(
+                            source_color.r * (1.0 - effect_blend) + target_color.r * effect_blend,
+                            source_color.g * (1.0 - effect_blend) + target_color.g * effect_blend,
+                            source_color.b * (1.0 - effect_blend) + target_color.b * effect_blend,
+                            1.0,
+                        );
 
                         Color::Rgb(
                             (color_value.r * 255.0) as u8,

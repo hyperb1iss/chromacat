@@ -170,9 +170,10 @@ impl super::Patterns {
         let time_sin2 = self.utils.fast_sin(time * 2.0);
 
         // Calculate animation factor once
+        // Use fract() to keep scroll animation bounded (cycles every 10 units of time)
         let animation_factor = match params.mode.as_str() {
             "zoom" => 1.0 + time_sin * 0.5,
-            "scroll" => 1.0 + time * 0.1,
+            "scroll" => 1.0 + (time * 0.1).fract(),
             _ => 1.0, // static mode or fallback
         };
 

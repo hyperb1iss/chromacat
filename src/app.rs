@@ -21,6 +21,13 @@ use crossterm::terminal::{
 };
 use log::{debug, info};
 use std::io::{stdout, Write};
+use std::panic;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Global flag to track if terminal is in alternate screen mode
+/// Used by panic hook to restore terminal state
+static TERMINAL_IN_RAW_MODE: AtomicBool = AtomicBool::new(false);
+static TERMINAL_IN_ALTERNATE_SCREEN: AtomicBool = AtomicBool::new(false);
 
 /// Main application struct that coordinates ChromaCat functionality
 pub struct ChromaCat {
@@ -32,6 +39,31 @@ pub struct ChromaCat {
     raw_mode: bool,
     /// Whether we're using the alternate screen
     alternate_screen: bool,
+}
+
+/// Install a panic hook that restores terminal state before printing panic info
+fn install_panic_hook() {
+    let original_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        // Restore terminal state BEFORE printing panic message
+        // This ensures the user can see the panic message in a usable terminal
+        let mut stdout = stdout();
+
+        if TERMINAL_IN_ALTERNATE_SCREEN.load(Ordering::SeqCst) {
+            let _ = execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen);
+            TERMINAL_IN_ALTERNATE_SCREEN.store(false, Ordering::SeqCst);
+        }
+
+        if TERMINAL_IN_RAW_MODE.load(Ordering::SeqCst) {
+            let _ = disable_raw_mode();
+            TERMINAL_IN_RAW_MODE.store(false, Ordering::SeqCst);
+        }
+
+        let _ = stdout.flush();
+
+        // Now run the original panic handler to print the message
+        original_hook(panic_info);
+    }));
 }
 
 impl ChromaCat {
@@ -245,6 +277,9 @@ impl ChromaCat {
 
     /// Sets up the terminal for rendering
     fn setup_terminal(&mut self) -> Result<()> {
+        // Install panic hook to restore terminal on panic
+        install_panic_hook();
+
         // Get terminal size
         if Self::is_test() {
             // Use fixed size for tests
@@ -276,6 +311,7 @@ impl ChromaCat {
             match enable_raw_mode() {
                 Ok(()) => {
                     self.raw_mode = true;
+                    TERMINAL_IN_RAW_MODE.store(true, Ordering::SeqCst);
 
                     // Now try alternate screen - ratatui NEEDS this
                     let mut stdout = stdout();
@@ -287,6 +323,7 @@ impl ChromaCat {
                         // Disable raw mode since we can't use it
                         let _ = disable_raw_mode();
                         self.raw_mode = false;
+                        TERMINAL_IN_RAW_MODE.store(false, Ordering::SeqCst);
 
                         return Err(ChromaCatError::Other(
                             "Playground mode requires terminal features that are not available. \
@@ -296,6 +333,7 @@ impl ChromaCat {
                     }
 
                     self.alternate_screen = true;
+                    TERMINAL_IN_ALTERNATE_SCREEN.store(true, Ordering::SeqCst);
                 }
                 Err(e) => {
                     return Err(ChromaCatError::Other(format!(
@@ -316,12 +354,14 @@ impl ChromaCat {
         if self.alternate_screen {
             crossterm::execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen)?;
             self.alternate_screen = false;
+            TERMINAL_IN_ALTERNATE_SCREEN.store(false, Ordering::SeqCst);
         }
 
         if self.raw_mode {
             disable_raw_mode()
                 .map_err(|e| ChromaCatError::Other(format!("Failed to disable raw mode: {e}")))?;
             self.raw_mode = false;
+            TERMINAL_IN_RAW_MODE.store(false, Ordering::SeqCst);
         }
 
         stdout.flush()?;

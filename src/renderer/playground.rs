@@ -195,14 +195,18 @@ impl PlaygroundUI {
         term.draw(|f| {
             let size = f.area();
 
-            // First render the pattern as background with blending
-            let pattern_widget = PatternWidget::with_blending(
-                content,
-                engine,
-                blend_engine,
-                transition_effect,
-                time,
-            );
+            // First render the pattern as background with blending (only if transitioning)
+            let pattern_widget = if blend_engine.is_transitioning() {
+                PatternWidget::with_blending(
+                    content,
+                    engine,
+                    blend_engine,
+                    transition_effect,
+                    time,
+                )
+            } else {
+                PatternWidget::new(content, engine, time)
+            };
             f.render_widget(pattern_widget, size);
 
             // Then render overlay on top if visible

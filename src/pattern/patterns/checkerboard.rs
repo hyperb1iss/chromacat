@@ -267,7 +267,8 @@ impl super::Patterns {
         let y_scaled = y_moved * final_scale;
 
         // Pre-calculate rotation values with more dynamic rotation
-        let base_rotation = params.rotation + time * 45.0;
+        // Use modulo to keep rotation bounded (full rotation every 8 time units)
+        let base_rotation = params.rotation + (time * 45.0) % 360.0;
         let wave_rotation = self.utils.fast_sin(time * params.wave_speed * PI) * 30.0;
         let total_rotation = (base_rotation + wave_rotation) * (PI / 180.0);
 
