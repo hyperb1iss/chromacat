@@ -535,11 +535,6 @@ impl RenderBuffer {
                 .resize(new_capacity, vec![BufferCell::default(); width]);
         }
     }
-
-    // Add this as a thread_local to avoid repeated allocations
-    thread_local! {
-        static LINE_BUFFER: std::cell::RefCell<String> = std::cell::RefCell::new(String::with_capacity(512));
-    }
 }
 
 impl Default for RenderBuffer {
