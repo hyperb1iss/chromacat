@@ -259,9 +259,9 @@ impl PlaygroundUI {
                 Self::render_overlay_static(f, size, data);
             }
 
-            // Render toast if present
+            // Render toast if present (positioned based on overlay visibility)
             if let Some((ref text, _)) = toast_message {
-                Self::render_toast_static(f, size, text);
+                Self::render_toast_static(f, size, text, overlay_visible);
             }
 
             // Render help modal if visible (on top of everything except status bar)
@@ -470,10 +470,21 @@ impl PlaygroundUI {
     }
 
     /// Render toast message (static version)
-    fn render_toast_static(f: &mut ratatui::Frame, size: Rect, text: &str) {
+    /// When overlay is visible, position toast just above it for better visibility
+    fn render_toast_static(f: &mut ratatui::Frame, size: Rect, text: &str, overlay_visible: bool) {
+        // Calculate y position based on overlay visibility
+        let y = if overlay_visible {
+            // Position just above the overlay (which takes bottom 1/4 of screen)
+            let panel_height = (size.height / 4).clamp(10, 20);
+            size.height.saturating_sub(panel_height + 4)
+        } else {
+            // Position near top when no overlay
+            2
+        };
+
         let toast_rect = Rect {
             x: (size.width / 2).saturating_sub(text.len() as u16 / 2),
-            y: 2,
+            y,
             width: text.len() as u16 + 4,
             height: 3,
         };
