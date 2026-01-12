@@ -10,6 +10,7 @@ define_param!(num Aurora, WavinessParam, "waviness", "Intensity of wave-like dis
 define_param!(num Aurora, LayersParam, "layers", "Number of overlapping aurora curtains", 1.0, 5.0, 3.0);
 define_param!(num Aurora, HeightParam, "height", "Vertical thickness of aurora bands", 0.1, 1.0, 0.5);
 define_param!(num Aurora, SpreadParam, "spread", "Vertical spacing between bands", 0.1, 1.0, 0.3);
+define_param!(num Aurora, DepthDimParam, "depth_dim", "Dimming based on vertical position (distance effect)", 0.0, 1.0, 0.0);
 
 /// Configuration parameters for the Aurora Borealis effect
 #[derive(Debug, Clone)]
@@ -26,6 +27,8 @@ pub struct AuroraParams {
     pub height: f64,
     /// Controls vertical spacing between bands (0.1-1.0)
     pub spread: f64,
+    /// Dimming based on vertical position (0.0-1.0)
+    pub depth_dim: f64,
 }
 
 impl AuroraParams {
@@ -35,6 +38,7 @@ impl AuroraParams {
     const LAYERS_PARAM: AuroraLayersParam = AuroraLayersParam;
     const HEIGHT_PARAM: AuroraHeightParam = AuroraHeightParam;
     const SPREAD_PARAM: AuroraSpreadParam = AuroraSpreadParam;
+    const DEPTH_DIM_PARAM: AuroraDepthDimParam = AuroraDepthDimParam;
 }
 
 impl Default for AuroraParams {
@@ -46,6 +50,7 @@ impl Default for AuroraParams {
             layers: 3,
             height: 0.5,
             spread: 0.3,
+            depth_dim: 0.0,
         }
     }
 }
@@ -57,7 +62,8 @@ define_param!(validate AuroraParams,
     WAVINESS_PARAM: AuroraWavinessParam,
     LAYERS_PARAM: AuroraLayersParam,
     HEIGHT_PARAM: AuroraHeightParam,
-    SPREAD_PARAM: AuroraSpreadParam
+    SPREAD_PARAM: AuroraSpreadParam,
+    DEPTH_DIM_PARAM: AuroraDepthDimParam
 );
 
 impl PatternParam for AuroraParams {
@@ -75,8 +81,8 @@ impl PatternParam for AuroraParams {
 
     fn default_value(&self) -> String {
         format!(
-            "intensity={},speed={},waviness={},layers={},height={},spread={}",
-            self.intensity, self.speed, self.waviness, self.layers, self.height, self.spread
+            "intensity={},speed={},waviness={},layers={},height={},spread={},depth_dim={}",
+            self.intensity, self.speed, self.waviness, self.layers, self.height, self.spread, self.depth_dim
         )
     }
 
@@ -118,6 +124,10 @@ impl PatternParam for AuroraParams {
                     Self::SPREAD_PARAM.validate(kv[1])?;
                     params.spread = kv[1].parse().unwrap();
                 }
+                "depth_dim" => {
+                    Self::DEPTH_DIM_PARAM.validate(kv[1])?;
+                    params.depth_dim = kv[1].parse().unwrap();
+                }
                 invalid_param => {
                     return Err(format!("Invalid parameter name: {invalid_param}"));
                 }
@@ -135,6 +145,7 @@ impl PatternParam for AuroraParams {
             Box::new(Self::LAYERS_PARAM),
             Box::new(Self::HEIGHT_PARAM),
             Box::new(Self::SPREAD_PARAM),
+            Box::new(Self::DEPTH_DIM_PARAM),
         ]
     }
 
@@ -284,7 +295,15 @@ impl super::Patterns {
         if max_value > 0.0 {
             let base_result = (total_value / max_value) * params.intensity;
             let contrast = 1.2 + base_cos_time * 0.1;
-            (0.5 + (base_result - 0.5) * contrast).clamp(0.0, 1.0)
+            let result = (0.5 + (base_result - 0.5) * contrast).clamp(0.0, 1.0);
+
+            // Apply depth dimming - higher y_pos (top of screen) appears more distant
+            if params.depth_dim > 0.0 {
+                let depth_factor = 1.0 - (y_pos * params.depth_dim);
+                (result * depth_factor).clamp(0.0, 1.0)
+            } else {
+                result
+            }
         } else {
             0.0
         }
