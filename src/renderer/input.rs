@@ -125,10 +125,14 @@ impl PlaygroundInputHandler {
                 }
             }
 
-            // Add arrow key navigation between columns
+            // Arrow key navigation between columns (with wrap-around)
             KeyCode::Left => {
-                if ui.overlay_visible && ui.active_section > 0 {
-                    ui.active_section -= 1;
+                if ui.overlay_visible {
+                    ui.active_section = if ui.active_section == 0 {
+                        3 // Wrap to last section
+                    } else {
+                        ui.active_section - 1
+                    };
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
@@ -136,8 +140,12 @@ impl PlaygroundInputHandler {
             }
 
             KeyCode::Right => {
-                if ui.overlay_visible && ui.active_section < 3 {
-                    ui.active_section += 1;
+                if ui.overlay_visible {
+                    ui.active_section = if ui.active_section >= 3 {
+                        0 // Wrap to first section
+                    } else {
+                        ui.active_section + 1
+                    };
                     Ok(InputAction::Redraw)
                 } else {
                     Ok(InputAction::None)
