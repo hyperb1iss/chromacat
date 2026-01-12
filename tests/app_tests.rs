@@ -48,6 +48,7 @@ fn test_chromacat_basic() {
         art: None,
         list_art: false,
         no_playground: true,
+        playground: false,
         debug: false,
     };
 
@@ -81,6 +82,7 @@ fn test_chromacat_invalid_angle() {
         art: None,
         list_art: false,
         no_playground: true,
+        playground: false,
         debug: false,
     };
 
@@ -144,6 +146,7 @@ fn test_chromacat_pattern_params() {
             art: None,
             list_art: false,
             no_playground: true,
+            playground: false,
             debug: false,
         };
 
@@ -178,6 +181,7 @@ fn test_chromacat_animation_settings() {
         art: None,
         list_art: false,
         no_playground: true,
+        playground: false,
         debug: false,
     };
 
@@ -212,6 +216,7 @@ fn test_streaming_mode() {
         art: None,
         list_art: false,
         no_playground: true,
+        playground: false,
         debug: false,
     };
 
@@ -246,6 +251,7 @@ fn test_playground_mode_disabled_in_tests() {
         art: Some("matrix".to_string()),
         list_art: false,
         no_playground: false, // Even though this is false, test env should disable playground
+        playground: false,
         debug: false,
     };
 

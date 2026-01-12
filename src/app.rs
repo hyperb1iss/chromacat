@@ -288,12 +288,32 @@ impl ChromaCat {
 
     /// Returns true if playground mode should be used
     ///
-    /// Playground is the default mode unless:
+    /// Playground is enabled when:
+    /// - Explicitly requested via --playground (forces playground even with piped input)
+    /// - Default behavior (not disabled, not test, interactive terminal)
+    ///
+    /// Playground is disabled when:
     /// - Explicitly disabled via --no-playground
     /// - Running in test environment (unless CHROMACAT_TEST_PLAYGROUND is set)
+    /// - Piped input without --playground flag
     fn should_use_playground(&self) -> bool {
-        !self.cli.no_playground
-            && (!Self::is_test() || std::env::var("CHROMACAT_TEST_PLAYGROUND").is_ok())
+        // Explicit --playground flag forces playground mode
+        if self.cli.playground {
+            return true;
+        }
+
+        // Explicit --no-playground disables
+        if self.cli.no_playground {
+            return false;
+        }
+
+        // Test environment check
+        if Self::is_test() && std::env::var("CHROMACAT_TEST_PLAYGROUND").is_err() {
+            return false;
+        }
+
+        // Default: playground only for interactive terminals (no piped stdin)
+        atty::is(atty::Stream::Stdin)
     }
 
     /// Determines the operating mode based on input sources and flags

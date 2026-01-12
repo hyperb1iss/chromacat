@@ -39,11 +39,13 @@ use std::time::Duration;
   \x1b[38;5;117mStreaming Mode\x1b[0m (piped stdin)
     - Processes input line-by-line as it arrives
     - Use: tail -f log.txt | chromacat --no-playground
+    - Add --playground to get interactive overlay with piped input
 
 \x1b[1;38;5;219mExamples:\x1b[0m
   chromacat                           # Launch playground with demo art
   chromacat file.txt -t ocean         # Colorize file with ocean theme
   ls -la | chromacat -p plasma        # Colorize command output
+  cat file.txt | chromacat --playground  # Piped input with interactive overlay
   tail -f app.log | chromacat         # Stream colorized logs",
     styles = clap::builder::Styles::styled()
         .header(anstyle::AnsiColor::BrightMagenta.on_default())
@@ -198,10 +200,21 @@ pub struct Cli {
     #[arg(
         long = "no-playground",
         env = "CHROMACAT_NO_PLAYGROUND",
+        conflicts_with = "playground",
         help_heading = CliFormat::HEADING_GENERAL,
         help = CliFormat::highlight_description("Disable playground UI for simple output")
     )]
     pub no_playground: bool,
+
+    /// Force playground UI mode even with piped input
+    #[arg(
+        long = "playground",
+        env = "CHROMACAT_PLAYGROUND",
+        conflicts_with = "no_playground",
+        help_heading = CliFormat::HEADING_GENERAL,
+        help = CliFormat::highlight_description("Force playground UI with piped input")
+    )]
+    pub playground: bool,
 
     /// Enable debug logging to /tmp/chromacat_debug.log
     #[arg(
