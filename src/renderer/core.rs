@@ -35,15 +35,6 @@ pub struct Renderer {
     /// Playground UI manager
     playground: PlaygroundUI,
 
-    /// Available patterns
-    _available_patterns: Vec<String>,
-
-    /// Available themes
-    _available_themes: Vec<String>,
-
-    /// Available demo arts
-    _available_arts: Vec<String>,
-
     /// Automix system for seamless transitions
     automix: Automix,
 }
@@ -118,9 +109,6 @@ impl Renderer {
             transition_effect: TransitionEffect::Crossfade,
             content,
             playground,
-            _available_patterns: available_patterns,
-            _available_themes: available_themes,
-            _available_arts: available_arts,
             automix,
         })
     }
