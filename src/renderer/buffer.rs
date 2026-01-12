@@ -102,6 +102,9 @@ impl RenderBuffer {
             (text.len() / max_width) + text.chars().filter(|&c| c == '\n').count() + 1;
         self.ensure_buffer_capacity(estimated_lines);
 
+        // Reusable buffer for preprocessed grapheme data: (first_char, display_width, is_break_point)
+        let mut grapheme_data: Vec<(char, usize, bool)> = Vec::with_capacity(max_width * 2);
+
         // Process each line with efficient wrapping
         for input_line in text.split('\n') {
             if input_line.is_empty() {
@@ -128,12 +131,18 @@ impl RenderBuffer {
             let mut last_break = None;
             let mut segment_start = 0;
 
-            let graphemes: Vec<_> = input_line.graphemes(true).collect();
+            // Preprocess graphemes into reusable buffer
+            grapheme_data.clear();
+            for grapheme in input_line.graphemes(true) {
+                let ch = grapheme.chars().next().unwrap_or(' ');
+                let width = grapheme.width();
+                let is_break = grapheme.chars().all(char::is_whitespace);
+                grapheme_data.push((ch, width, is_break));
+            }
             let mut i = 0;
 
-            while i < graphemes.len() {
-                let grapheme = &graphemes[i];
-                let width = grapheme.width();
+            while i < grapheme_data.len() {
+                let (ch, width, is_break) = grapheme_data[i];
 
                 // Handle line wrapping
                 if line_width + width > max_width {
@@ -167,22 +176,20 @@ impl RenderBuffer {
                 }
 
                 // Store character in back buffer
-                if let Some(ch) = grapheme.chars().next() {
-                    let y = buffer_pos;
-                    let x = line_width;
+                let y = buffer_pos;
+                let x = line_width;
 
-                    // Grow buffer if needed
-                    while y >= self.back.len() {
-                        self.back.push(vec![BufferCell::default(); max_width]);
-                        self.front.push(vec![BufferCell::default(); max_width]);
-                    }
-
-                    self.back[y][x].ch = ch;
-                    self.back[y][x].dirty = true;
+                // Grow buffer if needed
+                while y >= self.back.len() {
+                    self.back.push(vec![BufferCell::default(); max_width]);
+                    self.front.push(vec![BufferCell::default(); max_width]);
                 }
 
+                self.back[y][x].ch = ch;
+                self.back[y][x].dirty = true;
+
                 // Update tracking
-                if grapheme.chars().all(char::is_whitespace) {
+                if is_break {
                     last_break = Some(i);
                 }
                 line_width += width;
