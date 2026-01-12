@@ -179,10 +179,11 @@ impl PlaygroundInputHandler {
             }
 
             // Quick pattern/theme cycle
+            // Note: Don't update selection here - apply_* functions handle
+            // selection sync to prevent drift if the apply fails
             KeyCode::Char('p') | KeyCode::Char('P') => {
                 // Cycle to next pattern
                 let next = (ui.pattern_sel + 1) % ui.pattern_names.len().max(1);
-                ui.pattern_sel = next;
                 if let Some(pattern) = ui.pattern_names.get(next) {
                     return Ok(InputAction::ApplyPattern(pattern.clone()));
                 }
@@ -192,7 +193,6 @@ impl PlaygroundInputHandler {
             KeyCode::Char('t') | KeyCode::Char('T') => {
                 // Cycle to next theme
                 let next = (ui.theme_sel + 1) % ui.theme_names.len().max(1);
-                ui.theme_sel = next;
                 if let Some(theme) = ui.theme_names.get(next) {
                     return Ok(InputAction::ApplyTheme(theme.clone()));
                 }
@@ -207,7 +207,6 @@ impl PlaygroundInputHandler {
                 } else {
                     ui.theme_sel - 1
                 };
-                ui.theme_sel = prev;
                 if let Some(theme) = ui.theme_names.get(prev) {
                     return Ok(InputAction::ApplyTheme(theme.clone()));
                 }
