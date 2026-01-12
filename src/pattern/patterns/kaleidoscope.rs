@@ -235,15 +235,22 @@ impl super::Patterns {
         let ring_phase = distance * 6.0 * complexity - base_time;
         value += self.utils.fast_sin(ring_phase) * 0.4;
 
-        // Add geometric hexagonal grid pattern
+        // Add geometric hexagonal grid pattern with proper hex symmetry
+        // Uses three directions 120° apart for true hexagonal geometry
         let geo_scale = complexity * 2.0;
         let geo_time = base_time * 0.5;
 
         let hex_coords = {
-            let hx = x * geo_scale * 1.732 + geo_time;
-            let hy = y * geo_scale * 2.0 + geo_time;
-            let hz = (hx - hy * 0.577) + geo_time;
-            (self.utils.fast_sin(hx) * self.utils.fast_sin(hz) * self.utils.fast_sin(hy * 1.155))
+            // Three directions at 120° intervals for hex symmetry
+            const SQRT3_2: f64 = 0.866025404; // sqrt(3)/2
+            let d1 = x * geo_scale;
+            let d2 = (-0.5 * x + SQRT3_2 * y) * geo_scale;
+            let d3 = (-0.5 * x - SQRT3_2 * y) * geo_scale;
+
+            // Multiply sine waves at each hex direction
+            (self.utils.fast_sin(d1 + geo_time)
+                * self.utils.fast_sin(d2 + geo_time * 0.8)
+                * self.utils.fast_sin(d3 + geo_time * 1.2))
                 * 0.3
         };
         value += hex_coords;
