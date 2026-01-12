@@ -380,6 +380,9 @@ impl RenderBuffer {
     ) -> Result<(), RendererError> {
         let width = self.term_size.0 as usize;
 
+        // Reusable line buffer - allocated once, cleared per line
+        let mut line_buffer = String::with_capacity(width * 4);
+
         if is_animated {
             // Animation mode: Use cursor movement and selective updates
             queue!(stdout, Hide)?;
@@ -399,8 +402,8 @@ impl RenderBuffer {
                 // Move cursor only when we need to update
                 queue!(stdout, MoveTo(0, display_y as u16))?;
 
-                // Build line content
-                let mut line_buffer = String::with_capacity(width * 4);
+                // Clear and reuse line buffer
+                line_buffer.clear();
 
                 // Always process the full width for consistent display
                 for x in 0..width {
@@ -434,12 +437,13 @@ impl RenderBuffer {
         } else {
             // Static mode: Simple line-by-line output
             let mut needs_color_reset = false;
+            let mut last_color = None;
 
             for line_idx in start..end.min(self.line_info.len()) {
                 let (line_start, line_len) = self.line_info[line_idx];
 
-                let mut line_buffer = String::with_capacity(width * 4);
-                let mut last_color = None;
+                // Clear and reuse line buffer
+                line_buffer.clear();
 
                 for x in 0..line_len.min(width) {
                     let back_cell = &self.back[line_start][x];
