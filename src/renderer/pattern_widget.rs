@@ -137,20 +137,21 @@ impl<'a> Widget for PatternWidget<'a> {
                 // Get color from pattern engine or blend engine
                 let color = if let Some(blend_engine) = self.blend_engine {
                     if blend_engine.is_transitioning() {
-                        // Apply transition effect to the blend
+                        // Apply transition effect to get per-pixel spatial wipe factor
                         let base_blend = blend_engine.blend_factor();
                         let effect_blend = self
                             .transition_effect
-                            .apply(norm_x, norm_y, self.time, base_blend);
+                            .apply(norm_x + 0.5, norm_y + 0.5, self.time, base_blend);
 
-                        // Get blended pattern value
-                        let value = blend_engine.get_blended_value(norm_x, norm_y);
+                        // Get SEPARATE source and target pattern values
+                        let source_value = blend_engine.get_source_value(norm_x, norm_y);
+                        let target_value = blend_engine.get_target_value(norm_x, norm_y);
 
-                        // Get source and target colors for smooth interpolation
-                        let source_color = self.engine.gradient().at(value as f32);
-                        let target_color = blend_engine.get_blended_color(value as f32);
+                        // Get colors from their respective gradients
+                        let (source_color, target_color) = blend_engine
+                            .get_source_target_colors(source_value as f32, target_value as f32);
 
-                        // Gamma-correct interpolation for perceptually accurate blending
+                        // Gamma-correct interpolation using the spatial wipe factor
                         let color_value =
                             lerp_colors_gamma_correct(source_color, target_color, effect_blend);
 

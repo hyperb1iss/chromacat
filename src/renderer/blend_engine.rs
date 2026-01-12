@@ -259,6 +259,40 @@ impl BlendEngine {
         }
     }
 
+    /// Get source and target colors separately for spatial wipe effects
+    /// Returns (source_color, target_color) at the given pattern value
+    pub fn get_source_target_colors(&self, source_value: f32, target_value: f32) -> (Color, Color) {
+        let source_color = self
+            .source_gradient
+            .as_ref()
+            .map(|g| g.at(source_value))
+            .unwrap_or_else(|| Color::from_rgba8(0, 0, 0, 255));
+
+        let target_color = self
+            .target_gradient
+            .as_ref()
+            .map(|g| g.at(target_value))
+            .unwrap_or_else(|| Color::from_rgba8(0, 0, 0, 255));
+
+        (source_color, target_color)
+    }
+
+    /// Get source pattern value at normalized coordinates
+    pub fn get_source_value(&self, x: f64, y: f64) -> f64 {
+        self.source_engine
+            .as_ref()
+            .and_then(|e| e.get_value_at_normalized(x, y).ok())
+            .unwrap_or(0.0)
+    }
+
+    /// Get target pattern value at normalized coordinates
+    pub fn get_target_value(&self, x: f64, y: f64) -> f64 {
+        self.target_engine
+            .as_ref()
+            .and_then(|e| e.get_value_at_normalized(x, y).ok())
+            .unwrap_or(0.0)
+    }
+
     /// Check if currently transitioning
     pub fn is_transitioning(&self) -> bool {
         self.transitioning
@@ -384,85 +418,128 @@ pub enum TransitionEffect {
 
 impl TransitionEffect {
     /// Apply transition effect to blend calculation
+    /// Returns a per-pixel blend factor based on position and time
     pub fn apply(&self, x: f64, y: f64, time: f64, base_blend: f32) -> f32 {
+        // Apply easing to base_blend for smoother overall timing
+        let eased_blend = ease_in_out_cubic(base_blend);
+
         match self {
-            Self::Crossfade => base_blend,
+            Self::Crossfade => eased_blend,
 
             Self::Ripple => {
-                // Ripple from center
+                // Expanding ripple from center with soft edge
                 let cx = 0.5;
                 let cy = 0.5;
                 let dist = ((x - cx).powi(2) + (y - cy).powi(2)).sqrt();
-                let ripple_progress = base_blend as f64 * 2.0; // Expand ripple faster
+                let max_dist = 0.8; // Maximum distance to cover
+                let ripple_progress = eased_blend as f64 * max_dist * 1.3;
+                let edge_width = 0.15; // Softer, wider edge
 
-                if dist < ripple_progress {
+                if dist < ripple_progress - edge_width {
                     1.0
-                } else if dist < ripple_progress + 0.1 {
-                    // Smooth edge
-                    ((ripple_progress + 0.1 - dist) / 0.1).clamp(0.0, 1.0) as f32
+                } else if dist < ripple_progress + edge_width {
+                    // Smooth falloff using smoothstep
+                    let t = (ripple_progress + edge_width - dist) / (edge_width * 2.0);
+                    smoothstep(t as f32)
                 } else {
                     0.0
                 }
             }
 
             Self::Spiral => {
-                // Spiral wipe
+                // Dramatic spiral wipe with multiple arms
                 let cx = 0.5;
                 let cy = 0.5;
-                let angle = (y - cy).atan2(x - cx);
-                let dist = ((x - cx).powi(2) + (y - cy).powi(2)).sqrt();
-                let spiral_angle = angle + dist * 10.0 - time * 2.0;
-                let spiral_progress = (spiral_angle.sin() * 0.5 + 0.5) as f32;
+                let dx = x - cx;
+                let dy = y - cy;
+                let angle = dy.atan2(dx);
+                let dist = (dx * dx + dy * dy).sqrt();
 
-                (base_blend * 2.0 - (1.0 - spiral_progress)).clamp(0.0, 1.0)
+                // Spiral with distance-based rotation
+                let spiral_arms = 3.0;
+                let spiral_angle = angle * spiral_arms + dist * 8.0 - time * 3.0;
+                let spiral_wave = (spiral_angle.sin() * 0.5 + 0.5) as f32;
+
+                // Combine spiral with radial progress
+                let radial_progress = (eased_blend * 1.4 - 0.2).clamp(0.0, 1.0);
+                let combined = spiral_wave * 0.4 + radial_progress * 0.6;
+
+                ((eased_blend * 2.0 - (1.0 - combined)) * 1.5).clamp(0.0, 1.0)
             }
 
             Self::Wave => {
-                // Wave sweep from left to right
-                let wave_pos = base_blend as f64 * 1.2 - 0.1;
-                let wave_width = 0.2;
+                // Dramatic diagonal wave sweep with ripple
+                let wave_progress = eased_blend as f64 * 1.4 - 0.2;
+                let wave_width = 0.12;
 
-                if x < wave_pos - wave_width {
+                // Diagonal sweep (top-left to bottom-right)
+                let diag = (x + y) * 0.5;
+                // Add sine wave distortion for organic feel
+                let wave_distort = (y * 8.0 + time * 4.0).sin() * 0.03;
+                let wave_pos = wave_progress + wave_distort;
+
+                if diag < wave_pos - wave_width {
                     1.0
-                } else if x > wave_pos + wave_width {
+                } else if diag > wave_pos + wave_width {
                     0.0
                 } else {
-                    let wave_blend = (x - (wave_pos - wave_width)) / (wave_width * 2.0);
-                    (1.0 - wave_blend).clamp(0.0, 1.0) as f32
+                    let t = (wave_pos + wave_width - diag) / (wave_width * 2.0);
+                    smoothstep(t as f32)
                 }
             }
 
             Self::Pixelate => {
-                // Pixelate transition
-                let pixel_size = 0.05 * (1.0 - base_blend as f64) + 0.001;
-                let px = (x / pixel_size).floor() * pixel_size;
-                let py = (y / pixel_size).floor() * pixel_size;
+                // Dissolve effect with varying block sizes
+                let phase = eased_blend;
+                // Block size shrinks as transition progresses
+                let block_size = 0.08 * (1.0 - phase as f64 * 0.7) + 0.01;
+                let bx = (x / block_size).floor();
+                let by = (y / block_size).floor();
 
-                // Use pixel position for threshold
-                let threshold = ((px * 31.0 + py * 17.0) % 1.0) as f32;
-                if base_blend > threshold {
+                // Pseudo-random threshold per block
+                let hash = ((bx * 127.1 + by * 311.7).sin() * 43758.5453).fract();
+                let threshold = hash as f32;
+
+                // Smooth transition at threshold boundary
+                let diff = phase - threshold;
+                if diff > 0.1 {
                     1.0
+                } else if diff > -0.1 {
+                    smoothstep(((diff + 0.1) / 0.2) as f32)
                 } else {
                     0.0
                 }
             }
 
             Self::Kaleidoscope => {
-                // Rotating kaleidoscope effect
+                // Rotating kaleidoscope segments that fill in
                 let cx = 0.5;
                 let cy = 0.5;
-                let angle = (y - cy).atan2(x - cx) + time;
-                let segments = 8.0;
-                let segment_angle = (angle * segments / (2.0 * std::f64::consts::PI)) % 1.0;
+                let dx = x - cx;
+                let dy = y - cy;
+                let angle = dy.atan2(dx) + time * 0.5;
+                let dist = (dx * dx + dy * dy).sqrt();
 
-                if segment_angle < base_blend as f64 {
-                    1.0
-                } else {
-                    0.0
-                }
+                let segments = 6.0;
+                let segment_angle =
+                    ((angle * segments / std::f64::consts::TAU).rem_euclid(1.0)) as f32;
+
+                // Each segment fills based on distance from center
+                let fill_progress = eased_blend * 1.2;
+                let segment_fill = (fill_progress - segment_angle * 0.3).clamp(0.0, 1.0);
+                let radial_fill = ((fill_progress - dist as f32 * 0.5) * 2.0).clamp(0.0, 1.0);
+
+                (segment_fill * 0.5 + radial_fill * 0.5).clamp(0.0, 1.0)
             }
         }
     }
+}
+
+/// Attempt at smoothstep for nicer wipe edges
+#[inline]
+fn smoothstep(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// Easing function for smooth transitions
