@@ -4,21 +4,35 @@ use std::any::Any;
 
 // Define the parameter with proper CLI name
 define_param!(bool Horizontal, InvertParam, "invert", "Invert gradient direction", false);
+define_param!(num Horizontal, FrequencyParam, "frequency", "Number of gradient cycles across width", 0.1, 10.0, 1.0);
 
 /// Parameters for configuring horizontal gradient pattern
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct HorizontalParams {
     /// Invert the gradient direction (false = left to right, true = right to left)
     pub invert: bool,
+    /// Number of gradient cycles across width (0.1-10.0)
+    pub frequency: f64,
+}
+
+impl Default for HorizontalParams {
+    fn default() -> Self {
+        Self {
+            invert: false,
+            frequency: 1.0,
+        }
+    }
 }
 
 impl HorizontalParams {
     const INVERT_PARAM: HorizontalInvertParam = HorizontalInvertParam;
+    const FREQUENCY_PARAM: HorizontalFrequencyParam = HorizontalFrequencyParam;
 }
 
 // Use the validate macro to implement validation
 define_param!(validate HorizontalParams,
-    INVERT_PARAM: HorizontalInvertParam
+    INVERT_PARAM: HorizontalInvertParam,
+    FREQUENCY_PARAM: HorizontalFrequencyParam
 );
 
 impl PatternParam for HorizontalParams {
@@ -35,7 +49,7 @@ impl PatternParam for HorizontalParams {
     }
 
     fn default_value(&self) -> String {
-        format!("invert={}", self.invert)
+        format!("invert={},frequency={}", self.invert, self.frequency)
     }
 
     fn validate(&self, value: &str) -> Result<(), String> {
@@ -56,6 +70,10 @@ impl PatternParam for HorizontalParams {
                     Self::INVERT_PARAM.validate(kv[1])?;
                     params.invert = kv[1].parse().unwrap();
                 }
+                "frequency" => {
+                    Self::FREQUENCY_PARAM.validate(kv[1])?;
+                    params.frequency = kv[1].parse().unwrap();
+                }
                 invalid_param => {
                     return Err(format!("Invalid parameter name: {invalid_param}"));
                 }
@@ -66,7 +84,10 @@ impl PatternParam for HorizontalParams {
     }
 
     fn sub_params(&self) -> Vec<Box<dyn PatternParam>> {
-        vec![Box::new(Self::INVERT_PARAM)]
+        vec![
+            Box::new(Self::INVERT_PARAM),
+            Box::new(Self::FREQUENCY_PARAM),
+        ]
     }
 
     fn clone_param(&self) -> Box<dyn PatternParam> {
@@ -85,8 +106,8 @@ impl super::Patterns {
         // Pre-calculate animation offset
         let time_offset = self.time * 0.5;
 
-        // Combine position and time in one operation
-        let mut value = x_pos + time_offset;
+        // Apply frequency scaling and time in one operation
+        let mut value = x_pos * params.frequency + time_offset;
 
         // Fast modulo using floor
         value -= value.floor();

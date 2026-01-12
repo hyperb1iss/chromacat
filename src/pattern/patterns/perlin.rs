@@ -134,9 +134,11 @@ impl super::Patterns {
         let mut amplitude = 1.0;
         let mut max_value = 0.0;
 
-        // Pre-calculate base coordinates
-        let x_base = x_norm + 0.5;
-        let y_base = y_norm + 0.5;
+        // Pre-calculate base coordinates with seed offset
+        // Seed creates a unique region of noise space
+        let seed_offset = params.seed as f64 * 1000.0;
+        let x_base = x_norm + 0.5 + seed_offset;
+        let y_base = y_norm + 0.5 + seed_offset * 0.7; // Offset y differently to avoid diagonal correlation
         // Use time as the third dimension for smooth temporal evolution
         // Scale time slower than spatial dimensions for pleasing animation
         let time_z = self.time * 0.3;
