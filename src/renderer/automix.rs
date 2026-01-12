@@ -413,6 +413,22 @@ impl Automix {
         duration: Duration,
         transition_type: TransitionType,
     ) {
+        // Complete any in-progress transition before starting a new one
+        // This prevents race conditions where target values get overwritten
+        if self.transition.is_some() {
+            // Snap current transition to completion
+            if let Some(p) = self.target_pattern.take() {
+                self.current_pattern = p;
+            }
+            if let Some(t) = self.target_theme.take() {
+                self.current_theme = t;
+            }
+            if let Some(a) = self.target_art.take() {
+                self.current_art = Some(a);
+            }
+            self.transition = None;
+        }
+
         self.target_pattern = pattern.clone();
         self.target_theme = theme.clone();
         self.target_art = art.clone();
