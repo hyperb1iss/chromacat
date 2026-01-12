@@ -223,20 +223,33 @@ impl super::Patterns {
             }
         }
 
-        // Optimize glitch effects
+        // Coherent glitch effects with spatial and temporal coherence
         if params.glitch && value > 0.1 {
             let glitch_time = base_time * params.glitch_freq;
-            if (glitch_time * 20.0).floor() as i32 % (3 + (column_hash * 4.0) as i32) == 0
-                && secondary_hash > 0.7
-            {
-                value += self.utils.fast_sin(glitch_time + column_hash * PI * 4.0) * 0.3 * value;
+
+            // Block-based glitching - groups of columns glitch together
+            let block_index = column_index / 6; // Groups of 6 columns
+            let block_hash = self.utils.hash(block_index, 0) as f64 / 255.0;
+            let glitch_phase = (glitch_time * 3.0 + block_hash * 10.0).floor();
+
+            // Temporal coherence: glitches persist for ~0.3s windows
+            if (glitch_phase as i32) % 5 == 0 && block_hash > 0.6 {
+                let intensity = self.utils.fast_sin(glitch_time * 8.0 + block_hash * PI * 2.0);
+                value += intensity.abs() * 0.25 * value;
             }
 
-            // Simplified bright flash calculation
-            if column_hash > 0.95
-                && secondary_hash > 0.98
-                && ((base_time * 5.0).floor() as i32 & 1) == 0
-            {
+            // Horizontal glitch bands - rows that flicker together
+            let band_y = (y_pos * 20.0 + glitch_time * 2.0).floor();
+            let band_hash = self.utils.hash(band_y as i32, 1) as f64 / 255.0;
+            if band_hash > 0.92 && secondary_hash > 0.5 {
+                value = (value + 0.3).min(1.0);
+            }
+
+            // Coherent bright flash affecting multiple adjacent columns
+            let flash_block = column_index / 3;
+            let flash_hash = self.utils.hash(flash_block, 2) as f64 / 255.0;
+            let flash_phase = (base_time * 2.0).floor() as i32;
+            if flash_hash > 0.92 && (flash_phase % 8 == 0) {
                 value = value.max(0.95);
             }
         }
