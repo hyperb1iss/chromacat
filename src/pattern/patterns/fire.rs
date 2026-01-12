@@ -222,13 +222,17 @@ impl super::Patterns {
             }
         }
 
-        // Rest of the color mapping remains the same
-        intensity = match intensity {
-            i if i < 0.2 => i,
-            i if i < 0.4 => 0.2 + (i - 0.2) * 2.0,
-            i if i < 0.6 => 0.4 + (i - 0.4) * 2.0,
-            i if i < 0.8 => 0.6 + (i - 0.6) * 2.0,
-            i => 0.8 + (i - 0.8) * 2.0,
+        // Smooth intensity remapping - boosts mid/high values while preserving low darks
+        // Original 5-branch piecewise linear replaced with smooth curve
+        let threshold = 0.2;
+        let t = intensity.clamp(0.0, 1.0);
+        intensity = if t <= threshold {
+            t // Preserve dark values
+        } else {
+            // Ease-out curve: smoothly expands 0.2-1.0 range
+            let above = (t - threshold) / (0.8); // Map 0.2-1.0 to 0.0-1.0
+            let curved = 1.0 - (1.0 - above).powi(2); // Ease-out quadratic
+            threshold + (1.0 - threshold) * curved
         };
 
         // Add wind effect with sharper transitions
