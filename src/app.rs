@@ -343,6 +343,19 @@ impl ChromaCat {
             }
         }
 
+        // Minimum terminal size check for playground mode
+        const MIN_WIDTH: u16 = 40;
+        const MIN_HEIGHT: u16 = 10;
+        if self.should_use_playground()
+            && (self.term_size.0 < MIN_WIDTH || self.term_size.1 < MIN_HEIGHT)
+        {
+            return Err(ChromaCatError::Other(format!(
+                "Terminal too small for playground mode ({}x{}). \
+                 Minimum size is {}x{}. Try resizing or use --no-playground.",
+                self.term_size.0, self.term_size.1, MIN_WIDTH, MIN_HEIGHT
+            )));
+        }
+
         // Skip terminal setup in test environment
         if Self::is_test() {
             return Ok(());
