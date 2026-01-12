@@ -72,8 +72,9 @@ pub struct PlaygroundUI {
     /// Help visibility
     pub help_visible: bool,
 
-    /// Toast message
+    /// Toast message with expiration time (message, expires_at)
     toast_message: Option<(String, Instant)>,
+    /// Default duration for toast messages
     toast_duration: Duration,
 
     /// Terminal size for mouse handling
@@ -158,7 +159,8 @@ impl PlaygroundUI {
 
     /// Show a toast message
     pub fn show_toast(&mut self, message: impl Into<String>) {
-        self.toast_message = Some((message.into(), Instant::now()));
+        let expires_at = Instant::now() + self.toast_duration;
+        self.toast_message = Some((message.into(), expires_at));
     }
 
     /// Update selection and scroll offset for a section
@@ -203,9 +205,9 @@ impl PlaygroundUI {
     ) -> Result<(), RendererError> {
         self.ensure_terminal()?;
 
-        // Check if toast should expire
-        if let Some((_, start)) = &self.toast_message {
-            if start.elapsed() > self.toast_duration {
+        // Check if toast has expired
+        if let Some((_, expires_at)) = &self.toast_message {
+            if Instant::now() >= *expires_at {
                 self.toast_message = None;
             }
         }
